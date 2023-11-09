@@ -1,9 +1,9 @@
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
 
-namespace VulkanEngine;
+namespace VulkanEngine.Renderer;
 
-public static partial class App
+public static partial class VKRender
 {
     private static void InitWindow()
     {

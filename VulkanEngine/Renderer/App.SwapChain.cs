@@ -1,8 +1,8 @@
 using Silk.NET.Vulkan;
 
-namespace VulkanEngine;
+namespace VulkanEngine.Renderer;
 
-public static partial class App
+public static partial class VKRender
 {
     private struct SwapChainSupportDetails
     {
@@ -156,25 +156,53 @@ public static partial class App
             OldSwapchain = default
         };
 
-        if (!vk!.TryGetDeviceExtension(instance, logicalDevice, out khrSwapChain))
+        if (!vk.TryGetDeviceExtension(instance, device, out khrSwapChain))
         {
             throw new NotSupportedException("VK_KHR_swapchain extension not found.");
         }
 
-        if (khrSwapChain!.CreateSwapchain(logicalDevice, creatInfo, null, out swapChain) != Result.Success)
+        if (khrSwapChain!.CreateSwapchain(device, creatInfo, null, out swapChain) != Result.Success)
         {
             throw new Exception("failed to create swap chain!");
         }
 
-        khrSwapChain.GetSwapchainImages(logicalDevice, swapChain, ref imageCount, null);
-        swapChainImages = new Image[imageCount];
-        fixed (Image* swapChainImagesPtr = swapChainImages)
+        khrSwapChain.GetSwapchainImages(device, swapChain, ref imageCount, null);
+        swapChainImages = new Silk.NET.Vulkan.Image[imageCount];
+        fixed (Silk.NET.Vulkan.Image* swapChainImagesPtr = swapChainImages)
         {
-            khrSwapChain.GetSwapchainImages(logicalDevice, swapChain, ref imageCount, swapChainImagesPtr);
+            khrSwapChain.GetSwapchainImages(device, swapChain, ref imageCount, swapChainImagesPtr);
         }
 
         swapChainImageFormat = surfaceFormat.Format;
         swapChainExtent = extent;
     
+    }
+
+    private static void RecreateSwapChain()
+    {
+        unsafe
+        {
+            var framebufferSize = window!.FramebufferSize;
+
+            while (framebufferSize.X == 0 || framebufferSize.Y == 0)
+            {
+                framebufferSize = window.FramebufferSize;
+                window.DoEvents();
+            }
+
+            vk.DeviceWaitIdle(device);
+
+            CleanUpSwapChainStuff();
+
+            CreateSwapChain();
+            CreateSwapChainImageViews();
+            CreateRenderPass();
+            CreateGraphicsPipeline();
+            CreateFrameBuffers();
+            CreateCommandBuffers();
+
+            // fixed(Fence* fencesPtr = &inFlightFences[CurrentFrameIndex])
+            //     vk.ResetFences(device, 1, fencesPtr);
+        }
     }
 }

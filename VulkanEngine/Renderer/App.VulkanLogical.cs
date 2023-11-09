@@ -2,9 +2,9 @@ using System.Runtime.CompilerServices;
 using Silk.NET.Core.Native;
 using Silk.NET.Vulkan;
 
-namespace VulkanEngine;
+namespace VulkanEngine.Renderer;
 
-public static partial class App
+public static partial class VKRender
 {
     private static unsafe void CreateLogicalDevice()
     {
@@ -28,7 +28,10 @@ public static partial class App
             };
         }
 
-        PhysicalDeviceFeatures deviceFeatures = new();
+        PhysicalDeviceFeatures deviceFeatures = new PhysicalDeviceFeatures
+        {
+            SamplerAnisotropy = true,
+        };
 
         DeviceCreateInfo createInfo = new()
         {
@@ -51,11 +54,11 @@ public static partial class App
             createInfo.EnabledLayerCount = 0;
         }
 
-        vk!.CreateDevice(physicalDevice, in createInfo, null, out logicalDevice)
+        vk.CreateDevice(physicalDevice, in createInfo, null, out device)
             .Expect("failed to create logical device!");
 
-         vk!.GetDeviceQueue(logicalDevice, indices.graphicsFamily!.Value, 0, out graphicsQueue);
-        vk!.GetDeviceQueue(logicalDevice, indices.presentFamily!.Value, 0, out presentQueue);
+         vk.GetDeviceQueue(device, indices.graphicsFamily!.Value, 0, out graphicsQueue);
+        vk.GetDeviceQueue(device, indices.presentFamily!.Value, 0, out presentQueue);
 
         if (EnableValidationLayers)
         {
