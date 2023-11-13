@@ -27,7 +27,7 @@ public static partial class VKRender
     };
     private static readonly string[] deviceExtensions = {
         KhrSwapchain.ExtensionName,
-#if true//mac
+#if MAC
             "VK_KHR_portability_subset"
 #endif
     };

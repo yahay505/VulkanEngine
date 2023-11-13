@@ -198,9 +198,6 @@ public static partial class VKRender
             CreateSwapChainImageViews();
             
             CreateRenderPass();
-            vk.DestroyImageView(device,GlobalData.depthImageView,null);
-            vk.DestroyImage(device,GlobalData.depthImage,null);
-            vk.FreeMemory(device,GlobalData.depthImageMemory,null);
             CreateDepthResources();
             
             CreateGraphicsPipeline();

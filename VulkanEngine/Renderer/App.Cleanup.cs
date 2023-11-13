@@ -65,8 +65,10 @@ public static partial class VKRender
 
         for (int i = 0; i < FRAME_OVERLAP; i++)
         {
-            fixed(FrameData* frameData = &FrameData[i])
-                vk.FreeCommandBuffers(device,frameData->commandPool,1, &(frameData->mainCommandBuffer));
+            fixed (FrameData* frameData = &FrameData[i])
+            {
+                vk.ResetCommandPool(device,frameData->commandPool,0);
+            }
         }
 
         vk.DestroyPipeline(device, GraphicsPipeline, null);

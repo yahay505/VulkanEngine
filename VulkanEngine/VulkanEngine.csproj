@@ -6,6 +6,18 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <Configurations>Debug;Release</Configurations>
+        <Platforms>AnyCPU;Mac</Platforms>
+    </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|Mac' ">
+      <DefineConstants>TRACE;MAC</DefineConstants>
+      <PlatformTarget>Mac</PlatformTarget>
+    </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|Mac' ">
+      <DefineConstants>TRACE;MAC</DefineConstants>
+      <PlatformTarget>Mac</PlatformTarget>
     </PropertyGroup>
 
     <ItemGroup>

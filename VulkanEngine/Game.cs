@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using ImGuiNET;
 
 namespace VulkanEngine;
@@ -9,7 +10,9 @@ public static class Game
     static FPSCounter fpsCounter = new(2000);
     public static void Run()
     {
-        
+#if !MAC
+        CompileShadersWindowsTEMP();
+#endif
         VKRender.InitializeRenderer();
         Start();
         while (!VKRender.window!.IsClosing)
@@ -30,6 +33,29 @@ public static class Game
         }
         VKRender.vk.DeviceWaitIdle(VKRender.device);
         VKRender.CleanUp();
+    }
+
+    private static void CompileShadersWindowsTEMP()
+    {
+        //if env has renderdoc return early
+        if (Environment.GetEnvironmentVariable("RENDERDOCeee") != null)
+        {
+            return;
+        }
+        //glslc
+        ///Users/yavuz/VulkanSDK/1.3.261.1/macOS/bin/glslc triangle.vert -o vert.spv
+         //   /Users/yavuz/VulkanSDK/1.3.261.1/macOS/bin/glslc triangle.frag -o frag.spv
+         var processStartInfo = new ProcessStartInfo
+             (){
+                 UseShellExecute = false,
+                 FileName = "glslc",
+                 Arguments = "triangle.vert -o vert.spv",
+                 //wd = cwd/../../
+                 WorkingDirectory = System.IO.Directory.GetCurrentDirectory()+"/../../../",
+             };
+         Process.Start(processStartInfo)!.WaitForExit();
+         processStartInfo.Arguments = "triangle.frag -o frag.spv";
+         Process.Start(processStartInfo )!.WaitForExit();
     }
 
     public static void Update()

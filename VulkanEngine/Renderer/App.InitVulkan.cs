@@ -871,8 +871,8 @@ public static partial class VKRender
 
     private static unsafe void CreateGraphicsPipeline()
     {
-        byte[] vertexShaderCode = File.ReadAllBytes("/Users/yavuz/Git/VulkanEngine/VulkanEngine/vert.spv");
-        byte[] fragmentShaderCode = File.ReadAllBytes("/Users/yavuz/Git/VulkanEngine/VulkanEngine/frag.spv");
+        byte[] vertexShaderCode = File.ReadAllBytes("./../../../vert.spv");
+        byte[] fragmentShaderCode = File.ReadAllBytes("./../../../frag.spv");
         
         var vertexModule = CreateShaderModule(vertexShaderCode);
         var fragmentModule = CreateShaderModule(fragmentShaderCode);
@@ -1235,7 +1235,7 @@ public static partial class VKRender
         };
 
         var extensions = GetRequiredExtensions();
-#if true
+#if MAC
         extensions = extensions.Append("VK_KHR_portability_enumeration").ToArray();
 #endif
 
@@ -1243,7 +1243,7 @@ public static partial class VKRender
         
         createInfo.EnabledExtensionCount = (uint)extensions.Length;
         createInfo.PpEnabledExtensionNames = (byte**)SilkMarshal.StringArrayToPtr(extensions);
-#if true//mac
+#if MAC
         createInfo.Flags |= InstanceCreateFlags.EnumeratePortabilityBitKhr;
 #endif
 
@@ -1310,9 +1310,9 @@ public static partial class VKRender
     {
         var glfwExtensions = window!.VkSurface!.GetRequiredExtensions(out var glfwExtensionCount);
         var extensions = SilkMarshal.PtrToStringArray((nint)glfwExtensions, (int)glfwExtensionCount);
-        //if mac
+        #if mac
         extensions = extensions!.Append("VK_KHR_portability_enumeration").ToArray();
-        //endif
+        #endif
         if (EnableValidationLayers)
         {
             return extensions.Append(ExtDebugUtils.ExtensionName).ToArray();

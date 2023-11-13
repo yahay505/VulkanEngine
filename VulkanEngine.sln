@@ -5,12 +5,18 @@ EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
+		Debug|Mac = Debug|Mac
 		Release|Any CPU = Release|Any CPU
+		Release|Mac = Release|Mac
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{86FD812E-5E34-484E-9CB8-DE56A79BBA88}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{86FD812E-5E34-484E-9CB8-DE56A79BBA88}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{86FD812E-5E34-484E-9CB8-DE56A79BBA88}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{86FD812E-5E34-484E-9CB8-DE56A79BBA88}.Release|Any CPU.Build.0 = Release|Any CPU
+		{86FD812E-5E34-484E-9CB8-DE56A79BBA88}.Debug|Mac.ActiveCfg = Debug|Mac
+		{86FD812E-5E34-484E-9CB8-DE56A79BBA88}.Debug|Mac.Build.0 = Debug|Mac
+		{86FD812E-5E34-484E-9CB8-DE56A79BBA88}.Release|Mac.ActiveCfg = Release|Mac
+		{86FD812E-5E34-484E-9CB8-DE56A79BBA88}.Release|Mac.Build.0 = Release|Mac
 	EndGlobalSection
 EndGlobal
