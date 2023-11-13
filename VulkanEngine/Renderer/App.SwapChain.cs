@@ -196,13 +196,28 @@ public static partial class VKRender
 
             CreateSwapChain();
             CreateSwapChainImageViews();
+            
             CreateRenderPass();
+            vk.DestroyImageView(device,GlobalData.depthImageView,null);
+            vk.DestroyImage(device,GlobalData.depthImage,null);
+            vk.FreeMemory(device,GlobalData.depthImageMemory,null);
+            CreateDepthResources();
+            
             CreateGraphicsPipeline();
-            CreateFrameBuffers();
-            CreateCommandBuffers();
+            CreateSwapchainFrameBuffers();
+            var allocInfo = new CommandBufferAllocateInfo
+            {
+                SType = StructureType.CommandBufferAllocateInfo,
+                CommandPool = GetCurrentFrame().commandPool,
+                Level = CommandBufferLevel.Primary,
+                CommandBufferCount = 1,
+            };
+            for (var i = 0; i < FRAME_OVERLAP; i++)
+                fixed(FrameData* frameData = &FrameData[i])
+                    vk.AllocateCommandBuffers(device, allocInfo,out frameData->mainCommandBuffer)
+                        .Expect("failed to allocate command buffers!");
+           
 
-            // fixed(Fence* fencesPtr = &inFlightFences[CurrentFrameIndex])
-            //     vk.ResetFences(device, 1, fencesPtr);
         }
     }
 }

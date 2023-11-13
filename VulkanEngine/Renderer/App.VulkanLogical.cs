@@ -6,11 +6,13 @@ namespace VulkanEngine.Renderer;
 
 public static partial class VKRender
 {
+    private static QueueFamilyIndices _familyIndices;
+
     private static unsafe void CreateLogicalDevice()
     {
-        var indices = FindQueueFamilies(physicalDevice);
+        _familyIndices = FindQueueFamilies(physicalDevice);
 
-        var uniqueQueueFamilies = new[] { indices.graphicsFamily!.Value, indices.presentFamily!.Value };
+        var uniqueQueueFamilies = new[] { _familyIndices.graphicsFamily!.Value, _familyIndices.presentFamily!.Value };
         uniqueQueueFamilies = uniqueQueueFamilies.Distinct().ToArray();
 
         using var mem = GlobalMemory.Allocate(uniqueQueueFamilies.Length * sizeof(DeviceQueueCreateInfo));
@@ -57,9 +59,12 @@ public static partial class VKRender
         vk.CreateDevice(physicalDevice, in createInfo, null, out device)
             .Expect("failed to create logical device!");
 
-         vk.GetDeviceQueue(device, indices.graphicsFamily!.Value, 0, out graphicsQueue);
-        vk.GetDeviceQueue(device, indices.presentFamily!.Value, 0, out presentQueue);
-
+        vk.GetDeviceQueue(device, _familyIndices.graphicsFamily!.Value, 0, out graphicsQueue);
+        vk.GetDeviceQueue(device, _familyIndices.presentFamily!.Value, 0, out presentQueue);
+        vk.GetDeviceQueue(device, _familyIndices.transferFamily!.Value, 0, out transferQueue);
+        vk.GetDeviceQueue(device, _familyIndices.computeFamily!.Value, 0, out computeQueue);
+        
+        
         if (EnableValidationLayers)
         {
             SilkMarshal.Free((nint)createInfo.PpEnabledLayerNames);

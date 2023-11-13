@@ -7,8 +7,10 @@ public static partial class VKRender
 {
     public static unsafe void CleanUp()
     {
-        vk.DestroyBuffer(device, VertexBuffer, null);
-        vk.FreeMemory(device, VertexBufferMemory, null);
+        imGuiController.Dispose();
+        
+        vk.DestroyBuffer(device, GlobalData.VertexBuffer, null);
+        vk.FreeMemory(device, GlobalData.VertexBufferMemory, null);
         CleanUpSwapChainStuff();
         
         vk.DestroySampler(device, textureSampler, null);
@@ -16,7 +18,7 @@ public static partial class VKRender
         vk.DestroyImage(device, textureImage, null);
         vk.FreeMemory(device, textureImageMemory, null);
         
-        for (var i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        for (var i = 0; i < FRAME_OVERLAP; i++) {
             vk.DestroyBuffer(device, uniformBuffers[i], null);
             vk.FreeMemory(device, uniformBuffersMemory[i], null);
         }
@@ -29,14 +31,15 @@ public static partial class VKRender
 
 
 
-        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+        for (int i = 0; i < FRAME_OVERLAP; i++)
         {
-            vk.DestroySemaphore(device, renderFinishedSemaphores[i], null);
-            vk.DestroySemaphore(device, imageAvailableSemaphores[i], null);
-            vk.DestroyFence(device, inFlightFences[i], null);
+            vk.DestroySemaphore(device, FrameData[i].RenderSemaphore, null);
+            vk.DestroySemaphore(device, FrameData[i].presentSemaphore, null);
+            vk.DestroySemaphore(device, FrameData[i].transferSemaphore, null);
+            vk.DestroyFence(device, FrameData[i].renderFence, null);
+            vk.DestroyCommandPool(device, FrameData[i].commandPool, null);
         }
 
-        vk.DestroyCommandPool(device, CommandPool, null);
 
         vk.DestroyDevice(device, null);
 
@@ -60,18 +63,19 @@ public static partial class VKRender
             vk.DestroyFramebuffer(device, framebuffer, null);
         }
 
-        fixed (CommandBuffer* commandBuffersPtr = CommandBuffers)
+        for (int i = 0; i < FRAME_OVERLAP; i++)
         {
-            vk.FreeCommandBuffers(device, CommandPool, (uint) CommandBuffers.Length, commandBuffersPtr);
+            fixed(FrameData* frameData = &FrameData[i])
+                vk.FreeCommandBuffers(device,frameData->commandPool,1, &(frameData->mainCommandBuffer));
         }
 
         vk.DestroyPipeline(device, GraphicsPipeline, null);
         vk.DestroyPipelineLayout(device, PipelineLayout, null);
         vk.DestroyRenderPass(device, RenderPass, null);
         
-        vk.DestroyImage(device,depthImage,null);
-        vk.FreeMemory(device,depthImageMemory,null);
-        vk.DestroyImageView(device,depthImageView,null);
+        vk.DestroyImage(device, GlobalData.depthImage,null);
+        vk.FreeMemory(device, GlobalData.depthImageMemory,null);
+        vk.DestroyImageView(device, GlobalData.depthImageView,null);
         
         foreach (var imageView in swapChainImageViews!)
         {

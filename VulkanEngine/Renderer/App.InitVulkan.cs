@@ -27,9 +27,11 @@ public static partial class VKRender
         CreateRenderPass();
         CreateDescriptorSetLayout();
         CreateGraphicsPipeline();
-        CreateCommandPool();
+        
+        CreateFrameData();
+        
         CreateDepthResources();
-        CreateFrameBuffers();
+        CreateSwapchainFrameBuffers();
         CreateTextureImage();
         
         CreateTextureImageView();
@@ -39,15 +41,73 @@ public static partial class VKRender
         CreateDescriptionPool();
         CreateDescriptorSets();
         CreateIndexBuffer();
-        CreateCommandBuffers();
-        CreateSyncObjects();
+    }
+
+    private static unsafe void CreateFrameData()
+    {
+        FrameData=new FrameData[FRAME_OVERLAP];
+        //command pool
+        var queueFamilyIndices = FindQueueFamilies(physicalDevice);
+        var poolInfo = new CommandPoolCreateInfo
+        {
+            SType = StructureType.CommandPoolCreateInfo,
+            QueueFamilyIndex = queueFamilyIndices.graphicsFamily!.Value,
+            Flags = CommandPoolCreateFlags.ResetCommandBufferBit,
+        };
+ 
+        //command buffers
+
+        //sync
+        var semCreateInfo = new SemaphoreCreateInfo
+        {
+            SType = StructureType.SemaphoreCreateInfo,
+        };
+        var fenceCreateInfo = new FenceCreateInfo
+        {
+            SType = StructureType.FenceCreateInfo,
+            Flags = FenceCreateFlags.SignaledBit,
+        };
+
+
+
+        fixed (FrameData* frameDatas = FrameData)
+        {
+            for (int i = 0; i < FRAME_OVERLAP; i++)
+            {
+                var z = &frameDatas[i];
+            
+                vk.CreateCommandPool(device, poolInfo, null,  out z->commandPool)
+                    .Expect("failed to create command pool!");
+                var allocInfo = new CommandBufferAllocateInfo
+                {
+                    SType = StructureType.CommandBufferAllocateInfo,
+                    CommandPool = z->commandPool,
+                    Level = CommandBufferLevel.Primary,
+                    CommandBufferCount = 1,
+                };
+                vk.AllocateCommandBuffers(device, allocInfo, out z->mainCommandBuffer)
+                    .Expect("failed to allocate command buffers!");
+                
+                vk.CreateSemaphore(device, semCreateInfo, null, out z->presentSemaphore)
+                    .Expect("failed to create semaphore!");
+                vk.CreateSemaphore(device, semCreateInfo, null, out z->transferSemaphore)
+                    .Expect("failed to create semaphore!");
+                vk.CreateSemaphore(device, semCreateInfo, null, out z->RenderSemaphore)
+                    .Expect("failed to create semaphore!");
+                vk.CreateFence(device, fenceCreateInfo, null, out z->renderFence)
+                    .Expect("failed to create fence!");
+            }
+        
+        }
+        
     }
 
     private static unsafe void CreateDepthResources()
     {
-        Format depthFormat = FindDepthFormat();
-        fixed(Image* pDepthImage = &depthImage)
-        fixed(DeviceMemory* pDepthImageMemory= &depthImageMemory)
+        GlobalData.depthFormat = FindDepthFormat();
+        Format depthFormat = GlobalData.depthFormat;
+        fixed(Image* pDepthImage = &GlobalData.depthImage)
+        fixed(DeviceMemory* pDepthImageMemory= &GlobalData.depthImageMemory)
             CreateImage(swapChainExtent.Width,
                 swapChainExtent.Height,
                 depthFormat,
@@ -56,8 +116,8 @@ public static partial class VKRender
                 MemoryPropertyFlags.DeviceLocalBit,
                 pDepthImage,
                 pDepthImageMemory);
-        depthImageView = CreateImageView(depthImage, depthFormat, ImageAspectFlags.DepthBit);
-        TransitionImageLayout(depthImage, depthFormat, ImageLayout.Undefined, ImageLayout.DepthStencilAttachmentOptimal);
+        GlobalData.depthImageView = CreateImageView(GlobalData.depthImage, depthFormat, ImageAspectFlags.DepthBit);
+        TransitionImageLayout(GlobalData.depthImage, depthFormat, ImageLayout.Undefined, ImageLayout.DepthStencilAttachmentOptimal);
     }
 
     private static Format FindDepthFormat()
@@ -152,7 +212,7 @@ public static partial class VKRender
     static DeviceMemory textureImageMemory = default;
     private static unsafe void CreateTextureImage()
     {
-        using var img = SixLabors.ImageSharp.Image.Load<Rgba32>("../../../textures/texture.jpg");
+        using var img = SixLabors.ImageSharp.Image.Load<Rgba32>("../../../Assets/textures/texture.jpg");
         ulong imageSize = (ulong)(img.Width * img.Height * img.PixelType.BitsPerPixel / 8);
         
         Buffer stagingBuffer = default;
@@ -305,7 +365,7 @@ public static partial class VKRender
         {
             SType = StructureType.CommandBufferAllocateInfo,
             Level = CommandBufferLevel.Primary,
-            CommandPool = CommandPool,
+            CommandPool = GetCurrentFrame().commandPool,
             CommandBufferCount = 1
         };
         CommandBuffer commandBuffer;
@@ -331,7 +391,7 @@ public static partial class VKRender
 
         vk.QueueSubmit(graphicsQueue, 1, &submitInfo, default);
         vk.QueueWaitIdle(graphicsQueue);
-        vk.FreeCommandBuffers(device, CommandPool, 1, &commandBuffer);
+        vk.FreeCommandBuffers(device, GetCurrentFrame().commandPool, 1, &commandBuffer);
     }
 
     private static unsafe void CreateImage(uint width, uint height, Format format, ImageTiling tiling,
@@ -391,7 +451,7 @@ public static partial class VKRender
         vk.AllocateDescriptorSets(device, &allocInfo, out DescriptorSet)
             .Expect("failed to allocate descriptor sets!");
         
-        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+        for (int i = 0; i < FRAME_OVERLAP; i++)
         {
             var bufferInfo = new DescriptorBufferInfo
             {
@@ -441,12 +501,12 @@ public static partial class VKRender
             new()
             {
                 Type = DescriptorType.UniformBuffer,
-                DescriptorCount = MAX_FRAMES_IN_FLIGHT,
+                DescriptorCount = FRAME_OVERLAP,
             },
             new()
             {
                 Type = DescriptorType.CombinedImageSampler,
-                DescriptorCount = MAX_FRAMES_IN_FLIGHT,
+                DescriptorCount = FRAME_OVERLAP,
             }
         };
         var poolInfo = new DescriptorPoolCreateInfo
@@ -454,7 +514,7 @@ public static partial class VKRender
             SType = StructureType.DescriptorPoolCreateInfo,
             PoolSizeCount = 2,
             PPoolSizes = poolSizes,
-            MaxSets = MAX_FRAMES_IN_FLIGHT,
+            MaxSets = FRAME_OVERLAP,
         };
         
         vk.CreateDescriptorPool(device, poolInfo, null, out DescriptorPool)
@@ -465,12 +525,12 @@ public static partial class VKRender
     private static unsafe void CreateUniformBuffers()
     {
         var bufferSize = sizeof(UniformBufferObject);
-        
-        uniformBuffers=new Buffer[MAX_FRAMES_IN_FLIGHT];
-        uniformBuffersMemory=new DeviceMemory[MAX_FRAMES_IN_FLIGHT];
-        uniformBuffersMapped=new void*[MAX_FRAMES_IN_FLIGHT];
 
-        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+        uniformBuffers=new Buffer[FRAME_OVERLAP];
+        uniformBuffersMemory=new DeviceMemory[FRAME_OVERLAP];
+        uniformBuffersMapped=new void*[FRAME_OVERLAP];
+
+        for (int i = 0; i < FRAME_OVERLAP; i++)
         {
             fixed(Buffer* pUniformBuffer = &uniformBuffers[i])
             fixed(DeviceMemory* pUniformBufferMemory = &uniformBuffersMemory[i])
@@ -583,10 +643,10 @@ public static partial class VKRender
         vk.UnmapMemory(device, stagingBufferMemory);
         
         
-        fixed(Buffer* vertexBuffer= &VertexBuffer)
-        fixed(DeviceMemory* vertexBufferMemory = &VertexBufferMemory)
+        fixed(Buffer* vertexBuffer= &GlobalData.VertexBuffer)
+        fixed(DeviceMemory* vertexBufferMemory = &GlobalData.VertexBufferMemory)
             CreateBuffer(size, BufferUsageFlags.VertexBufferBit|BufferUsageFlags.TransferDstBit, MemoryPropertyFlags.DeviceLocalBit, vertexBuffer, vertexBufferMemory);
-        CopyBuffer(stagingBuffer, VertexBuffer, size);
+        CopyBuffer(stagingBuffer, GlobalData.VertexBuffer, size);
         
         vk.DestroyBuffer(device, stagingBuffer, null);
         vk.FreeMemory(device, stagingBufferMemory, null);
@@ -642,33 +702,6 @@ public static partial class VKRender
             }
         }
         throw new Exception("failed to find suitable memory type!");
-    }
-
-    private static unsafe void CreateSyncObjects()
-    {
-        var semCreateInfo = new SemaphoreCreateInfo
-        {
-            SType = StructureType.SemaphoreCreateInfo,
-        };
-        var fenceCreateInfo = new FenceCreateInfo
-        {
-            SType = StructureType.FenceCreateInfo,
-            Flags = FenceCreateFlags.SignaledBit,
-        };
-        imageAvailableSemaphores = new Semaphore[MAX_FRAMES_IN_FLIGHT];
-        renderFinishedSemaphores = new Semaphore[MAX_FRAMES_IN_FLIGHT];
-        inFlightFences = new Fence[MAX_FRAMES_IN_FLIGHT];
-        
-        for (var i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-        {
-            vk.CreateSemaphore(device, semCreateInfo, null, out imageAvailableSemaphores[i])
-                .Expect("failed to create semaphore!");
-            vk.CreateSemaphore(device, semCreateInfo, null, out renderFinishedSemaphores[i])
-                .Expect("failed to create semaphore!");
-            vk.CreateFence(device, fenceCreateInfo, null, out inFlightFences[i])
-                .Expect("failed to create fence!");
-        }
-        
     }
 
     private static unsafe void RecordCommandBuffer(CommandBuffer commandBuffer, uint imageIndex)
@@ -727,7 +760,7 @@ public static partial class VKRender
         vk.CmdBindPipeline(commandBuffer, PipelineBindPoint.Graphics, GraphicsPipeline);
         vk.CmdSetViewport(commandBuffer,0,1,&viewPort);
         vk.CmdSetScissor(commandBuffer,0,1,&scissor);
-        var vertexBuffers =stackalloc []{VertexBuffer};
+        var vertexBuffers =stackalloc []{GlobalData.VertexBuffer};
         var offsets = stackalloc []{(ulong)0};
         
         // vk!.CmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
@@ -736,47 +769,22 @@ public static partial class VKRender
             vk.CmdBindDescriptorSets(commandBuffer, PipelineBindPoint.Graphics, PipelineLayout, 0, 1, pDescriptorSet, 0, null);
         vk.CmdBindIndexBuffer(commandBuffer, IndexBuffer, 0, IndexType.Uint32);
         
+        vk.CmdDrawIndexed(commandBuffer, (uint) indices.Length, 2, 0, 0, 0);
+
+        
+        
+        
         // vk!.CmdDraw(commandBuffer, (uint) vertices.Length, 1, 0, 0);
-        vk.CmdDrawIndexed(commandBuffer, (uint) indices.Length, 1, 0, 0, 0);
         vk.CmdEndRenderPass(commandBuffer);
-        vk.EndCommandBuffer(commandBuffer)
-            .Expect("failed to record command buffer!");
-    }
-    private static void CreateCommandBuffers()
-    {
-        CommandBuffers = new CommandBuffer[MAX_FRAMES_IN_FLIGHT];
-        var allocInfo = new CommandBufferAllocateInfo
-        {
-            SType = StructureType.CommandBufferAllocateInfo,
-            CommandPool = CommandPool,
-            Level = CommandBufferLevel.Primary,
-            CommandBufferCount = 1,
-        };
-        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-            vk.AllocateCommandBuffers(device, allocInfo,out CommandBuffers[i])
-                .Expect("failed to allocate command buffers!");
     }
 
-    private static unsafe void CreateCommandPool()
-    {
-        var queueFamilyIndices = FindQueueFamilies(physicalDevice);
-        var poolInfo = new CommandPoolCreateInfo
-        {
-            SType = StructureType.CommandPoolCreateInfo,
-            QueueFamilyIndex = queueFamilyIndices.graphicsFamily!.Value,
-            Flags = CommandPoolCreateFlags.ResetCommandBufferBit,
-        };
-        vk.CreateCommandPool(device, poolInfo, null, out CommandPool)
-            .Expect("failed to create command pool!");
-    }
-
-    private static unsafe void CreateFrameBuffers()
+    private static unsafe void CreateSwapchainFrameBuffers()
     {
         var imageCount = swapChainImageViews!.Length;
         swapChainFramebuffers = new Framebuffer[imageCount];
         for (var i = 0; i < imageCount; i++)
         {
-            var attachments = stackalloc[] {swapChainImageViews[i],depthImageView};
+            var attachments = stackalloc[] {swapChainImageViews[i], GlobalData.depthImageView};
             var framebufferCreateInfo = new FramebufferCreateInfo
             {
                 SType = StructureType.FramebufferCreateInfo,
@@ -1095,11 +1103,15 @@ public static partial class VKRender
     {
         public uint? graphicsFamily { get; set; }
         public uint? presentFamily { get; set; }
+        public uint? transferFamily { get; set; }
+        public uint? computeFamily { get; set; }
         
         public bool IsComplete()
         {
             return graphicsFamily.HasValue&&
                    presentFamily.HasValue&&
+                   transferFamily.HasValue&&
+                   computeFamily.HasValue&&
                    true;
         }
     }
@@ -1111,16 +1123,16 @@ public static partial class VKRender
         uint queueFamilityCount = 0;
         vk.GetPhysicalDeviceQueueFamilyProperties(device, ref queueFamilityCount, null);
 
-        var queueFamilies = new QueueFamilyProperties[queueFamilityCount];
-        fixed (QueueFamilyProperties* queueFamiliesPtr = queueFamilies)
-        {
-            vk.GetPhysicalDeviceQueueFamilyProperties(device, ref queueFamilityCount, queueFamiliesPtr);
-        }
+        var queueFamilies = stackalloc QueueFamilyProperties[(int)queueFamilityCount];
+
+        vk.GetPhysicalDeviceQueueFamilyProperties(device, ref queueFamilityCount, queueFamilies);
+        
 
 
-        uint i = 0;
-        foreach (var queueFamily in queueFamilies)
+        
+        for (uint i=0;i<queueFamilityCount;i++)
         {
+            var queueFamily = queueFamilies[i];
             if (queueFamily.QueueFlags.HasFlag(QueueFlags.GraphicsBit))
             {
                 indices.graphicsFamily = i;
@@ -1131,14 +1143,36 @@ public static partial class VKRender
             {
                 indices.presentFamily = i;
             }
+            if (queueFamily.QueueFlags.HasFlag(QueueFlags.TransferBit))
+            {
+                indices.transferFamily = i;
+            }
+            if (queueFamily.QueueFlags.HasFlag(QueueFlags.ComputeBit))
+            {
+                indices.computeFamily = i;
+            }
+            // queueFamily.
             if (indices.IsComplete())
             {
                 break;
             }
-
-            i++;
         }
-
+        //get device name
+        var properties = vk.GetPhysicalDeviceProperties(device);
+        //write all families
+        Console.WriteLine($"all families for device({properties.DeviceType.ToString()}) {SilkMarshal.PtrToString((nint) properties.DeviceName)} id:{properties.DeviceID}");
+        Console.WriteLine();
+        for (int i = 0; i < queueFamilityCount; i++)
+        {
+            Console.WriteLine($"queueFamily{i}: {queueFamilies[i].QueueFlags}");
+        }
+        Console.WriteLine();
+        Console.WriteLine("selceted families:");
+        Console.WriteLine($"graphicsFamily:{indices.graphicsFamily}");
+        Console.WriteLine($"presentFamily:{indices.presentFamily}");
+        Console.WriteLine($"transferFamily:{indices.transferFamily}");
+        Console.WriteLine($"computeFamily:{indices.computeFamily}");
+        Console.WriteLine();
         return indices;
     }
 
@@ -1306,6 +1340,10 @@ public static partial class VKRender
     {
         var s = Marshal.PtrToStringAnsi((nint)pCallbackData->PMessage);
         Console.WriteLine($"validation layer:" + s);
+        if (s.StartsWith("Validation Error:"))
+        {
+            ;
+        }
 //Debugger.Break();
         return Vk.False;
     }

@@ -11,21 +11,18 @@ namespace VulkanEngine.Renderer;
 
 public static partial class VKRender
 {
-    static Semaphore[] imageAvailableSemaphores;
-    static Semaphore[] renderFinishedSemaphores;
-    static Fence[] inFlightFences;
+    // static Semaphore[] imageAvailableSemaphores;
+    // static Semaphore[] renderFinishedSemaphores;
+    // static Fence[] inFlightFences;
     private static long last_tick;
+    public static float deltaTime;
     private static unsafe void DrawFrame()
     {
-        var t= Stopwatch.GetTimestamp();
-        var deltaSeconds = (t - last_tick) / (double)Stopwatch.Frequency;
-        last_tick = t;
-        Console.WriteLine($"{deltaSeconds*1000,5:F2}ms");
-        var fence= inFlightFences[CurrentFrameIndex];
+        var fence = GetCurrentFrame().renderFence;
         vk.WaitForFences(device, 1,  fence, true, ulong.MaxValue)
             .Expect("failed to wait for fence!");
         uint imageIndex = 999;
-        var result = khrSwapChain.AcquireNextImage(device, swapChain, ulong.MaxValue, imageAvailableSemaphores[CurrentFrameIndex], default, &imageIndex);
+        var result = khrSwapChain.AcquireNextImage(device, swapChain, ulong.MaxValue, GetCurrentFrame().RenderSemaphore, default, &imageIndex);
         switch (result)
         {
             case Result.Success:
@@ -37,20 +34,25 @@ public static partial class VKRender
             default:
                 throw new Exception("failed to acquire swap chain image!");
         }
-        if (inFlightFences[CurrentFrameIndex].Handle != default)
+        if (fence.Handle != default)
         {
-            vk.WaitForFences(device, 1, inFlightFences[CurrentFrameIndex], true, ulong.MaxValue)
+            vk.WaitForFences(device, 1, fence, true, ulong.MaxValue)
                 .Expect("failed to wait for fence!");
         }
         vk.ResetFences(device, 1, fence);//only reset if we are rendering
-        vk.ResetCommandBuffer(CommandBuffers[CurrentFrameIndex], 0);
-        RecordCommandBuffer(CommandBuffers[CurrentFrameIndex], imageIndex);
+        vk.ResetCommandBuffer(GetCurrentFrame().mainCommandBuffer, 0);
+        RecordCommandBuffer(GetCurrentFrame().mainCommandBuffer, imageIndex);
+        
+        imGuiController.Render(GetCurrentFrame().mainCommandBuffer,swapChainFramebuffers![imageIndex],swapChainExtent);
+        
+        vk.EndCommandBuffer(GetCurrentFrame().mainCommandBuffer)
+            .Expect("failed to record command buffer!");
         UpdateUniformBuffer(CurrentFrameIndex);
         
-        var waitSemaphores = stackalloc Semaphore[] { imageAvailableSemaphores[CurrentFrameIndex] };
+        var waitSemaphores = stackalloc Semaphore[] { GetCurrentFrame().RenderSemaphore };
         var waitStages= stackalloc PipelineStageFlags[] { PipelineStageFlags.ColorAttachmentOutputBit };
-        var buffer = CommandBuffers[CurrentFrameIndex];
-        var signalSemaphores = stackalloc[] { renderFinishedSemaphores[CurrentFrameIndex] };
+        var buffer = GetCurrentFrame().mainCommandBuffer;
+        var signalSemaphores = stackalloc[] { GetCurrentFrame().presentSemaphore };
         var submitInfo = new SubmitInfo
         {
             SType = StructureType.SubmitInfo,
@@ -63,7 +65,7 @@ public static partial class VKRender
             PSignalSemaphores = signalSemaphores
         };
         
-        vk.QueueSubmit(graphicsQueue,1, &submitInfo, inFlightFences[CurrentFrameIndex])
+        vk.QueueSubmit(graphicsQueue,1, &submitInfo, fence)
             .Expect("failed to submit draw command buffer!");
         var swapChains = stackalloc SwapchainKHR[] { swapChain };
 
@@ -89,7 +91,15 @@ public static partial class VKRender
         }
     }
 
-    private static void UpdateUniformBuffer(int currentImage)
+    public static void UpdateTime()
+    {
+        var t = Stopwatch.GetTimestamp();
+        var deltaSeconds = (t - last_tick) / (double) Stopwatch.Frequency;
+        last_tick = t;
+        deltaTime= (float) deltaSeconds;
+    }
+
+    private static unsafe void UpdateUniformBuffer(int currentImage)
     {
         var time = (float)window!.Time;
 
@@ -107,18 +117,16 @@ public static partial class VKRender
         var farPlaneDistance = 10.0f;
         var ubo = new UniformBufferObject
         {
-            model = translate * rot  * scale,
+            model = translate * rot * scale,
             view = Matrix4X4.CreateLookAt(cameraPosition, objectPosition, cameraUpVector),
-            proj = Matrix4X4.CreatePerspectiveFieldOfView(Scalar.DegreesToRadians(fov), (float)swapChainExtent.Width / swapChainExtent.Height, nearPlaneDistance, farPlaneDistance),
+            proj = Matrix4X4.CreatePerspectiveFieldOfView(Scalar.DegreesToRadians(fov),
+                (float) swapChainExtent.Width / swapChainExtent.Height, nearPlaneDistance, farPlaneDistance),
         };
         ubo.proj.M22 *= -1;
-        unsafe
-        {
-            var size = (nuint) sizeof(UniformBufferObject);
-            var data = uniformBuffersMapped[currentImage];
-            Unsafe.CopyBlock(data, &ubo, (uint)size);
-        }
-
-
+        
+        
+        var size = (nuint) sizeof(UniformBufferObject);
+        var data = uniformBuffersMapped[currentImage]!;
+        Unsafe.CopyBlock(data, &ubo, (uint)size);
     }
 }

@@ -2,9 +2,11 @@ using System.Runtime.InteropServices;
 using Silk.NET.Assimp;
 using Silk.NET.Core;
 using Silk.NET.Core.Native;
+using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.EXT;
+using Silk.NET.Vulkan.Extensions.ImGui;
 using Silk.NET.Vulkan.Extensions.KHR;
 using Silk.NET.Windowing;
 using Buffer = Silk.NET.Vulkan.Buffer;
@@ -38,27 +40,23 @@ public static partial class VKRender
     private static ExtDebugUtils? debugUtils;
     private static DebugUtilsMessengerEXT debugMessenger;
 
-
+    private static Queue transferQueue;
+    private static Queue computeQueue;
     private static Queue graphicsQueue;
     private static Queue presentQueue;
     
-    private static KhrSurface? khrSurface;
+    private static KhrSurface khrSurface = null!;
     private static SurfaceKHR surface;
-    private static KhrSwapchain? khrSwapChain;
+    private static KhrSwapchain khrSwapChain = null!;
     private static SwapchainKHR swapChain;
-    private static Image[]? swapChainImages;
-    private static ImageView[]? swapChainImageViews;
+    private static Image[] swapChainImages = null!;
+    private static ImageView[] swapChainImageViews=null!;
     private static Format swapChainImageFormat;
     private static Extent2D swapChainExtent;
     private static Framebuffer[]? swapChainFramebuffers;
     
     public static RenderPass RenderPass;
-    private static CommandPool CommandPool;
-    private static CommandBuffer[] CommandBuffers = null!;
     
-    private static Image depthImage;
-    private static DeviceMemory depthImageMemory;
-    private static ImageView depthImageView;
 
     private static PhysicalDevice physicalDevice;
     public static Device device;
@@ -67,37 +65,52 @@ public static partial class VKRender
     private static Pipeline GraphicsPipeline;
 
     
-    const int MAX_FRAMES_IN_FLIGHT = 2;
+    const int FRAME_OVERLAP = 2;
     public static int CurrentFrame = 0;
     static int CurrentFrameIndex = 0;
     static bool FramebufferResized = false;
     
-    private static Buffer VertexBuffer;
-    private static DeviceMemory VertexBufferMemory;
+    public static FrameData[] FrameData = null!;
+    public static FrameData GetCurrentFrame()=>FrameData[CurrentFrameIndex];
 
+
+    public static class GlobalData
+    {
+        public static Buffer VertexBuffer;
+        public static DeviceMemory VertexBufferMemory;
+
+        public static Image depthImage;
+        public static Format depthFormat;
+        public static DeviceMemory depthImageMemory;
+        public static ImageView depthImageView;
+    }
+
+    private static IInputContext Input;
+    public static ImGuiController imGuiController = null!;
     public static void InitializeRenderer()
     {
         InitWindow();
         LoadMesh();
         InitVulkan();
+        Input=window.CreateInput();
+        imGuiController = new Silk.NET.Vulkan.Extensions.ImGui.ImGuiController(vk,window,Input,new ImGuiFontConfig("../../../Assets/fonts/FiraSansCondensed-ExtraLight.otf",12),physicalDevice,_familyIndices.graphicsFamily!.Value,swapChainImages.Length,swapChainImageFormat,GlobalData.depthFormat);
     }
 
+ 
     public static void Render()
     {
         DrawFrame();
-    }
-    public static void Update()
-    {
         CurrentFrame++;
-        CurrentFrameIndex =CurrentFrame% MAX_FRAMES_IN_FLIGHT;
+        CurrentFrameIndex =CurrentFrame% FRAME_OVERLAP;
     }
+
 
 
     private static unsafe void LoadMesh()
     {
         using var assimp = Assimp.GetApi()!;
         
-        var scene=assimp.ImportFile("../../../models/model.obj", (uint)PostProcessPreset.TargetRealTimeMaximumQuality)!;
+        var scene=assimp.ImportFile("../../../Assets/models/model.obj", (uint)PostProcessPreset.TargetRealTimeMaximumQuality)!;
         
         var vertexMap = new Dictionary<Vertex, uint>();
         var _vertices = new List<Vertex>();
