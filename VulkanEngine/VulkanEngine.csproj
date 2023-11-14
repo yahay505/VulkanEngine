@@ -12,12 +12,12 @@
 
     <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|Mac' ">
       <DefineConstants>TRACE;MAC</DefineConstants>
-      <PlatformTarget>Mac</PlatformTarget>
+      <PlatformTarget>AnyCPU</PlatformTarget>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|Mac' ">
       <DefineConstants>TRACE;MAC</DefineConstants>
-      <PlatformTarget>Mac</PlatformTarget>
+      <PlatformTarget>AnyCPU</PlatformTarget>
     </PropertyGroup>
 
     <ItemGroup>
