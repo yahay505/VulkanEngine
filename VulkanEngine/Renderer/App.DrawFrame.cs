@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using ImGuiNET;
 using Silk.NET.Core.Native;
 using Silk.NET.Maths;
 using Silk.NET.Vulkan;
@@ -18,11 +19,23 @@ public static partial class VKRender
     public static float deltaTime;
     private static unsafe void DrawFrame()
     {
+        // ok 
+        // fill indirect buffer
+        // draw indirect buffer
+        // draw ui
+        // swap&present
+        
+        
+        
+        
+        
+        
         var fence = GetCurrentFrame().renderFence;
         vk.WaitForFences(device, 1,  fence, true, ulong.MaxValue)
             .Expect("failed to wait for fence!");
         uint imageIndex = 999;
         var result = khrSwapChain.AcquireNextImage(device, swapChain, ulong.MaxValue, GetCurrentFrame().RenderSemaphore, default, &imageIndex);
+        
         switch (result)
         {
             case Result.Success:
@@ -40,7 +53,13 @@ public static partial class VKRender
                 .Expect("failed to wait for fence!");
         }
         vk.ResetFences(device, 1, fence);//only reset if we are rendering
-        vk.ResetCommandBuffer(GetCurrentFrame().mainCommandBuffer, 0);
+        vk.ResetCommandPool(device,GetCurrentFrame().commandPool, 0);
+     
+        
+        
+        
+        
+        
         RecordCommandBuffer(GetCurrentFrame().mainCommandBuffer, imageIndex);
         
         imGuiController.Render(GetCurrentFrame().mainCommandBuffer,swapChainFramebuffers![imageIndex],swapChainExtent);

@@ -42,6 +42,36 @@ public static partial class VKRender
         CreateDescriptorSets();
         CreateIndexBuffer();
     }
+    //todo remove
+    static Image textureImage = default;
+    static DeviceMemory textureImageMemory = default;
+    
+    private static Vertex[] vertices = {
+        ((-0.5f, -0.5f,0), (1.0f, 0.0f, 0.0f),(0,0)),
+        ((0.5f, -0.5f,0), (0.0f, 1.0f, 0.0f),(1,0)),
+        ((0.5f, 0.5f,0), (0.0f, 0.0f, 1.0f),(1,1)),
+        ((-0.5f, 0.5f,0), (1.0f, 1.0f, 1.0f),(0,1))
+    };
+
+    private static uint[] indices = {
+        0, 1, 2, 2, 3, 0
+    };
+
+#pragma warning disable CS0649 
+    //var not asssigned 
+    // static Buffer vertexBuffer;
+    // static DeviceMemory vertexBufferMemory;
+#pragma warning restore CS0649
+    static Buffer IndexBuffer;
+    static DeviceMemory IndexBufferMemory;
+    static Buffer[] uniformBuffers = null!;
+    static DeviceMemory[] uniformBuffersMemory = null!;
+    static DescriptorPool DescriptorPool;
+    static DescriptorSet DescriptorSet;
+    private static unsafe void*[] uniformBuffersMapped;
+    private static ImageView textureImageView;
+    private static Sampler textureSampler;
+
 
     private static unsafe void CreateFrameData()
     {
@@ -124,6 +154,7 @@ public static partial class VKRender
     {
         return FindSupportedFormat(new[] { Format.D32Sfloat, Format.D32SfloatS8Uint, Format.D24UnormS8Uint }, ImageTiling.Optimal, FormatFeatureFlags.DepthStencilAttachmentBit);
     }
+    
     private static Format FindSupportedFormat(IEnumerable<Format> candidates, ImageTiling tiling, FormatFeatureFlags features)
     {
         foreach (var format in candidates)
@@ -172,8 +203,7 @@ public static partial class VKRender
     {
         textureImageView = CreateImageView(textureImage, Format.R8G8B8A8Srgb,ImageAspectFlags.ColorBit);
     }
-
-
+    
     private static unsafe ImageView CreateImageView(Image image, Format format, ImageAspectFlags imageAspectFlags)
     {
         ImageViewCreateInfo createInfo = new()
@@ -206,13 +236,10 @@ public static partial class VKRender
 
         return imageView;
     }
-
-    //todo remove
-    static Image textureImage = default;
-    static DeviceMemory textureImageMemory = default;
+    
     private static unsafe void CreateTextureImage()
     {
-        using var img = SixLabors.ImageSharp.Image.Load<Rgba32>("../../../Assets/textures/texture.jpg");
+        using var img = SixLabors.ImageSharp.Image.Load<Rgba32>(AssetsPath+"/textures/texture.jpg");
         ulong imageSize = (ulong)(img.Width * img.Height * img.PixelType.BitsPerPixel / 8);
         
         Buffer stagingBuffer = default;
@@ -575,32 +602,6 @@ public static partial class VKRender
             .Expect("failed to create descriptor set layout!");
     }
 
-    private static Vertex[] vertices = {
-        ((-0.5f, -0.5f,0), (1.0f, 0.0f, 0.0f),(0,0)),
-        ((0.5f, -0.5f,0), (0.0f, 1.0f, 0.0f),(1,0)),
-        ((0.5f, 0.5f,0), (0.0f, 0.0f, 1.0f),(1,1)),
-        ((-0.5f, 0.5f,0), (1.0f, 1.0f, 1.0f),(0,1))
-    };
-
-    private static uint[] indices = {
-        0, 1, 2, 2, 3, 0
-    };
-
-#pragma warning disable CS0649 
-    //var not asssigned 
-    // static Buffer vertexBuffer;
-    // static DeviceMemory vertexBufferMemory;
-#pragma warning restore CS0649
-    static Buffer IndexBuffer;
-    static DeviceMemory IndexBufferMemory;
-    static Buffer[] uniformBuffers = null!;
-    static DeviceMemory[] uniformBuffersMemory = null!;
-    static DescriptorPool DescriptorPool;
-    static DescriptorSet DescriptorSet;
-    private static unsafe void*[] uniformBuffersMapped;
-    private static ImageView textureImageView;
-    private static Sampler textureSampler;
-
 
     static unsafe void CreateBuffer(ulong size, BufferUsageFlags usage, MemoryPropertyFlags properties, Buffer* buffer, DeviceMemory* bufferMemory)
     {
@@ -709,7 +710,7 @@ public static partial class VKRender
         var beginInfo = new CommandBufferBeginInfo
         {
             SType = StructureType.CommandBufferBeginInfo,
-            Flags = 0,
+            Flags = CommandBufferUsageFlags.OneTimeSubmitBit,
             PInheritanceInfo = null,
         };
         vk.BeginCommandBuffer(commandBuffer, beginInfo)
@@ -717,14 +718,8 @@ public static partial class VKRender
 
         var clearValues = stackalloc ClearValue[]
         {
-            new()
-            {
-                Color = new (){ Float32_0 = 0, Float32_1 = 0, Float32_2 = 0, Float32_3 = 1 },
-            },
-            new()
-            {
-                DepthStencil = new () { Depth = 1, Stencil = 0 }
-            }
+            new(new(0,0,0,1),null),
+            new(null,new(1,0))
         };
         var renderPassInfo = new RenderPassBeginInfo
         {
@@ -757,6 +752,7 @@ public static partial class VKRender
         };
 
         vk.CmdBeginRenderPass(commandBuffer, renderPassInfo, SubpassContents.Inline);
+        // vk.CmdCopyBuffer();
         vk.CmdBindPipeline(commandBuffer, PipelineBindPoint.Graphics, GraphicsPipeline);
         vk.CmdSetViewport(commandBuffer,0,1,&viewPort);
         vk.CmdSetScissor(commandBuffer,0,1,&scissor);
@@ -819,7 +815,7 @@ public static partial class VKRender
             Format = FindDepthFormat(),
             Samples = SampleCountFlags.Count1Bit,
             LoadOp = AttachmentLoadOp.Clear,
-            StoreOp = AttachmentStoreOp.DontCare,
+            StoreOp = AttachmentStoreOp.Store,
             StencilLoadOp = AttachmentLoadOp.DontCare,
             StencilStoreOp = AttachmentStoreOp.DontCare,
             InitialLayout = ImageLayout.Undefined,
@@ -871,8 +867,8 @@ public static partial class VKRender
 
     private static unsafe void CreateGraphicsPipeline()
     {
-        byte[] vertexShaderCode = File.ReadAllBytes("./../../../vert.spv");
-        byte[] fragmentShaderCode = File.ReadAllBytes("./../../../frag.spv");
+        byte[] vertexShaderCode = File.ReadAllBytes(AssetsPath+"/../vert.spv");
+        byte[] fragmentShaderCode = File.ReadAllBytes(AssetsPath+"/../frag.spv");
         
         var vertexModule = CreateShaderModule(vertexShaderCode);
         var fragmentModule = CreateShaderModule(fragmentShaderCode);
@@ -1086,10 +1082,26 @@ public static partial class VKRender
 
         foreach (var device in list)
         {
+            if (physicalDevice.Handle!=default)
+            {
+                var o_properties = vk.GetPhysicalDeviceProperties(physicalDevice);
+                if (o_properties.DeviceType!=PhysicalDeviceType.DiscreteGpu)
+                {
+                    var n_properties = vk.GetPhysicalDeviceProperties(device);
+                    if (n_properties.DeviceType==PhysicalDeviceType.DiscreteGpu)
+                    {
+                        physicalDevice = device;
+                    }
+                }
+                
+
+            }
             if (IsDeviceSuitable(device))
             {
                 physicalDevice = device;
-                break;
+                var n_properties = vk.GetPhysicalDeviceProperties(device);
+                if (n_properties.DeviceType==PhysicalDeviceType.DiscreteGpu)
+                    break;
             }
         }
         if (physicalDevice.Handle==0)

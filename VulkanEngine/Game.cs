@@ -61,7 +61,7 @@ public static class Game
     public static void Update()
     {
         var cam_dist=3f;
-        
+        // Thread.Sleep(15);
         // camera.transform.
     }
 

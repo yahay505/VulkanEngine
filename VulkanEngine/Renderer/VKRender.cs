@@ -1,4 +1,6 @@
+using System.Reflection;
 using System.Runtime.InteropServices;
+using ImGuiNET;
 using Silk.NET.Assimp;
 using Silk.NET.Core;
 using Silk.NET.Core.Native;
@@ -19,11 +21,19 @@ public static partial class VKRender
     private const int Width=800;
     private const int Height=600;
 
-    private static readonly bool EnableValidationLayers = true;
+    private static readonly bool EnableValidationLayers =
+#if DEBUG
+        true;
+#else
+        false;
+#endif
+            
 
 
     private static readonly string[] validationLayers = {
+#if DEBUG
         "VK_LAYER_KHRONOS_validation"
+#endif
     };
     private static readonly string[] deviceExtensions = {
         KhrSwapchain.ExtensionName,
@@ -83,6 +93,8 @@ public static partial class VKRender
         public static Format depthFormat;
         public static DeviceMemory depthImageMemory;
         public static ImageView depthImageView;
+        
+        public static CommandPool globalCommandPool;
     }
 
     private static IInputContext Input;
@@ -93,7 +105,8 @@ public static partial class VKRender
         LoadMesh();
         InitVulkan();
         Input=window.CreateInput();
-        imGuiController = new Silk.NET.Vulkan.Extensions.ImGui.ImGuiController(vk,window,Input,new ImGuiFontConfig("../../../Assets/fonts/FiraSansCondensed-ExtraLight.otf",12),physicalDevice,_familyIndices.graphicsFamily!.Value,swapChainImages.Length,swapChainImageFormat,GlobalData.depthFormat);
+        imGuiController = new ImGuiController(vk,window,Input,new ImGuiFontConfig("../../../Assets/fonts/FiraSansCondensed-ExtraLight.otf",12),physicalDevice,_familyIndices.graphicsFamily!.Value,swapChainImages.Length,swapChainImageFormat,GlobalData.depthFormat);
+        ImGui.GetIO().ConfigFlags |= ImGuiConfigFlags.DockingEnable;
     }
 
  
@@ -105,12 +118,28 @@ public static partial class VKRender
     }
 
 
+public static string AssetsPath
+{
+    get
+    {
+        if (_RPath != null) return _RPath;
+        var f=System.IO.Directory.GetParent(Assembly.GetExecutingAssembly().Location);
+        while (f.GetDirectories("Assets").Length==0)
+        {
+            f=f.Parent!;
+            if (f==null) throw new Exception("Assets folder not found");
+        }
+        _RPath=f.FullName+"/Assets";
+        return _RPath;
+    }
+}
+private static string _RPath;
 
-    private static unsafe void LoadMesh()
+private static unsafe void LoadMesh()
     {
         using var assimp = Assimp.GetApi()!;
         
-        var scene=assimp.ImportFile("../../../Assets/models/model.obj", (uint)PostProcessPreset.TargetRealTimeMaximumQuality)!;
+        var scene=assimp.ImportFile(AssetsPath+"/models/model.obj", (uint)PostProcessPreset.TargetRealTimeMaximumQuality)!;
         
         var vertexMap = new Dictionary<Vertex, uint>();
         var _vertices = new List<Vertex>();
