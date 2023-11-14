@@ -707,7 +707,7 @@ namespace Silk.NET.Vulkan.Extensions.ImGui
             io.MouseWheel = wheel.Y;
             io.MouseWheelH = wheel.X;
 
-            foreach (Key key in Enum.GetValues(typeof(Key)))
+            foreach (var key in Enum.GetValues<Key>())
             {
                 if (key == Key.Unknown)
                 {
