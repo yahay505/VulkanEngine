@@ -24,7 +24,7 @@ public struct ComputeOutput{
 };
 [StructLayout(LayoutKind.Sequential, Size = 64, Pack = 1)]
 public struct ComputeInputConfig{
-    uint objectCount;
+    public uint objectCount;
     unsafe fixed int padding[15];
 };
 [StructLayout(LayoutKind.Sequential, Size = (int)VKRender.ComputeOutSSBOStartOffset, Pack = 1)]
@@ -34,8 +34,7 @@ public struct ComputeOutputConfig{
 };
 [StructLayout(LayoutKind.Sequential, Size = 16, Pack = 1)]
 public struct MeshInfo{
-    uint IBOoffset;
-    uint IBOsize;
-    int vertexLoadOffset;
-    int materialID;
+    public uint IBOoffset;
+    public uint IBOsize;
+    public int vertexLoadOffset;
 };

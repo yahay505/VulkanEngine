@@ -1,4 +1,5 @@
 using Silk.NET.Vulkan;
+using VulkanEngine.Renderer.GPUStructs;
 using Buffer = Silk.NET.Vulkan.Buffer;
 using Semaphore = Silk.NET.Vulkan.Semaphore;
 
@@ -19,7 +20,10 @@ public struct FrameData
     public Buffer hostRenderObjectsBuffer;
     public DeviceMemory hostRenderObjectsMemory;
     public unsafe void* hostRenderObjectsBufferPtr;
-    public unsafe Span<GPUStructs.ComputeInput> hostRenderObjectsBufferAsSpan=>new(hostRenderObjectsBufferPtr,hostRenderObjectsBufferSize);
+    public unsafe Span<GPUStructs.ComputeInput> hostRenderObjectsBufferAsSpan=>new((void*)
+        ((UIntPtr) hostRenderObjectsBufferPtr + VKRender.ComputeInSSBOStartOffset),
+        hostRenderObjectsBufferSize);
+    public unsafe GPUStructs.ComputeInputConfig* computeInputConfig=>(ComputeInputConfig*) hostRenderObjectsBufferPtr;
     public int hostRenderObjectsBufferSize;
     public CommandBuffer GfxCommandBuffer, ComputeCommandBuffer;
 

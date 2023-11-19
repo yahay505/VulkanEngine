@@ -15,6 +15,30 @@ public static class RenderManager
         RenderObjects.Add(renderObject);
     }
     
+    public static unsafe void RegisterMesh(Mesh_internal mesh)
+    {
+        Meshes.Add(mesh);
+        VKRender.EnsureMeshRelatedBuffersAreSized();
+        var vertexOffset = LoadVertices(mesh.vertexBuffer);
+        var indexOffset = LoadIndices(mesh.indexBuffer);
+        
+        ((GPUStructs.MeshInfo*) VKRender.GlobalData.MeshInfoBufferPtr)[Meshes.Count - 1] = new()
+        {
+            IBOoffset = indexOffset,
+            vertexLoadOffset = vertexOffset,
+            IBOsize = (uint) mesh.indexBuffer.Length,
+        };
+    }
+
+    private static uint LoadIndices(uint[] meshIndexBuffer)
+    {
+        throw new NotImplementedException();
+    }
+
+    private static int LoadVertices(Vertex[] meshVertexBuffer)
+    {
+        throw new NotImplementedException();
+    }
 
 
     public static unsafe void WriteOutObjectData(Span<GPUStructs.ComputeInput> target)
@@ -35,15 +59,9 @@ public static class RenderManager
         }
     }
     
+    
 }
-public struct RenderObject_internal
-{
-    public float3 position;
-    public Quaternion<float> rotation;
-    public float3 scale;
-    public int mesh;
-    public int material;
-}
+
 public struct Material_ref
 {
     public int index;    

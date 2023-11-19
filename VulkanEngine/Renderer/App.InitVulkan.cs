@@ -501,7 +501,7 @@ public static partial class VKRender
             var ssboInfo = new DescriptorBufferInfo
             {
                 Buffer = GlobalData.deviceIndirectDrawBuffer,
-                Offset = 64,
+                Offset = ComputeOutSSBOStartOffset,
                 Range = (ulong) Marshal.SizeOf<RenderIndirectIndexedItem>()*10,
             };
 #pragma warning disable CA2014 //possible stack overflow

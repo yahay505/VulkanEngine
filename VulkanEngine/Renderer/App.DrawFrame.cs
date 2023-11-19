@@ -62,7 +62,8 @@ public static partial class VKRender
         }
         
         RenderManager.WriteOutObjectData(GetCurrentFrame().hostRenderObjectsBufferAsSpan);
- 
+        var objectCount=RenderManager.RenderObjects.Count;
+        GetCurrentFrame().computeInputConfig->objectCount = (uint) objectCount;
         var computeCommandBuffer = GetCurrentFrame().ComputeCommandBuffer;
         
         //vk wait last fr ame compute

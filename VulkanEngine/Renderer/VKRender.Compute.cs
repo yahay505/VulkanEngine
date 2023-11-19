@@ -10,8 +10,8 @@ namespace VulkanEngine.Renderer;
 
 public static partial class VKRender
 {
-    public const ulong ComputeOutSSBOStartOffset = 64;
-    public const ulong ComputeInSSBOStartOffset = 64;
+    public const uint ComputeOutSSBOStartOffset = 64;
+    public const uint ComputeInSSBOStartOffset = 64;
 
     private static unsafe void CreateComputeResources()
     {
@@ -219,7 +219,7 @@ public static partial class VKRender
         CleanupHostRenderObjectMemory(CurrentFrameIndex);
 
         var newbufsize = Math.Max(neededBufferSizeInItems, currentBufferSizeInItems * 2);
-        var newBufSizeInBytes = newbufsize * sizeof(RenderObject_internal);
+        var newBufSizeInBytes = newbufsize * sizeof(GPUStructs.ComputeInput)+(int) ComputeInSSBOStartOffset;
         fixed (FrameData* frameData = &FrameData[CurrentFrameIndex])
         {
             CreateBuffer((ulong) newBufSizeInBytes,
@@ -255,9 +255,9 @@ public static partial class VKRender
             MemoryPropertyFlags.DeviceLocalBit, out var newDeviceRenderObjectsBuffer,
             out var newDeviceRenderObjectsBufferMemory);
 
-        var newOutBuffSizeInBytes = ((ulong) newbufsize) * ((ulong) sizeof(RenderIndirectIndexedItem));
+        var newOutBuffSizeInBytes = ((ulong) newbufsize) * ((ulong) sizeof(GPUStructs.ComputeOutput)+ComputeOutSSBOStartOffset);
         CreateBuffer( //device indirect draw buffer
-            newOutBuffSizeInBytes + ComputeOutSSBOStartOffset,
+            newOutBuffSizeInBytes,
             BufferUsageFlags.TransferSrcBit |
             BufferUsageFlags.TransferDstBit |
             BufferUsageFlags.StorageBufferBit |
