@@ -10,7 +10,24 @@ public static class Extensions
     {
         if (result!= Result.Success)
         {
-            throw new(error_text);
+            throw new(error_text+"with error: "+result+"\n");
+        }
+    }
+
+    public static IEnumerable<int> Times(this Range range)
+    {
+        int i=range.Start.Value;
+        while (i<range.End.Value)
+        {
+            yield return i;
+            i++;
+        }
+    }
+    public static void ForEach<T>(this IEnumerable<T> enumerable, Action<T> action)
+    {
+        foreach (var item in enumerable)
+        {
+            action(item);
         }
     }
 }

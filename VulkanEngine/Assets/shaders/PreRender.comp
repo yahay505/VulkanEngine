@@ -1,0 +1,68 @@
+#version 450
+layout (local_size_x = 256) in;
+struct Input{
+    uint meshID;
+    uint materialID;
+    mat4 transform;
+};
+struct VkDrawIndexedIndirectCommand {
+    uint    indexCount;
+    uint    instanceCount;
+    uint    firstIndex;
+    int     vertexOffset;
+    uint    firstInstance;
+};
+
+struct Output{
+    VkDrawIndexedIndirectCommand command;
+    uint materialID;
+    mat4 model;
+};
+struct InputConfig{
+    uint objectCount;
+    uint[15] padding;
+};
+struct OutputConfig{
+    uint objectCount;
+    uint[15] padding;
+};
+struct MeshInfo{
+    uint IBOoffset;
+    uint IBOsize;
+    int vertexLoadOffset;
+    int materialID;
+};
+
+layout(set = 0, binding = 1) readonly buffer  InputBuffer{
+    InputConfig config;
+    Input inputs[];
+} sourceData;
+
+layout(set = 0, binding = 2) buffer  OutputBuffer{
+    OutputConfig config;
+    Output[] data;
+} outputData;
+
+layout(set = 0, binding = 3) readonly buffer  MeshDB{
+    MeshInfo[] meshes;
+} meshDB;
+
+void main()
+{
+    //grab global ID
+    uint gID = gl_GlobalInvocationID.x;
+    //make sure we don't access past the buffer size
+    if(gID < sourceData.config.objectCount)
+    {
+        uint meshID = sourceData.inputs[gID].meshID;
+        
+        // do math
+        outputData.data[gID].materialID = sourceData.inputs[gID].materialID;
+        outputData.data[gID].model = sourceData.inputs[gID].transform;
+        outputData.data[gID].command.indexCount = meshDB.meshes[meshID].IBOsize;
+        outputData.data[gID].command.instanceCount = 1;
+        outputData.data[gID].command.firstIndex = meshDB.meshes[meshID].IBOoffset;
+        outputData.data[gID].command.vertexOffset = meshDB.meshes[meshID].vertexLoadOffset;
+        outputData.data[gID].command.firstInstance = 0;
+    }
+}

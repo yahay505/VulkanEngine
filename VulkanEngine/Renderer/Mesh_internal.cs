@@ -3,8 +3,8 @@ namespace VulkanEngine.Renderer.Internal;
 public class Mesh_internal:IDisposable
 {
     public string name;
-    public ulong indexCount;
-    public ulong vertexCount;
+    public int indexCount;
+    public int vertexCount;
     public ulong indexBufferOffset;
     public ulong vertexBufferOffset;
     public uint[] indexBuffer;

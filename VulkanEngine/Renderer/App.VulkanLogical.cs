@@ -34,7 +34,12 @@ public static partial class VKRender
         {
             SamplerAnisotropy = true,
         };
-
+        var next = new PhysicalDeviceDescriptorIndexingFeatures()
+        {
+            SType = StructureType.PhysicalDeviceDescriptorIndexingFeatures,
+DescriptorBindingStorageBufferUpdateAfterBind = true,
+DescriptorBindingUpdateUnusedWhilePending = true,
+        };
         DeviceCreateInfo createInfo = new()
         {
             SType = StructureType.DeviceCreateInfo,
@@ -44,6 +49,7 @@ public static partial class VKRender
             PEnabledFeatures = &deviceFeatures,
             PpEnabledExtensionNames = (byte**) SilkMarshal.StringArrayToPtr( deviceExtensions),
             EnabledExtensionCount = (uint) deviceExtensions.Length,
+            PNext = &next,
         };
 
         if (EnableValidationLayers)

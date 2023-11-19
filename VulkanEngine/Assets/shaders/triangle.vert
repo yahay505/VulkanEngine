@@ -6,6 +6,10 @@ layout(binding = 0) uniform UniformBufferObject {
     mat4 proj;
 } ubo;
 
+layout(binding=2) readonly buffer InstanceBufferObject {
+    mat4 model[];
+} ibo;
+
 layout(location = 0) in vec3 inPosition;//per vertex data
 layout(location = 1) in vec3 inColor;
 layout(location = 2) in vec2 inTexCoord;

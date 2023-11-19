@@ -202,18 +202,18 @@ public static partial class VKRender
             
             CreateGraphicsPipeline();
             CreateSwapchainFrameBuffers();
-            var allocInfo = new CommandBufferAllocateInfo
-            {
-                SType = StructureType.CommandBufferAllocateInfo,
-                CommandPool = GetCurrentFrame().commandPool,
-                Level = CommandBufferLevel.Primary,
-                CommandBufferCount = 1,
-            };
-            for (var i = 0; i < FRAME_OVERLAP; i++)
-                fixed(FrameData* frameData = &FrameData[i])
-                    vk.AllocateCommandBuffers(device, allocInfo,out frameData->mainCommandBuffer)
-                        .Expect("failed to allocate command buffers!");
-           
+            // var allocInfo = new CommandBufferAllocateInfo
+            // {
+            //     SType = StructureType.CommandBufferAllocateInfo,
+            //     // CommandPool = GetCurrentFrame().commandPool,
+            //     Level = CommandBufferLevel.Primary,
+            //     CommandBufferCount = 1,
+            // };
+            // for (var i = 0; i < FRAME_OVERLAP; i++)
+            //     fixed(FrameData* frameData = &FrameData[i])
+            //         vk.AllocateCommandBuffers(device, allocInfo with{CommandPool = frameData->commandPool},out frameData->mainCommandBuffer)
+            //             .Expect("failed to allocate command buffers!");
+            //
 
         }
     }

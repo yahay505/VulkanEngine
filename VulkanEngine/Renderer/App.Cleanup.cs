@@ -5,10 +5,16 @@ namespace VulkanEngine.Renderer;
 
 public static partial class VKRender
 {
+    public static Stack<Action> CleanupStack = new();
     public static unsafe void CleanUp()
     {
-        imGuiController.Dispose();
+        while (CleanupStack.TryPop(out var action))
+        {
+            action();
+        }
         
+        imGuiController.Dispose();
+        FreeGlobalData();
         vk.DestroyBuffer(device, GlobalData.VertexBuffer, null);
         vk.FreeMemory(device, GlobalData.VertexBufferMemory, null);
         CleanUpSwapChainStuff();
@@ -18,7 +24,9 @@ public static partial class VKRender
         vk.DestroyImage(device, textureImage, null);
         vk.FreeMemory(device, textureImageMemory, null);
         
-        for (var i = 0; i < FRAME_OVERLAP; i++) {
+        for (var i = 0; i < FRAME_OVERLAP; i++)
+        {
+            FrameCleanup[i]();
             vk.DestroyBuffer(device, uniformBuffers[i], null);
             vk.FreeMemory(device, uniformBuffersMemory[i], null);
         }
@@ -35,7 +43,7 @@ public static partial class VKRender
         {
             vk.DestroySemaphore(device, FrameData[i].RenderSemaphore, null);
             vk.DestroySemaphore(device, FrameData[i].presentSemaphore, null);
-            vk.DestroySemaphore(device, FrameData[i].transferSemaphore, null);
+            vk.DestroySemaphore(device, FrameData[i].ComputeSemaphore, null);
             vk.DestroyFence(device, FrameData[i].renderFence, null);
             vk.DestroyCommandPool(device, FrameData[i].commandPool, null);
         }
@@ -72,7 +80,7 @@ public static partial class VKRender
         }
 
         vk.DestroyPipeline(device, GraphicsPipeline, null);
-        vk.DestroyPipelineLayout(device, PipelineLayout, null);
+        vk.DestroyPipelineLayout(device, GfxPipelineLayout, null);
         vk.DestroyRenderPass(device, RenderPass, null);
         
         vk.DestroyImage(device, GlobalData.depthImage,null);

@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.Numerics;
 using ImGuiNET;
+using Silk.NET.Maths;
+using VulkanEngine.Renderer.Internal;
 
 namespace VulkanEngine;
 using VulkanEngine.Renderer;
@@ -8,14 +10,25 @@ using VulkanEngine.Renderer;
 public static class Game
 {
     static Camera camera = new();
-    static FPSCounter fpsCounter = new(2000);
+    static FPSCounter fpsCounter = new(100000);
+    private static RenderObject monkey;
+
     public static void Run()
     {
-#if !MAC
-        CompileShadersWindowsTEMP();
-#endif
+        CompileShadersTEMP();
+        
         VKRender.InitializeRenderer();
+        RenderManager.Meshes.Add(
+            new Mesh_internal()
+            {
+                name = "demo monkey", indexBuffer = VKRender.indices, vertexBuffer = VKRender.vertices,
+                indexCount = VKRender.indices.Length, vertexCount = VKRender.vertices.Length
+            }
+        );
+        monkey = new RenderObject(new Transform(new(0),Quaternion<float>.Identity, float3.One),new(){index = 0},new(){index = 0});
+        RenderManager.RenderObjects.Add(monkey);
         Start();
+        
         while (!VKRender.window!.IsClosing)
         {
             VKRender.window.DoEvents();
@@ -35,7 +48,7 @@ public static class Game
         VKRender.CleanUp();
     }
 
-    private static void CompileShadersWindowsTEMP()
+    private static void CompileShadersTEMP()
     {
         //if env has renderdoc return early
         if (Environment.GetEnvironmentVariable("RENDERDOCeee") != null)
@@ -45,17 +58,26 @@ public static class Game
         //glslc
         ///Users/yavuz/VulkanSDK/1.3.261.1/macOS/bin/glslc triangle.vert -o vert.spv
          //   /Users/yavuz/VulkanSDK/1.3.261.1/macOS/bin/glslc triangle.frag -o frag.spv
-         var processStartInfo = new ProcessStartInfo
-             (){
-                 UseShellExecute = false,
-                 FileName = "glslc",
-                 Arguments = "triangle.vert -o vert.spv",
-                 //wd = cwd/../../
-                 WorkingDirectory = System.IO.Directory.GetCurrentDirectory()+"/../../../",
-             };
-         Process.Start(processStartInfo)!.WaitForExit();
-         processStartInfo.Arguments = "triangle.frag -o frag.spv";
-         Process.Start(processStartInfo )!.WaitForExit();
+
+         new[]
+             {
+                 "*.vert",
+                 "*.frag",
+                 "*.comp",
+             }.SelectMany(search_string => Directory.GetFiles(VKRender.AssetsPath + "/shaders",
+                 search_string,
+                 SearchOption.AllDirectories))
+             .Select(in_name =>
+             {
+                 
+                 var out_name = VKRender.AssetsPath + "/shaders/compiled"+in_name[((VKRender.AssetsPath + "/shaders").Length)..]+".spv";
+
+                 return Process.Start("glslc", $@"{in_name} -o {out_name}");
+             }).
+             ForEach(
+                 x => x!.WaitForExit()
+                 );
+
     }
 
     public static void Update()
@@ -69,7 +91,7 @@ public static class Game
     {
         
     }
-
+    
     private static void DisplayFps()
     {
         int location = 0;

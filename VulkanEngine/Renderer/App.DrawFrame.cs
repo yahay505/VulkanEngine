@@ -6,6 +6,7 @@ using Silk.NET.Core.Native;
 using Silk.NET.Maths;
 using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.KHR;
+using Buffer = Silk.NET.Vulkan.Buffer;
 using Semaphore = Silk.NET.Vulkan.Semaphore;
 
 namespace VulkanEngine.Renderer;
@@ -19,58 +20,109 @@ public static partial class VKRender
     public static float deltaTime;
     private static unsafe void DrawFrame()
     {
-        // ok 
-        // fill indirect buffer
-        // draw indirect buffer
-        // draw ui
-        // swap&present
-        
-        
-        
-        
-        
-        
-        var fence = GetCurrentFrame().renderFence;
-        vk.WaitForFences(device, 1,  fence, true, ulong.MaxValue)
-            .Expect("failed to wait for fence!");
         uint imageIndex = 999;
-        var result = khrSwapChain.AcquireNextImage(device, swapChain, ulong.MaxValue, GetCurrentFrame().RenderSemaphore, default, &imageIndex);
-        
-        switch (result)
-        {
-            case Result.Success:
-            case Result.SuboptimalKhr:
-                break;
-            case Result.ErrorOutOfDateKhr:
-                RecreateSwapChain();
-                return;
-            default:
-                throw new Exception("failed to acquire swap chain image!");
-        }
-        if (fence.Handle != default)
-        {
+        {//start
+            var fence = GetCurrentFrame().renderFence;
             vk.WaitForFences(device, 1, fence, true, ulong.MaxValue)
                 .Expect("failed to wait for fence!");
+            var result = khrSwapChain.AcquireNextImage(device, swapChain, ulong.MaxValue,
+                GetCurrentFrame().RenderSemaphore, default, &imageIndex);
+
+            switch (result)
+            {
+                case Result.Success:
+                case Result.SuboptimalKhr:
+                    break;
+                case Result.ErrorOutOfDateKhr:
+                    RecreateSwapChain();
+                    return;
+                default:
+                    throw new Exception("failed to acquire swap chain image!");
+            }
+
+            if (fence.Handle != default)
+            {
+                vk.WaitForFences(device, 1, fence, true, ulong.MaxValue)
+                    .Expect("failed to wait for fence!");
+            }
+
+            vk.ResetFences(device, 1, fence); //only reset if we are rendering
+            vk.ResetCommandPool(device, GetCurrentFrame().commandPool, CommandPoolResetFlags.ReleaseResourcesBit);
         }
-        vk.ResetFences(device, 1, fence);//only reset if we are rendering
-        vk.ResetCommandPool(device,GetCurrentFrame().commandPool, 0);
-     
+        DoWhatMustBeDone();
+        
+      
+        EnsureMeshRelatedBuffersAreSized();
+        // If needed resize the object buffers
+        var neededBufferSize = RenderManager.RenderObjects.Count;
+        var currentBufferSize = GetCurrentFrame().hostRenderObjectsBufferSize;
+        if (neededBufferSize>currentBufferSize)//resize buffers
+        {
+            ResizeRenderObjectRelatedBuffer(neededBufferSize, currentBufferSize);
+        }
+        
+        RenderManager.WriteOutObjectData(GetCurrentFrame().hostRenderObjectsBufferAsSpan);
+ 
+        var computeCommandBuffer = GetCurrentFrame().ComputeCommandBuffer;
+        
+        //vk wait last fr ame compute
+        var commandBufferBeginInfo = new CommandBufferBeginInfo()
+        {
+            SType = StructureType.CommandBufferBeginInfo,
+            Flags = CommandBufferUsageFlags.OneTimeSubmitBit
+        };
+        vk.BeginCommandBuffer(computeCommandBuffer, &commandBufferBeginInfo)
+            .Expect("failed to begin recording command buffer!");
+        vk.CmdBindPipeline(computeCommandBuffer, PipelineBindPoint.Compute, ComputePipeline);
+        fixed (DescriptorSet* pDescriptorSet = &ComputeDescriptorSet)
+            vk.CmdBindDescriptorSets(computeCommandBuffer, PipelineBindPoint.Compute, ComputePipelineLayout, 0, 1, pDescriptorSet, 0, null);
+        int ComputeWorkGroupSize=256;
+        var dispatchSize = (uint) (RenderManager.RenderObjects.Count / ComputeWorkGroupSize)+1;
+        vk.CmdDispatch(computeCommandBuffer, dispatchSize, 1, 1);
+        vk.EndCommandBuffer(computeCommandBuffer)
+            .Expect("failed to record command buffer!");
+        var pWaitDstStageMask = stackalloc PipelineStageFlags[]{ PipelineStageFlags.ComputeShaderBit};
+        var lastFrameComputeSemaphore = stackalloc Semaphore[]{GetLastFrame().ComputeSemaphore};
+        var currentFrameComputeSemaphore = stackalloc Semaphore[]{GetCurrentFrame().ComputeSemaphore};
+        var computeSubmitInfo = new SubmitInfo()
+        {
+            SType = StructureType.SubmitInfo,
+            CommandBufferCount = 1,
+            PCommandBuffers = &computeCommandBuffer,
+            PSignalSemaphores = currentFrameComputeSemaphore,
+            SignalSemaphoreCount = 1,
+            PWaitSemaphores = lastFrameComputeSemaphore,
+            WaitSemaphoreCount = (uint) (CurrentFrame==0?0:1),
+            PWaitDstStageMask = pWaitDstStageMask,
+        };
+        vk.QueueSubmit(computeQueue, 1, &computeSubmitInfo, default)
+            .Expect("failed to submit compute command buffer!");
+        
+        var gfxCommandBuffer = GetCurrentFrame().GfxCommandBuffer;
+ 
+
         
         
         
         
         
-        RecordCommandBuffer(GetCurrentFrame().mainCommandBuffer, imageIndex);
+
         
-        imGuiController.Render(GetCurrentFrame().mainCommandBuffer,swapChainFramebuffers![imageIndex],swapChainExtent);
         
-        vk.EndCommandBuffer(GetCurrentFrame().mainCommandBuffer)
+        
+        
+        
+        RecordCommandBuffer(gfxCommandBuffer, imageIndex);
+        
+        imGuiController.Render(gfxCommandBuffer,swapChainFramebuffers![imageIndex],swapChainExtent);
+        
+        vk.EndCommandBuffer(gfxCommandBuffer)
             .Expect("failed to record command buffer!");
         UpdateUniformBuffer(CurrentFrameIndex);
         
         var waitSemaphores = stackalloc Semaphore[] { GetCurrentFrame().RenderSemaphore };
         var waitStages= stackalloc PipelineStageFlags[] { PipelineStageFlags.ColorAttachmentOutputBit };
-        var buffer = GetCurrentFrame().mainCommandBuffer;
+    
         var signalSemaphores = stackalloc[] { GetCurrentFrame().presentSemaphore };
         var submitInfo = new SubmitInfo
         {
@@ -79,12 +131,12 @@ public static partial class VKRender
             PWaitSemaphores = waitSemaphores,
             PWaitDstStageMask = waitStages,
             CommandBufferCount = 1,
-            PCommandBuffers = &buffer,
+            PCommandBuffers = &gfxCommandBuffer,
             SignalSemaphoreCount = 1,
             PSignalSemaphores = signalSemaphores
         };
         
-        vk.QueueSubmit(graphicsQueue,1, &submitInfo, fence)
+        vk.QueueSubmit(graphicsQueue,1, &submitInfo, GetCurrentFrame().renderFence)
             .Expect("failed to submit draw command buffer!");
         var swapChains = stackalloc SwapchainKHR[] { swapChain };
 

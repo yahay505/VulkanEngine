@@ -35,13 +35,21 @@ public static partial class VKRender
         "VK_LAYER_KHRONOS_validation"
 #endif
     };
+    
     private static readonly string[] deviceExtensions = {
         KhrSwapchain.ExtensionName,
+        KhrDrawIndirectCount.ExtensionName,
+        "VK_EXT_descriptor_indexing",
+
 #if MAC
             "VK_KHR_portability_subset"
 #endif
     };
 
+    private static readonly string[] instanceExtensions = {
+    };
+    
+    
     public static IWindow? window;
     public static Vk vk=null!;
 
@@ -71,31 +79,25 @@ public static partial class VKRender
     private static PhysicalDevice physicalDevice;
     public static Device device;
     private static DescriptorSetLayout DescriptorSetLayout;
-    private static PipelineLayout PipelineLayout;
+    private static PipelineLayout GfxPipelineLayout;
     private static Pipeline GraphicsPipeline;
 
+    private static Pipeline ComputePipeline;
+    public static PipelineLayout ComputePipelineLayout;
+    private static DescriptorSetLayout ComputeDescriptorSetLayout;
+    private static DescriptorSet ComputeDescriptorSet;
+
+
     
-    const int FRAME_OVERLAP = 2;
+    const int FRAME_OVERLAP = 3;
     public static int CurrentFrame = 0;
     static int CurrentFrameIndex = 0;
     static bool FramebufferResized = false;
     
     public static FrameData[] FrameData = null!;
-    public static FrameData GetCurrentFrame()=>FrameData[CurrentFrameIndex];
-
-
-    public static class GlobalData
-    {
-        public static Buffer VertexBuffer;
-        public static DeviceMemory VertexBufferMemory;
-
-        public static Image depthImage;
-        public static Format depthFormat;
-        public static DeviceMemory depthImageMemory;
-        public static ImageView depthImageView;
-        
-        public static CommandPool globalCommandPool;
-    }
+    public static  FrameData GetCurrentFrame()=> FrameData[CurrentFrameIndex];
+    public static FrameData GetLastFrame()=> FrameData[(CurrentFrameIndex+FRAME_OVERLAP-1)%FRAME_OVERLAP];
+    public static Action[] FrameCleanup = null!;
 
     private static IInputContext Input;
     public static ImGuiController imGuiController = null!;
@@ -105,7 +107,7 @@ public static partial class VKRender
         LoadMesh();
         InitVulkan();
         Input=window.CreateInput();
-        imGuiController = new ImGuiController(vk,window,Input,new ImGuiFontConfig("../../../Assets/fonts/FiraSansCondensed-ExtraLight.otf",12),physicalDevice,_familyIndices.graphicsFamily!.Value,swapChainImages.Length,swapChainImageFormat,GlobalData.depthFormat);
+        imGuiController = new ImGuiController(vk,window,Input,new ImGuiFontConfig(AssetsPath+"/fonts/FiraSansCondensed-ExtraLight.otf",12),physicalDevice,_familyIndices.graphicsFamily!.Value,swapChainImages.Length,swapChainImageFormat,GlobalData.depthFormat);
         ImGui.GetIO().ConfigFlags |= ImGuiConfigFlags.DockingEnable;
     }
 
@@ -133,7 +135,15 @@ public static string AssetsPath
         return _RPath;
     }
 }
+
+
 private static string _RPath;
+
+public static void DoWhatMustBeDone()
+{
+    FrameCleanup[CurrentFrameIndex]();
+    FrameCleanup[CurrentFrameIndex]=()=>{};
+}
 
 private static unsafe void LoadMesh()
     {
