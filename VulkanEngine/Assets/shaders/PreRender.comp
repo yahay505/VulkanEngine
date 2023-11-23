@@ -38,13 +38,17 @@ layout(set = 0, binding = 1) readonly buffer  InputBuffer{
 } sourceData;
 
 layout(set = 0, binding = 2) buffer  OutputBuffer{
-    OutputConfig config;
     Output[] data;
 } outputData;
+
+layout(set = 0, binding = 4) buffer  OutputSecondaryBuffer{
+    OutputConfig config;
+} meshDB;
 
 layout(set = 0, binding = 3) readonly buffer  MeshDB{
     MeshInfo[] meshes;
 } meshDB;
+
 
 void main()
 {
@@ -55,6 +59,14 @@ void main()
     {
         uint meshID = sourceData.inputs[gID].meshID;
         
+        bool visible = true;
+
+        //frustrum culling
+//        visible = visible && center.z * cullData.frustum[1] - abs(center.x) * cullData.frustum[0] > -radius;
+//        visible = visible && center.z * cullData.frustum[3] - abs(center.y) * cullData.frustum[2] > -radius;
+        //vulkan atomic increment
+        uint index = atomicAdd(outputData.config.objectCount, 1);
+
         // do math
         outputData.data[gID].materialID = sourceData.inputs[gID].materialID;
         outputData.data[gID].model = sourceData.inputs[gID].transform;

@@ -29,6 +29,10 @@ public static partial class VKRender
         public static DeviceMemory MeshInfoBufferMemory;
         public static int MeshInfoBufferSize;
         public static unsafe void* MeshInfoBufferPtr;
+        
+        public static DeviceMemory ReadBackMemory;
+        public static Buffer ReadBackBuffer;
+        public static unsafe void* ReadBackBufferPtr;
     }
 
     private static unsafe void AllocateGlobalData()

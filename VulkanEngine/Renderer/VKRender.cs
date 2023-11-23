@@ -27,7 +27,13 @@ public static partial class VKRender
 #else
         false;
 #endif
-            
+    private static bool DrawIndirectCountAvaliable =
+#if MAC
+            false
+#else
+            true
+#endif
+        ;
 
 
     private static readonly string[] validationLayers = {
@@ -38,7 +44,10 @@ public static partial class VKRender
     
     private static readonly string[] deviceExtensions = {
         KhrSwapchain.ExtensionName,
+#if !MAC
         KhrDrawIndirectCount.ExtensionName,
+#endif
+        
         "VK_EXT_descriptor_indexing",
 
 #if MAC

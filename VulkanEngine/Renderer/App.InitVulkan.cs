@@ -6,6 +6,7 @@ using Silk.NET.Core.Native;
 using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.EXT;
 using Silk.NET.Vulkan.Extensions.KHR;
+using VulkanEngine.Renderer.GPUStructs;
 using Buffer = Silk.NET.Vulkan.Buffer;
 using Image = Silk.NET.Vulkan.Image;
 using Semaphore = Silk.NET.Vulkan.Semaphore;
@@ -132,12 +133,25 @@ public static partial class VKRender
                     .Expect("failed to create semaphore!");
                 vk.CreateSemaphore(device, semCreateInfo, null, out z->ComputeSemaphore)
                     .Expect("failed to create semaphore!");
+                vk.CreateSemaphore(device, semCreateInfo, null, out z->ComputeSemaphore2)
+                    .Expect("failed to create semaphore!");
                 vk.CreateSemaphore(device, semCreateInfo, null, out z->RenderSemaphore)
                     .Expect("failed to create semaphore!");
                 vk.CreateFence(device, fenceCreateInfo, null, out z->renderFence)
                     .Expect("failed to create fence!");
+                vk.CreateFence(device,fenceCreateInfo with {Flags = 0}, null, out z->computeFence)
+                    .Expect("failed to create fence!");
             }
-        
+
+            CleanupStack.Push(() =>
+            {
+                for (var i = 0; i < FRAME_OVERLAP; i++)
+                {
+                    vk.DestroyFence(device, FrameData[i].computeFence, null);
+                    vk.DestroySemaphore(device, FrameData[i].ComputeSemaphore2, null);
+                }
+            });
+
         }
         
     }
@@ -511,7 +525,7 @@ public static partial class VKRender
                 {
                     SType = StructureType.WriteDescriptorSet,
                     DstSet = GfxDescriptorSet,
-                    DstBinding = 0,
+                    DstBinding = BindingPoints.GPU_Gfx_UBO,
                     DstArrayElement = 0,
                     DescriptorType = DescriptorType.UniformBuffer,
                     DescriptorCount = 1,
@@ -521,7 +535,7 @@ public static partial class VKRender
                 {
                     SType = StructureType.WriteDescriptorSet,
                     DstSet = GfxDescriptorSet,
-                    DstBinding = 1,
+                    DstBinding = BindingPoints.GPU_Gfx_Image_Sampler,
                     DstArrayElement = 0,
                     DescriptorType = DescriptorType.CombinedImageSampler,
                     DescriptorCount = 1,
@@ -597,7 +611,7 @@ public static partial class VKRender
 
         var uboLayoutBinding = new DescriptorSetLayoutBinding
         {
-            Binding = 0,
+            Binding = BindingPoints.GPU_Gfx_UBO,
             DescriptorType = DescriptorType.UniformBuffer,
             DescriptorCount = 1,
             StageFlags = ShaderStageFlags.VertexBit,
@@ -605,7 +619,7 @@ public static partial class VKRender
         };
         var samplerLayoutBinding = new DescriptorSetLayoutBinding
         {
-            Binding = 1,
+            Binding = BindingPoints.GPU_Gfx_Image_Sampler,
             DescriptorCount = 1,
             DescriptorType = DescriptorType.CombinedImageSampler,
             StageFlags = ShaderStageFlags.FragmentBit,
@@ -613,7 +627,7 @@ public static partial class VKRender
         };
         var drawcallSSBOBinding = new DescriptorSetLayoutBinding
         {
-            Binding = 2,
+            Binding = BindingPoints.GPU_Gfx_Input_Indirect,
             DescriptorType = DescriptorType.StorageBuffer,
             DescriptorCount = 1,
             StageFlags = ShaderStageFlags.VertexBit,
@@ -752,7 +766,7 @@ public static partial class VKRender
 
         var clearValues = stackalloc ClearValue[]
         {
-            new(new(0,0,0,1),null),
+            new(new(0,0,0,1)),
             new(null,new(1,0))
         };
         var renderPassInfo = new RenderPassBeginInfo
@@ -799,11 +813,30 @@ public static partial class VKRender
         fixed(DescriptorSet* pDescriptorSet = &GfxDescriptorSet)
             vk.CmdBindDescriptorSets(commandBuffer, PipelineBindPoint.Graphics, GfxPipelineLayout, 0, 1, pDescriptorSet, 0, null);
         vk.CmdBindIndexBuffer(commandBuffer, IndexBuffer, 0, IndexType.Uint32);
-        
-        vk.CmdDrawIndexedIndirectCount(commandBuffer,GlobalData.deviceIndirectDrawBuffer,ComputeOutSSBOStartOffset,GlobalData.deviceIndirectDrawBuffer,0,(uint) RenderManager.RenderObjects.Count,(uint) sizeof(RenderIndirectIndexedItem));
 
-        
-        
+
+        if (DrawIndirectCountAvaliable)
+        {
+            vk.CmdDrawIndexedIndirectCount(commandBuffer,
+                GlobalData.deviceIndirectDrawBuffer,
+                ComputeOutSSBOStartOffset,
+                GlobalData.deviceIndirectDrawBuffer,
+                0,
+                (uint) RenderManager.RenderObjects.Count,
+                (uint) sizeof(GPUStructs.ComputeOutput));
+        }
+        else
+        {
+            vk.WaitForFences(device,1,GetCurrentFrame().computeFence,true,ulong.MaxValue);
+            var postCullCount = *(int*) GlobalData.ReadBackBufferPtr;
+            vk.ResetFences(device,1,GetCurrentFrame().computeFence);
+            vk.CmdDrawIndexedIndirect(commandBuffer,
+                GlobalData.deviceIndirectDrawBuffer,
+                ComputeOutSSBOStartOffset,
+                (uint) postCullCount,
+                (uint) sizeof(GPUStructs.ComputeOutput));
+        }
+
         
         // vk!.CmdDraw(commandBuffer, (uint) vertices.Length, 1, 0, 0);
         vk.CmdEndRenderPass(commandBuffer);

@@ -11,8 +11,9 @@ public struct FrameData
         // ImguiSemaphore, //imgui render finished
         presentSemaphore, //render finished can be presented
         RenderSemaphore, //swapchain render target acquired
-        ComputeSemaphore;//transfer finished
-    public Fence renderFence;
+        ComputeSemaphore,//transfer finished
+        ComputeSemaphore2;
+    public Fence renderFence, computeFence;
     public CommandPool commandPool;
     // public CommandBuffer mainCommandBuffer;
     public Buffer stagingBuffer;

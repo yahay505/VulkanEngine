@@ -64,6 +64,8 @@ public static partial class VKRender
         RenderManager.WriteOutObjectData(GetCurrentFrame().hostRenderObjectsBufferAsSpan);
         var objectCount=RenderManager.RenderObjects.Count;
         GetCurrentFrame().computeInputConfig->objectCount = (uint) objectCount;
+        
+        
         var computeCommandBuffer = GetCurrentFrame().ComputeCommandBuffer;
         
         //vk wait last fr ame compute
@@ -80,38 +82,59 @@ public static partial class VKRender
         int ComputeWorkGroupSize=256;
         var dispatchSize = (uint) (RenderManager.RenderObjects.Count / ComputeWorkGroupSize)+1;
         vk.CmdDispatch(computeCommandBuffer, dispatchSize, 1, 1);
+        if (DrawIndirectCountAvaliable)
+        {
+            var ComputeOutputBarrier = new BufferMemoryBarrier()
+            {
+                SType = StructureType.BufferMemoryBarrier,
+                Buffer = GlobalData.deviceIndirectDrawBuffer,
+                SrcAccessMask = AccessFlags.ShaderWriteBit,
+                DstAccessMask = AccessFlags.HostReadBit,
+                Offset = 0,
+                Size = 4,
+            };
+            vk.CmdPipelineBarrier(computeCommandBuffer,
+                PipelineStageFlags.ComputeShaderBit,
+                PipelineStageFlags.DrawIndirectBit | PipelineStageFlags.HostBit,
+                DependencyFlags.None,
+                0,
+                null,
+                1,
+                &ComputeOutputBarrier,
+                0,
+                null);
+            var first4bytes = new BufferCopy(0, 0, 4);
+            vk.CmdCopyBuffer(computeCommandBuffer, GlobalData.deviceIndirectDrawBuffer, GlobalData.ReadBackBuffer,1,first4bytes);
+        }
+        
         vk.EndCommandBuffer(computeCommandBuffer)
             .Expect("failed to record command buffer!");
         var pWaitDstStageMask = stackalloc PipelineStageFlags[]{ PipelineStageFlags.ComputeShaderBit};
-        var lastFrameComputeSemaphore = stackalloc Semaphore[]{GetLastFrame().ComputeSemaphore};
+        var lastFrameComputeSemaphore = stackalloc Semaphore[]{GetLastFrame().ComputeSemaphore,default};
         var currentFrameComputeSemaphore = stackalloc Semaphore[]{GetCurrentFrame().ComputeSemaphore};
+        if (DrawIndirectCountAvaliable)
+        {
+            lastFrameComputeSemaphore[1] = GetCurrentFrame().ComputeSemaphore2;
+        }
         var computeSubmitInfo = new SubmitInfo()
         {
             SType = StructureType.SubmitInfo,
             CommandBufferCount = 1,
             PCommandBuffers = &computeCommandBuffer,
             PSignalSemaphores = currentFrameComputeSemaphore,
-            SignalSemaphoreCount = 1,
+            SignalSemaphoreCount = (uint) (DrawIndirectCountAvaliable?2:1),
             PWaitSemaphores = lastFrameComputeSemaphore,
             WaitSemaphoreCount = (uint) (CurrentFrame==0?0:1),
             PWaitDstStageMask = pWaitDstStageMask,
         };
-        vk.QueueSubmit(computeQueue, 1, &computeSubmitInfo, default)
+        vk.QueueSubmit(computeQueue, 1, &computeSubmitInfo, DrawIndirectCountAvaliable?default:GetCurrentFrame().computeFence)
             .Expect("failed to submit compute command buffer!");
+
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        
         
         var gfxCommandBuffer = GetCurrentFrame().GfxCommandBuffer;
- 
-
-        
-        
-        
-        
-        
-
-        
-        
-        
-        
         
         RecordCommandBuffer(gfxCommandBuffer, imageIndex);
         
