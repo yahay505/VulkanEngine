@@ -33,6 +33,7 @@ public static partial class VKRender
         PhysicalDeviceFeatures deviceFeatures = new PhysicalDeviceFeatures
         {
             SamplerAnisotropy = true,
+            MultiDrawIndirect = true
         };
         var next = new PhysicalDeviceDescriptorIndexingFeatures()
         {

@@ -1,3 +1,4 @@
+//#define DIIC
 using System.Reflection;
 using System.Runtime.InteropServices;
 using ImGuiNET;
@@ -14,6 +15,7 @@ using Silk.NET.Windowing;
 using Buffer = Silk.NET.Vulkan.Buffer;
 using Image = Silk.NET.Vulkan.Image;
 
+
 namespace VulkanEngine.Renderer;
 
 public static partial class VKRender
@@ -28,10 +30,10 @@ public static partial class VKRender
         false;
 #endif
     private static bool DrawIndirectCountAvaliable =
-#if MAC
-            false
-#else
+#if DIIC
             true
+#else
+            false
 #endif
         ;
 
@@ -47,7 +49,7 @@ public static partial class VKRender
 #if !MAC
         KhrDrawIndirectCount.ExtensionName,
 #endif
-        
+        ExtMultiDraw.ExtensionName,
         "VK_EXT_descriptor_indexing",
 
 #if MAC

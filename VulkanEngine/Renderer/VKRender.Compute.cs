@@ -63,25 +63,25 @@ public static partial class VKRender
                 DescriptorCount = 1,
                 StageFlags = ShaderStageFlags.ComputeBit
             },
-            new DescriptorSetLayoutBinding()
-            {
-                Binding = BindingPoints.GPU_Compute_Output_Secondary,
-                DescriptorType = DescriptorType.StorageBuffer,
-                DescriptorCount = 1,
-                StageFlags = ShaderStageFlags.ComputeBit,
-            }
+            // new DescriptorSetLayoutBinding()
+            // {
+            //     Binding = BindingPoints.GPU_Compute_Output_Secondary,
+            //     DescriptorType = DescriptorType.StorageBuffer,
+            //     DescriptorCount = 1,
+            //     StageFlags = ShaderStageFlags.ComputeBit,
+            // }
         };
         var pBindingFlags= stackalloc DescriptorBindingFlags[]
         {
             DescriptorBindingFlags.UpdateUnusedWhilePendingBit,
             DescriptorBindingFlags.UpdateUnusedWhilePendingBit,
             DescriptorBindingFlags.UpdateUnusedWhilePendingBit,
-            DescriptorBindingFlags.None
+            // DescriptorBindingFlags.None
         };
         var descriptorSetLayoutBindingFlagsCreateInfo = new DescriptorSetLayoutBindingFlagsCreateInfo()
         {
             SType = StructureType.DescriptorSetLayoutBindingFlagsCreateInfo,
-            BindingCount = 4,
+            BindingCount = 3,
             PBindingFlags = pBindingFlags
         };
         var descriptorSetLayoutCreateInfo = new DescriptorSetLayoutCreateInfo
@@ -166,6 +166,7 @@ public static partial class VKRender
             Offset = outOffset,
             Range = outRange, //todo update live
         };
+
         var MeshInfoBuffer = new DescriptorBufferInfo
         {
             Buffer = GlobalData.MeshInfoBuffer,
@@ -247,8 +248,7 @@ public static partial class VKRender
                 BufferUsageFlags.StorageBufferBit,
                 MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit,
                 &frameData->hostRenderObjectsBuffer, &frameData->hostRenderObjectsMemory);
-            vk.MapMemory(device, frameData->hostRenderObjectsMemory, 0, (ulong) newBufSizeInBytes, 0,
-                    &frameData->hostRenderObjectsBufferPtr)
+            vk.MapMemory(device, frameData->hostRenderObjectsMemory, 0, (ulong) newBufSizeInBytes, 0, ref frameData->hostRenderObjectsBufferPtr)
                 .Expect("failed to map memory!");
             frameData->hostRenderObjectsBufferSize = newbufsize;
         }
