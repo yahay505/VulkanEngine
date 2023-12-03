@@ -6,11 +6,10 @@ namespace VulkanEngine.Renderer;
 
 public static partial class VKRender
 {
-    private static QueueFamilyIndices _familyIndices;
+    private static DeviceInfo.QueueFamilyIndices _familyIndices=>DeviceInfo.indices;
 
     private static unsafe void CreateLogicalDevice()
     {
-        _familyIndices = FindQueueFamilies(physicalDevice);
 
         var uniqueQueueFamilies = new[] { _familyIndices.graphicsFamily!.Value, _familyIndices.presentFamily!.Value };
         uniqueQueueFamilies = uniqueQueueFamilies.Distinct().ToArray();
@@ -48,8 +47,8 @@ DescriptorBindingUpdateUnusedWhilePending = true,
             PQueueCreateInfos = queueCreateInfos,
 
             PEnabledFeatures = &deviceFeatures,
-            PpEnabledExtensionNames = (byte**) SilkMarshal.StringArrayToPtr( deviceExtensions),
-            EnabledExtensionCount = (uint) deviceExtensions.Length,
+            PpEnabledExtensionNames = (byte**) SilkMarshal.StringArrayToPtr( DeviceInfo.selectedExtensionNames),
+            EnabledExtensionCount = (uint) DeviceInfo.selectedExtensionNames.Count,
             PNext = &next,
         };
 

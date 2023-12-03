@@ -20,7 +20,7 @@ public static partial class VKRender
         CreateInstance();
         SetupDebugMessenger();
         CreateSurface();
-        PickPhysicalDevice();
+        DeviceInfo=DeviceRequirements.PickPhysicalDevice();
         // Analize
         CreateLogicalDevice();
         CreateSwapChain();
@@ -39,12 +39,11 @@ public static partial class VKRender
         
         CreateTextureImageView();
         CreateTextureSampler();
-        CreateVertexBuffer();
         CreateUniformBuffers();
         CreateDescriptionPool();
         CreateDescriptorSets();
-        CreateIndexBuffer();
-        
+        indexBuffer = new IndexBuffer(1);
+        vertexBuffer = new VertexBuffer(1);
         CreateComputeResources();
         
     }
@@ -63,18 +62,8 @@ public static partial class VKRender
         0, 1, 2, 2, 3, 0
     };
 
-#pragma warning disable CS0649 
-    //var not asssigned 
-    // static Buffer vertexBuffer;
-    // static DeviceMemory vertexBufferMemory;
-#pragma warning restore CS0649
-    static Buffer IndexBuffer;
-    static DeviceMemory IndexBufferMemory;
-    static Buffer[] uniformBuffers = null!;
-    static DeviceMemory[] uniformBuffersMemory = null!;
-    static DescriptorPool DescriptorPool;
-    static DescriptorSet GfxDescriptorSet;
-    private static unsafe void*[] uniformBuffersMapped;
+    internal static VertexBuffer vertexBuffer;
+    public static IndexBuffer indexBuffer;
     private static ImageView textureImageView;
     private static Sampler textureSampler;
 
@@ -84,11 +73,10 @@ public static partial class VKRender
         FrameCleanup = (0..FRAME_OVERLAP).Times().Select((_)=> (Action)(() => { })).ToArray();
         FrameData=new FrameData[FRAME_OVERLAP];
         //command pool
-        var queueFamilyIndices = FindQueueFamilies(physicalDevice);
         var poolInfo = new CommandPoolCreateInfo
         {
             SType = StructureType.CommandPoolCreateInfo,
-            QueueFamilyIndex = queueFamilyIndices.graphicsFamily!.Value,
+            QueueFamilyIndex = DeviceInfo.indices.graphicsFamily!.Value,
             Flags = 0,
         };
  
@@ -147,8 +135,15 @@ public static partial class VKRender
             {
                 for (var i = 0; i < FRAME_OVERLAP; i++)
                 {
+                    vk.DestroyFence(device, FrameData[i].renderFence, null);
                     vk.DestroyFence(device, FrameData[i].computeFence, null);
+                    
+                    vk.DestroySemaphore(device, FrameData[i].ComputeSemaphore, null);
                     vk.DestroySemaphore(device, FrameData[i].ComputeSemaphore2, null);
+                    vk.DestroySemaphore(device, FrameData[i].presentSemaphore, null);
+                    vk.DestroySemaphore(device, FrameData[i].RenderSemaphore, null);
+                    
+                    vk.DestroyCommandPool(device, FrameData[i].commandPool, null);
                 }
             });
 
@@ -488,6 +483,7 @@ public static partial class VKRender
     private static unsafe void CreateDescriptorSets()
     {
         var layouts = stackalloc DescriptorSetLayout[] {DescriptorSetLayout};
+        
         var allocInfo = new DescriptorSetAllocateInfo
         {
             SType = StructureType.DescriptorSetAllocateInfo,
@@ -495,14 +491,14 @@ public static partial class VKRender
             DescriptorSetCount = 1,
             PSetLayouts = layouts,
         };
-        vk.AllocateDescriptorSets(device, &allocInfo, out GfxDescriptorSet)
-            .Expect("failed to allocate descriptor sets!");
-        
         for (int i = 0; i < FRAME_OVERLAP; i++)
         {
+            vk.AllocateDescriptorSets(device, &allocInfo, out FrameData[i].descriptorSets.GFX)
+                .Expect("failed to allocate descriptor sets!");
+
             var bufferInfo = new DescriptorBufferInfo
             {
-                Buffer = uniformBuffers[i],
+                Buffer = FrameData[i].uniformBuffer,
                 Offset = 0,
                 Range = (ulong) Marshal.SizeOf<UniformBufferObject>(),
             };
@@ -512,19 +508,13 @@ public static partial class VKRender
                 ImageView = textureImageView,
                 ImageLayout = ImageLayout.ShaderReadOnlyOptimal,
             };
-            var ssboInfo = new DescriptorBufferInfo
-            {
-                Buffer = GlobalData.deviceIndirectDrawBuffer,
-                Offset = ComputeOutSSBOStartOffset,
-                Range = (ulong) Marshal.SizeOf<RenderIndirectIndexedItem>()*10,
-            };
 #pragma warning disable CA2014 //possible stack overflow
             var descriptorWrites = stackalloc WriteDescriptorSet[]
             {
                 new()
                 {
                     SType = StructureType.WriteDescriptorSet,
-                    DstSet = GfxDescriptorSet,
+                    DstSet = FrameData[i].descriptorSets.GFX,
                     DstBinding = BindingPoints.GPU_Gfx_UBO,
                     DstArrayElement = 0,
                     DescriptorType = DescriptorType.UniformBuffer,
@@ -534,7 +524,7 @@ public static partial class VKRender
                 new()
                 {
                     SType = StructureType.WriteDescriptorSet,
-                    DstSet = GfxDescriptorSet,
+                    DstSet = FrameData[i].descriptorSets.GFX,
                     DstBinding = BindingPoints.GPU_Gfx_Image_Sampler,
                     DstArrayElement = 0,
                     DescriptorType = DescriptorType.CombinedImageSampler,
@@ -552,18 +542,11 @@ public static partial class VKRender
     {
         var poolSizes = stackalloc DescriptorPoolSize[]
         {
-            new()
-            {
-                Type = DescriptorType.UniformBuffer,
-                DescriptorCount = FRAME_OVERLAP,
-            },
-            new()
-            {
-                Type = DescriptorType.CombinedImageSampler,
-                DescriptorCount = FRAME_OVERLAP,
-            },
+            new (DescriptorType.UniformBuffer, FRAME_OVERLAP),
+            new (DescriptorType.CombinedImageSampler, FRAME_OVERLAP),
             new (DescriptorType.StorageBuffer,FRAME_OVERLAP),//gfx
             new (DescriptorType.StorageBuffer,FRAME_OVERLAP),//compute
+            new (DescriptorType.StorageBuffer,FRAME_OVERLAP),
             new (DescriptorType.StorageBuffer,FRAME_OVERLAP),
             new (DescriptorType.StorageBuffer,FRAME_OVERLAP),
             
@@ -572,9 +555,9 @@ public static partial class VKRender
         var poolInfo = new DescriptorPoolCreateInfo
         {
             SType = StructureType.DescriptorPoolCreateInfo,
-            PoolSizeCount = 6,
+            PoolSizeCount = 7,
             PPoolSizes = poolSizes,
-            MaxSets = FRAME_OVERLAP,
+            MaxSets = 7,
         };
         
         vk.CreateDescriptorPool(device, poolInfo, null, out DescriptorPool)
@@ -585,25 +568,24 @@ public static partial class VKRender
     private static unsafe void CreateUniformBuffers()
     {
         var bufferSize = sizeof(UniformBufferObject);
-
-        uniformBuffers=new Buffer[FRAME_OVERLAP];
-        uniformBuffersMemory=new DeviceMemory[FRAME_OVERLAP];
-        uniformBuffersMapped=new void*[FRAME_OVERLAP];
-
         for (int i = 0; i < FRAME_OVERLAP; i++)
         {
-            fixed(Buffer* pUniformBuffer = &uniformBuffers[i])
-            fixed(DeviceMemory* pUniformBufferMemory = &uniformBuffersMemory[i])
-                CreateBuffer((ulong) bufferSize,
+            CreateBuffer((ulong) bufferSize,
                     BufferUsageFlags.UniformBufferBit,
                     MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit,
-                    pUniformBuffer,
-                    pUniformBufferMemory);
-            fixed (void** ppData = &uniformBuffersMapped[i])
-                vk.MapMemory(device,uniformBuffersMemory[i], 0, (ulong) bufferSize, 0, ppData)
+                    out FrameData[i].uniformBuffer,
+                    out FrameData[i].uniformBufferMemory);
+           
+    
+            fixed (void** ppData = &FrameData[i].uniformBufferMapped)
+                vk.MapMemory(device,FrameData[i].uniformBufferMemory, 0, (ulong) bufferSize, 0, ppData)
                     .Expect("failed to map uniform buffer memory!");
-            
         }
+        CleanupStack.Push(()=>
+        {
+            for (int i = 0; i < FRAME_OVERLAP; i++)
+                CleanupBufferImmediately(FrameData[i].uniformBuffer, FrameData[i].uniformBufferMemory);
+        });
     }
 
     private static unsafe void CreateDescriptorSetLayout()
@@ -677,53 +659,9 @@ public static partial class VKRender
         
         vk.BindBufferMemory(device, *buffer, *bufferMemory, 0);
     }
-    private static unsafe void CreateVertexBuffer()
-    {
-        var size = (ulong) (Marshal.SizeOf<Vertex>() * vertices.Length);
-        Buffer stagingBuffer;
-        DeviceMemory stagingBufferMemory;
-        CreateBuffer(size, BufferUsageFlags.TransferSrcBit, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit, &stagingBuffer, &stagingBufferMemory);
-        
-        void* data;
-        vk.MapMemory(device, stagingBufferMemory, 0, size, 0, &data)
-            .Expect("failed to map vertex buffer memory!");
-        fixed(void* pvertices = vertices)
-            Unsafe.CopyBlock(data, pvertices, (uint)size);
-        vk.UnmapMemory(device, stagingBufferMemory);
-        
-        
-        fixed(Buffer* vertexBuffer= &GlobalData.VertexBuffer)
-        fixed(DeviceMemory* vertexBufferMemory = &GlobalData.VertexBufferMemory)
-            CreateBuffer(size, BufferUsageFlags.VertexBufferBit|BufferUsageFlags.TransferDstBit, MemoryPropertyFlags.DeviceLocalBit, vertexBuffer, vertexBufferMemory);
-        CopyBuffer(stagingBuffer, GlobalData.VertexBuffer, size);
-        
-        vk.DestroyBuffer(device, stagingBuffer, null);
-        vk.FreeMemory(device, stagingBufferMemory, null);
-    }
+   
 
-    private static unsafe void CreateIndexBuffer()
-    {
-        var size = (ulong) (Marshal.SizeOf<int>() * indices.Length);
-        Buffer stagingBuffer;
-        DeviceMemory stagingBufferMemory;
-        CreateBuffer(size, BufferUsageFlags.TransferSrcBit, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit, &stagingBuffer, &stagingBufferMemory);
-        
-        void* data;
-        vk.MapMemory(device, stagingBufferMemory, 0, size, 0, &data)
-            .Expect("failed to map index buffer memory!");
-        fixed(void* pindices = indices)
-            Unsafe.CopyBlock(data, pindices, (uint)size);
-        vk.UnmapMemory(device, stagingBufferMemory);
-        
-        
-        fixed(Buffer* indexBuffer= &IndexBuffer)
-        fixed(DeviceMemory* indexBufferMemory = &IndexBufferMemory)
-            CreateBuffer(size, BufferUsageFlags.IndexBufferBit|BufferUsageFlags.TransferDstBit, MemoryPropertyFlags.DeviceLocalBit, indexBuffer, indexBufferMemory);
-        CopyBuffer(stagingBuffer, IndexBuffer, size);
-        
-        vk.DestroyBuffer(device, stagingBuffer, null);
-        vk.FreeMemory(device, stagingBufferMemory, null);
-    }
+  
 
     static unsafe void CopyBuffer(Buffer srcBuffer, Buffer dstBuffer, ulong size)
     {
@@ -805,14 +743,14 @@ public static partial class VKRender
         vk.CmdBindPipeline(commandBuffer, PipelineBindPoint.Graphics, GraphicsPipeline);
         vk.CmdSetViewport(commandBuffer,0,1,&viewPort);
         vk.CmdSetScissor(commandBuffer,0,1,&scissor);
-        var vertexBuffers =stackalloc []{GlobalData.VertexBuffer};
+        var vertexBuffers =stackalloc []{(Buffer)vertexBuffer};
         var offsets = stackalloc []{(ulong)0};
         
         // vk!.CmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
         vk.CmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-        fixed(DescriptorSet* pDescriptorSet = &GfxDescriptorSet)
-            vk.CmdBindDescriptorSets(commandBuffer, PipelineBindPoint.Graphics, GfxPipelineLayout, 0, 1, pDescriptorSet, 0, null);
-        vk.CmdBindIndexBuffer(commandBuffer, IndexBuffer, 0, IndexType.Uint32);
+        var pDescriptorSet = stackalloc DescriptorSet[] {GetCurrentFrame().descriptorSets.GFX};
+        vk.CmdBindDescriptorSets(commandBuffer, PipelineBindPoint.Graphics, GfxPipelineLayout, 0, 1, pDescriptorSet, 0, null);
+        vk.CmdBindIndexBuffer(commandBuffer, indexBuffer, 0, IndexType.Uint32);
 
 
         if (DrawIndirectCountAvaliable)
@@ -1133,175 +1071,6 @@ public static partial class VKRender
     }
 
 
-    private static unsafe void PickPhysicalDevice()
-    {
-        
-        uint deviceCount = 0;
-        vk.EnumeratePhysicalDevices(instance, &deviceCount, null);
-        if (deviceCount==0)
-        {
-            throw new("failed to find GPUs with Vulkan support!");
-        }
-
-        var list = new PhysicalDevice[deviceCount];
-        
-        fixed(PhysicalDevice* n_list=list)
-            vk.EnumeratePhysicalDevices(instance, &deviceCount, n_list);
-
-        foreach (var device in list)
-        {
-            if (physicalDevice.Handle!=default)
-            {
-                var o_properties = vk.GetPhysicalDeviceProperties(physicalDevice);
-                if (o_properties.DeviceType!=PhysicalDeviceType.DiscreteGpu)
-                {
-                    var n_properties = vk.GetPhysicalDeviceProperties(device);
-                    if (n_properties.DeviceType==PhysicalDeviceType.DiscreteGpu)
-                    {
-                        physicalDevice = device;
-                    }
-                }
-                
-
-            }
-            if (IsDeviceSuitable(device))
-            {
-                physicalDevice = device;
-                var n_properties = vk.GetPhysicalDeviceProperties(device);
-                if (n_properties.DeviceType==PhysicalDeviceType.DiscreteGpu)
-                    break;
-            }
-        }
-        if (physicalDevice.Handle==0)
-        {
-            throw new ("failed to find a suitable GPU!");
-        }
-        
-        
-    }
-    struct QueueFamilyIndices
-    {
-        public uint? graphicsFamily { get; set; }
-        public uint? presentFamily { get; set; }
-        public uint? transferFamily { get; set; }
-        public uint? computeFamily { get; set; }
-        
-        public bool IsComplete()
-        {
-            return graphicsFamily.HasValue&&
-                   presentFamily.HasValue&&
-                   transferFamily.HasValue&&
-                   computeFamily.HasValue&&
-                   true;
-        }
-    }
-
-    private static unsafe QueueFamilyIndices FindQueueFamilies(PhysicalDevice device)
-    {
-        var indices = new QueueFamilyIndices();
-
-        uint queueFamilityCount = 0;
-        vk.GetPhysicalDeviceQueueFamilyProperties(device, ref queueFamilityCount, null);
-
-        var queueFamilies = stackalloc QueueFamilyProperties[(int)queueFamilityCount];
-
-        vk.GetPhysicalDeviceQueueFamilyProperties(device, ref queueFamilityCount, queueFamilies);
-        
-
-
-        
-        for (uint i=0;i<queueFamilityCount;i++)
-        {
-            var queueFamily = queueFamilies[i];
-            if (queueFamily.QueueFlags.HasFlag(QueueFlags.GraphicsBit))
-            {
-                indices.graphicsFamily = i;
-            }
-            Bool32 presentSupport = false;
-            khrSurface!.GetPhysicalDeviceSurfaceSupport(device, i, surface, &presentSupport);
-            if (presentSupport)
-            {
-                indices.presentFamily = i;
-            }
-            if (queueFamily.QueueFlags.HasFlag(QueueFlags.TransferBit))
-            {
-                indices.transferFamily = i;
-            }
-            if (queueFamily.QueueFlags.HasFlag(QueueFlags.ComputeBit))
-            {
-                indices.computeFamily = i;
-            }
-            // queueFamily.
-            if (indices.IsComplete())
-            {
-                break;
-            }
-        }
-        //get device name
-        var properties = vk.GetPhysicalDeviceProperties(device);
-        //write all families
-        Console.WriteLine($"all families for device({properties.DeviceType.ToString()}) {SilkMarshal.PtrToString((nint) properties.DeviceName)} id:{properties.DeviceID}");
-        Console.WriteLine();
-        for (int i = 0; i < queueFamilityCount; i++)
-        {
-            Console.WriteLine($"queueFamily{i}: {queueFamilies[i].QueueFlags}");
-        }
-        Console.WriteLine();
-        Console.WriteLine("selceted families:");
-        Console.WriteLine($"graphicsFamily:{indices.graphicsFamily}");
-        Console.WriteLine($"presentFamily:{indices.presentFamily}");
-        Console.WriteLine($"transferFamily:{indices.transferFamily}");
-        Console.WriteLine($"computeFamily:{indices.computeFamily}");
-        Console.WriteLine();
-        return indices;
-    }
-
-    private static unsafe bool IsDeviceSuitable(PhysicalDevice device)
-    {
-        
-        var indices = FindQueueFamilies(device);
-        var ext = new PhysicalDeviceDescriptorIndexingFeatures()
-        {
-            SType = StructureType.PhysicalDeviceDescriptorIndexingFeatures,
-        };
-        var features = new PhysicalDeviceFeatures2()
-        {
-            SType = StructureType.PhysicalDeviceFeatures2,
-            PNext = &ext,
-        };
-            
-        vk.GetPhysicalDeviceFeatures2(device,&features);
-
-        var extensionsSupported = CheckDeviceExtensionSupport(device);
-        return indices.IsComplete()&& extensionsSupported&& features.Features.SamplerAnisotropy
-            && ((PhysicalDeviceDescriptorIndexingFeatures*)features.PNext)->DescriptorBindingStorageBufferUpdateAfterBind
-            && ((PhysicalDeviceDescriptorIndexingFeatures*)features.PNext)->DescriptorBindingUpdateUnusedWhilePending
-            ;
-
-        
-        
-        var properties = vk.GetPhysicalDeviceProperties(device);
-
-        return
-            
-            // properties.DeviceType==PhysicalDeviceType.DiscreteGpu&&
-            // features.GeometryShader&&
-            true
-            ;
-    }
-
-    private static unsafe bool CheckDeviceExtensionSupport(PhysicalDevice device)
-    {
-        uint extensionCount = 0;
-        vk.EnumerateDeviceExtensionProperties(device, ((byte*)null)!, &extensionCount, null);
-        var avaliableExtension = new ExtensionProperties[extensionCount];
-        fixed (ExtensionProperties* avaliableExtensionPtr = avaliableExtension)
-            vk.EnumerateDeviceExtensionProperties(device, ((byte*) null)!, ref extensionCount, avaliableExtensionPtr);
-
-        var availableExtensionNames = avaliableExtension.Select(extension => Marshal.PtrToStringAnsi((IntPtr)extension.ExtensionName)).ToHashSet();
-        return deviceExtensions.All(availableExtensionNames.Contains);    
-    }
-
     private static unsafe void CreateInstance()
     {
         vk = Vk.GetApi();
@@ -1398,11 +1167,13 @@ public static partial class VKRender
         createInfo.PfnUserCallback = (DebugUtilsMessengerCallbackFunctionEXT) DebugCallback;
     }
 
+    private static readonly string[] requiredInstanceExtensions = {
+    };
     private static unsafe string[] GetRequiredInstanceExtensions()
     {
         var glfwExtensions = window!.VkSurface!.GetRequiredExtensions(out var glfwExtensionCount);
         var extensions = SilkMarshal.PtrToStringArray((nint)glfwExtensions, (int)glfwExtensionCount)!
-            .Concat(instanceExtensions)
+            .Concat(requiredInstanceExtensions)
         #if mac
         .Append("VK_KHR_portability_enumeration")
         #endif
@@ -1415,8 +1186,10 @@ public static partial class VKRender
         return extensions;
     }
 
+    static string[] validationLayers = {"VK_LAYER_KHRONOS_validation"};
     private static unsafe bool CheckValidationLayerSupport()
     {
+
         uint layerCount = 0;
         vk.EnumerateInstanceLayerProperties(ref layerCount, null);
         var availableLayers = new LayerProperties[layerCount];
@@ -1437,11 +1210,17 @@ public static partial class VKRender
         {
             return Vk.False;
         }
-        Console.WriteLine($"validation layer:" + s);
-        if (s.StartsWith("Validation Error:"))
+
+        if ((messageSeverity & DebugUtilsMessageSeverityFlagsEXT.ErrorBitExt) != 0)
         {
+            Console.WriteLine($"validation layer:" + s+"\n"+new StackTrace(true).ToString());
             ;
         }
+        else
+        {
+            Console.WriteLine($"validation layer:" + s);
+        }
+
         
 //Debugger.Break();
         return Vk.False;

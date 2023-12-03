@@ -12,7 +12,7 @@ public static partial class VKRender
 {
     public const uint ComputeOutSSBOStartOffset = 64;
     public const uint ComputeInSSBOStartOffset = 64;
-
+    
     private static unsafe void CreateComputeResources()
     {
         if (!DrawIndirectCountAvaliable)
@@ -23,9 +23,9 @@ public static partial class VKRender
                 MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit,
                 out GlobalData.ReadBackBuffer, out GlobalData.ReadBackMemory);
             fixed(void** ptr = &GlobalData.ReadBackBufferPtr)
-                vk.MapMemory(device, GlobalData.ReadBackMemory, 0, (ulong) readbackSize, 0, ptr)
+                vk.MapMemory(device, GlobalData.ReadBackMemory, 0, (ulong) readbackSize,0, ptr)
                     .Expect("failed to map memory!");
-            CleanupStack.Push(()=>CleanupBuffer(GlobalData.ReadBackBuffer, GlobalData.ReadBackMemory));
+            CleanupStack.Push(()=>CleanupBufferImmediately(GlobalData.ReadBackBuffer, GlobalData.ReadBackMemory));
         }
         var computeShaderCode = File.ReadAllBytes(AssetsPath + "/shaders/compiled/PreRender.comp.spv");
         var computeMOdule = CreateShaderModule(computeShaderCode);
@@ -116,8 +116,10 @@ public static partial class VKRender
         };
         vk.AllocateDescriptorSets(device, &allocInfo, out var computeDescriptorSet)
             .Expect("failed to allocate descriptor sets!");
-
-        ComputeDescriptorSet = computeDescriptorSet;
+        for (int i = 0; i < FRAME_OVERLAP; i++)
+        {
+            FrameData[i].descriptorSets.Compute = computeDescriptorSet;
+        }
         //UpdateComputeSSBODescriptors(0, 0, 0, 0);
 
 
@@ -133,13 +135,13 @@ public static partial class VKRender
         CleanupStack.Push(()=>vk.DestroyPipeline(device,ComputePipeline, null));
         
         EnsureMeshRelatedBuffersAreSized();
-        ResizeRenderObjectRelatedBuffer(10, 0);
+        EnsureRenderObjectRelatedBuffersAreSized();
         vk.DestroyShaderModule(device, computeMOdule, null);
         CleanupStack.Push(()=>
         {
             for (int i = 0; i < FRAME_OVERLAP; i++) CleanupHostRenderObjectMemory(i);
         });
-        CleanupStack.Push(()=>CleanupBuffer(GlobalData.MeshInfoBuffer, GlobalData.MeshInfoBufferMemory));
+        CleanupStack.Push(()=>CleanupBufferImmediately(GlobalData.MeshInfoBuffer, GlobalData.MeshInfoBufferMemory));
         CleanupStack.Push(() => CleanupDeviceRenderObjectMemory(GlobalData.deviceRenderObjectsBuffer,
             GlobalData.deviceRenderObjectsMemory,
             GlobalData.deviceIndirectDrawBuffer,
@@ -151,9 +153,6 @@ public static partial class VKRender
     private static unsafe void UpdateComputeSSBODescriptors(ulong inOffset, ulong inRange, ulong outOffset,
         ulong outRange)
     {
-        Console.WriteLine("updating compute descriptors Stopping GPU");
-        vk.DeviceWaitIdle(device);
-        EnsureMeshRelatedBuffersAreSized();
         var inputBuffer = new DescriptorBufferInfo
         {
             Buffer = GlobalData.deviceRenderObjectsBuffer,
@@ -233,64 +232,96 @@ public static partial class VKRender
         
     }
 
-    private static unsafe void ResizeRenderObjectRelatedBuffer(int neededBufferSizeInItems,
-        int currentBufferSizeInItems)
+    private static unsafe void EnsureRenderObjectRelatedBuffersAreSized()
     {
-        CleanupHostRenderObjectMemory(CurrentFrameIndex);
-
-        var newbufsize = Math.Max(neededBufferSizeInItems, currentBufferSizeInItems * 2);
-        var newBufSizeInBytes = newbufsize * sizeof(GPUStructs.ComputeInput)+(int) ComputeInSSBOStartOffset;
-        fixed (FrameData* frameData = &FrameData[CurrentFrameIndex])
+        var ROtarget = Math.Max(10,RenderManager.RenderObjects.Count);
+        var hostCurrentBufferSize = GetCurrentFrame().hostRenderObjectsBufferSize;
+        if (hostCurrentBufferSize <= ROtarget)
         {
-            CreateBuffer((ulong) newBufSizeInBytes,
+            CleanupHostRenderObjectMemory(CurrentFrameIndex);
+
+            var newbufsize = Math.Max(ROtarget, hostCurrentBufferSize * 2);
+            var newBufSizeInBytes = newbufsize * sizeof(GPUStructs.ComputeInput) + (int) ComputeInSSBOStartOffset;
+            fixed (FrameData* frameData = &FrameData[CurrentFrameIndex])
+            {
+                CreateBuffer((ulong) newBufSizeInBytes,
+                    BufferUsageFlags.TransferSrcBit |
+                    BufferUsageFlags.TransferDstBit |
+                    BufferUsageFlags.StorageBufferBit,
+                    MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit,
+                    &frameData->hostRenderObjectsBuffer, &frameData->hostRenderObjectsMemory);
+                vk.MapMemory(device, frameData->hostRenderObjectsMemory, 0, (ulong) newBufSizeInBytes, 0,
+                        ref frameData->hostRenderObjectsBufferPtr)
+                    .Expect("failed to map memory!");
+                frameData->hostRenderObjectsBufferSize = newbufsize;
+                frameData->hostRenderObjectsBufferSizeInBytes=newBufSizeInBytes;
+            }
+        }
+
+        if (GlobalData.deviceRenderObjectsBufferSize <= ROtarget)
+        {
+            var newbufsize = Math.Max(ROtarget, hostCurrentBufferSize * 2);
+            var newBufSizeInBytes_RO = newbufsize * sizeof(GPUStructs.ComputeInput) + (int) ComputeInSSBOStartOffset;
+            var newBufSizeInBytes_CmdDII=newbufsize * sizeof(GPUStructs.ComputeOutput) + (int) ComputeOutSSBOStartOffset;
+            
+            var currentDeviceRenderObjectsBuffer = GlobalData.deviceRenderObjectsBuffer;
+            var currentDeviceRenderObjectsBufferMemory = GlobalData.deviceRenderObjectsMemory;
+
+            var currentDeviceIndirectDrawBuffer = GlobalData.deviceIndirectDrawBuffer;
+            var currentDeviceIndirectDrawBufferMemory = GlobalData.deviceIndirectDrawBufferMemory;
+
+            FrameCleanup
+                    [(CurrentFrameIndex + FRAME_OVERLAP - 1) % FRAME_OVERLAP] // to be deleted once the last frame to utilize them is completed
+                += () =>
+                {
+                    CleanupDeviceRenderObjectMemory(currentDeviceRenderObjectsBuffer,
+                        currentDeviceRenderObjectsBufferMemory, currentDeviceIndirectDrawBuffer,
+                        currentDeviceIndirectDrawBufferMemory);
+                };
+
+            CreateBuffer( //device renderobject buffer
+                (ulong) newBufSizeInBytes_RO,
                 BufferUsageFlags.TransferSrcBit |
                 BufferUsageFlags.TransferDstBit |
                 BufferUsageFlags.StorageBufferBit,
+                // MemoryPropertyFlags.DeviceLocalBit,
                 MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit,
-                &frameData->hostRenderObjectsBuffer, &frameData->hostRenderObjectsMemory);
-            vk.MapMemory(device, frameData->hostRenderObjectsMemory, 0, (ulong) newBufSizeInBytes, 0, ref frameData->hostRenderObjectsBufferPtr)
+                out var newDeviceRenderObjectsBuffer,
+                out var newDeviceRenderObjectsBufferMemory);
+
+            CreateBuffer( //device indirect draw buffer
+                (ulong) newBufSizeInBytes_CmdDII,
+                BufferUsageFlags.TransferSrcBit |
+                BufferUsageFlags.TransferDstBit |
+                BufferUsageFlags.StorageBufferBit |
+                BufferUsageFlags.IndirectBufferBit,
+                // MemoryPropertyFlags.DeviceLocalBit, 
+                MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit,
+                out var newDeviceIndirectDrawBuffer,
+                out var newDeviceIndirectDrawBufferMemory);
+
+            GlobalData.deviceRenderObjectsBuffer = newDeviceRenderObjectsBuffer;
+            GlobalData.deviceRenderObjectsMemory = newDeviceRenderObjectsBufferMemory;
+            GlobalData.deviceRenderObjectsBufferSize = newbufsize;
+            GlobalData.deviceRenderObjectsBufferSizeInBytes = newBufSizeInBytes_RO;
+            void* tmp;
+            vk.MapMemory(device, newDeviceRenderObjectsBufferMemory, 0, (ulong) newBufSizeInBytes_RO, 0, &tmp)
                 .Expect("failed to map memory!");
-            frameData->hostRenderObjectsBufferSize = newbufsize;
+            GlobalData.DEBUG_deviceRenderObjectsBufferPtr = tmp;
+            
+            GlobalData.deviceIndirectDrawBuffer = newDeviceIndirectDrawBuffer;
+            GlobalData.deviceIndirectDrawBufferMemory = newDeviceIndirectDrawBufferMemory;
+            GlobalData.deviceIndirectDrawBufferSize = newbufsize;
+            GlobalData.deviceIndirectDrawBufferSizeInBytes = newBufSizeInBytes_CmdDII;
+            vk.MapMemory(device, newDeviceIndirectDrawBufferMemory, 0, (ulong) newBufSizeInBytes_CmdDII, 0, &tmp)
+                .Expect("failed to map memory!");
+            GlobalData.DEBUG_deviceIndirectDrawBufferPtr = tmp;
+
+            //write shader descriptor
+            UpdateComputeSSBODescriptors(0, (ulong) newBufSizeInBytes_RO, 0, (ulong) newBufSizeInBytes_CmdDII);
+            //and write all other frames' sets too
+            RegisterActionOnAllOtherFrames(()=>UpdateComputeSSBODescriptors(0, (ulong) newBufSizeInBytes_RO, 0, (ulong) newBufSizeInBytes_CmdDII));
         }
-
-        var currentDeviceRenderObjectsBuffer = GlobalData.deviceRenderObjectsBuffer;
-        var currentDeviceRenderObjectsBufferMemory = GlobalData.deviceRenderObjectsMemory;
-
-        var currentDeviceIndirectDrawBuffer = GlobalData.deviceIndirectDrawBuffer;
-        var currentDeviceIndirectDrawBufferMemory = GlobalData.deviceIndirectDrawBufferMemory;
-
-        FrameCleanup
-                [(CurrentFrameIndex + FRAME_OVERLAP - 1) % FRAME_OVERLAP] // to be deleted once the last frame to utilize them is completed
-            += () =>
-            {
-                CleanupDeviceRenderObjectMemory(currentDeviceRenderObjectsBuffer, currentDeviceRenderObjectsBufferMemory, currentDeviceIndirectDrawBuffer, currentDeviceIndirectDrawBufferMemory);
-            };
-
-        CreateBuffer( //device renderobject buffer
-            (ulong) newBufSizeInBytes,
-            BufferUsageFlags.TransferSrcBit |
-            BufferUsageFlags.TransferDstBit |
-            BufferUsageFlags.StorageBufferBit,
-            MemoryPropertyFlags.DeviceLocalBit, out var newDeviceRenderObjectsBuffer,
-            out var newDeviceRenderObjectsBufferMemory);
-
-        var newOutBuffSizeInBytes = ((ulong) newbufsize) * ((ulong) sizeof(GPUStructs.ComputeOutput)+ComputeOutSSBOStartOffset);
-        CreateBuffer( //device indirect draw buffer
-            newOutBuffSizeInBytes,
-            BufferUsageFlags.TransferSrcBit |
-            BufferUsageFlags.TransferDstBit |
-            BufferUsageFlags.StorageBufferBit |
-            BufferUsageFlags.IndirectBufferBit,
-            MemoryPropertyFlags.DeviceLocalBit, out var newDeviceIndirectDrawBuffer,
-            out var newDeviceIndirectDrawBufferMemory);
-
-        GlobalData.deviceRenderObjectsBuffer = newDeviceRenderObjectsBuffer;
-        GlobalData.deviceRenderObjectsMemory = newDeviceRenderObjectsBufferMemory;
-        GlobalData.deviceIndirectDrawBuffer = newDeviceIndirectDrawBuffer;
-        GlobalData.deviceIndirectDrawBufferMemory = newDeviceIndirectDrawBufferMemory;
-
-        //write shader descriptor
-        UpdateComputeSSBODescriptors(0, (ulong) newBufSizeInBytes, 0, newOutBuffSizeInBytes);
     }
 
     private static unsafe void CleanupDeviceRenderObjectMemory(Buffer currentDeviceRenderObjectsBuffer,
@@ -337,26 +368,28 @@ public static partial class VKRender
         GlobalData.MeshInfoBufferMemory = newMeshInfoBufferMemory;
         uint oldSize = (uint) GlobalData.MeshInfoBufferSize * (uint) sizeof(MeshInfo);
         GlobalData.MeshInfoBufferSize = nextSize;
-        FrameCleanup
-                [CurrentFrameIndex + FRAME_OVERLAP - 1 % FRAME_OVERLAP] // to be deleted once the last frame to utilize them is completed
-            += () => { CleanupBuffer(oldMeshInfoBuffer, oldMeshInfoBufferMemory); };
+        RegisterBufferForCleanup(oldMeshInfoBuffer, oldMeshInfoBufferMemory); 
         void* newPtr = (void*) 0;
         vk.MapMemory(device, newMeshInfoBufferMemory, 0, newSize, 0, &newPtr)
             .Expect("failed to map memory!");
         if (oldMeshInfoBufferMemory.Handle != 0)
         {
             Unsafe.CopyBlock(newPtr, GlobalData.MeshInfoBufferPtr, oldSize);
-                vk.UnmapMemory(device, GlobalData.MeshInfoBufferMemory);
+            vk.UnmapMemory(device, GlobalData.MeshInfoBufferMemory);
         }
 
         GlobalData.MeshInfoBufferPtr = newPtr;
     }
     
 
-    
-    private static unsafe void CleanupBuffer(Buffer oldMeshInfoBuffer, DeviceMemory oldMeshInfoBufferMemory)
+    private static unsafe void RegisterBufferForCleanup(Buffer buffer, DeviceMemory memory)
     {
-        vk.DestroyBuffer(device, oldMeshInfoBuffer, default);
-        vk.FreeMemory(device, oldMeshInfoBufferMemory, default);
+        FrameCleanup[CurrentFrameIndex + FRAME_OVERLAP - 1 % FRAME_OVERLAP] 
+            += () => CleanupBufferImmediately(buffer, memory);
+    }
+    private static unsafe void CleanupBufferImmediately(Buffer buffer, DeviceMemory memory)
+    {
+        vk.DestroyBuffer(device, buffer, default);
+        vk.FreeMemory(device, memory, default);
     }
 }

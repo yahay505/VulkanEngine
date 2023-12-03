@@ -12,11 +12,11 @@ public static partial class VKRender
         {
             action();
         }
-        
+        CleanupBufferImmediately(GPUDynamicBuffer.stagingBuffer, GPUDynamicBuffer.stagingMemory);
         imGuiController.Dispose();
         FreeGlobalData();
-        vk.DestroyBuffer(device, GlobalData.VertexBuffer, null);
-        vk.FreeMemory(device, GlobalData.VertexBufferMemory, null);
+        vk.DestroyBuffer(device, vertexBuffer, null);
+        vk.FreeMemory(device, vertexBuffer, null);
         CleanUpSwapChainStuff();
         
         vk.DestroySampler(device, textureSampler, null);
@@ -27,26 +27,17 @@ public static partial class VKRender
         for (var i = 0; i < FRAME_OVERLAP; i++)
         {
             FrameCleanup[i]();
-            vk.DestroyBuffer(device, uniformBuffers[i], null);
-            vk.FreeMemory(device, uniformBuffersMemory[i], null);
         }
 
         vk.DestroyDescriptorPool(device, DescriptorPool, null);
         vk.DestroyDescriptorSetLayout(device, DescriptorSetLayout, null);
         
-        vk.DestroyBuffer(device, IndexBuffer, null);
-        vk.FreeMemory(device, IndexBufferMemory, null);
+        vk.DestroyBuffer(device, indexBuffer, null);
+        vk.FreeMemory(device, indexBuffer, null);
 
 
 
-        for (int i = 0; i < FRAME_OVERLAP; i++)
-        {
-            vk.DestroySemaphore(device, FrameData[i].RenderSemaphore, null);
-            vk.DestroySemaphore(device, FrameData[i].presentSemaphore, null);
-            vk.DestroySemaphore(device, FrameData[i].ComputeSemaphore, null);
-            vk.DestroyFence(device, FrameData[i].renderFence, null);
-            vk.DestroyCommandPool(device, FrameData[i].commandPool, null);
-        }
+      
 
 
         vk.DestroyDevice(device, null);
@@ -71,13 +62,13 @@ public static partial class VKRender
             vk.DestroyFramebuffer(device, framebuffer, null);
         }
 
-        for (int i = 0; i < FRAME_OVERLAP; i++)
-        {
-            fixed (FrameData* frameData = &FrameData[i])
-            {
-                vk.ResetCommandPool(device,frameData->commandPool,0);
-            }
-        }
+        // for (int i = 0; i < FRAME_OVERLAP; i++)
+        // {
+        //     fixed (FrameData* frameData = &FrameData[i])
+        //     {
+        //         vk.ResetCommandPool(device,frameData->commandPool,0);
+        //     }
+        // }
 
         vk.DestroyPipeline(device, GraphicsPipeline, null);
         vk.DestroyPipelineLayout(device, GfxPipelineLayout, null);

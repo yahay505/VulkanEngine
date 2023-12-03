@@ -1,5 +1,9 @@
+using System.Collections;
 using System.Diagnostics;
+using Cathei.LinqGen;
+using Cathei.LinqGen.Hidden;
 using Silk.NET.Vulkan;
+using Range = System.Range;
 
 namespace VulkanEngine;
 
@@ -16,13 +20,17 @@ public static class Extensions
 
     public static IEnumerable<int> Times(this Range range)
     {
+     //improvement: use a struct enumerator, LinqGen
         int i=range.Start.Value;
         while (i<range.End.Value)
         {
             yield return i;
             i++;
         }
+    
     }
+
+
     public static void ForEach<T>(this IEnumerable<T> enumerable, Action<T> action)
     {
         foreach (var item in enumerable)

@@ -1,4 +1,3 @@
-//#define DIIC
 using System.Reflection;
 using System.Runtime.InteropServices;
 using ImGuiNET;
@@ -20,47 +19,13 @@ namespace VulkanEngine.Renderer;
 
 public static partial class VKRender
 {
+
+    private static bool DrawIndirectCountAvaliable => DeviceInfo.supportsCmdDrawIndexedIndirectCount;
+
     private const int Width=800;
     private const int Height=600;
 
-    private static readonly bool EnableValidationLayers =
-#if DEBUG
-        true;
-#else
-        false;
-#endif
-    private static bool DrawIndirectCountAvaliable =
-#if DIIC
-            true
-#else
-            false
-#endif
-        ;
-
-
-    private static readonly string[] validationLayers = {
-#if DEBUG
-        "VK_LAYER_KHRONOS_validation"
-#endif
-    };
-    
-    private static readonly string[] deviceExtensions = {
-        KhrSwapchain.ExtensionName,
-#if !MAC
-        KhrDrawIndirectCount.ExtensionName,
-#endif
-        ExtMultiDraw.ExtensionName,
-        "VK_EXT_descriptor_indexing",
-
-#if MAC
-            "VK_KHR_portability_subset"
-#endif
-    };
-
-    private static readonly string[] instanceExtensions = {
-    };
-    
-    
+    public static DeviceInfo DeviceInfo = null!;
     public static IWindow? window;
     public static Vk vk=null!;
 
@@ -87,7 +52,7 @@ public static partial class VKRender
     public static RenderPass RenderPass;
     
 
-    private static PhysicalDevice physicalDevice;
+    private static PhysicalDevice physicalDevice=>DeviceInfo.device;
     public static Device device;
     private static DescriptorSetLayout DescriptorSetLayout;
     private static PipelineLayout GfxPipelineLayout;
@@ -96,11 +61,12 @@ public static partial class VKRender
     private static Pipeline ComputePipeline;
     public static PipelineLayout ComputePipelineLayout;
     private static DescriptorSetLayout ComputeDescriptorSetLayout;
-    private static DescriptorSet ComputeDescriptorSet;
+    static DescriptorPool DescriptorPool;
 
-
+    private static DescriptorSet ComputeDescriptorSet=>GetCurrentFrame().descriptorSets.Compute;
+    private static DescriptorSet GfxDescriptorSet=>GetCurrentFrame().descriptorSets.GFX;
     
-    const int FRAME_OVERLAP = 3;
+
     public static int CurrentFrame = 0;
     static int CurrentFrameIndex = 0;
     static bool FramebufferResized = false;
@@ -109,7 +75,14 @@ public static partial class VKRender
     public static  FrameData GetCurrentFrame()=> FrameData[CurrentFrameIndex];
     public static FrameData GetLastFrame()=> FrameData[(CurrentFrameIndex+FRAME_OVERLAP-1)%FRAME_OVERLAP];
     public static Action[] FrameCleanup = null!;
-
+    public static void RegisterActionOnAllOtherFrames(Action cleanup)
+    {
+        for (int i = 0; i < FRAME_OVERLAP; i++)
+        {
+            if (i==CurrentFrameIndex) continue;
+            FrameCleanup[i]+=cleanup;
+        }
+    }
     private static IInputContext Input;
     public static ImGuiController imGuiController = null!;
     public static void InitializeRenderer()
@@ -150,7 +123,7 @@ public static string AssetsPath
 
 private static string _RPath;
 
-public static void DoWhatMustBeDone()
+public static void ExecuteCleanupScheduledForCurrentFrame()
 {
     FrameCleanup[CurrentFrameIndex]();
     FrameCleanup[CurrentFrameIndex]=()=>{};

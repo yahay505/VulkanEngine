@@ -22,6 +22,8 @@
 
     <ItemGroup>
       <PackageReference Include="ImGui.NET" Version="1.89.9.3" />
+      <PackageReference Include="LinqGen" Version="0.3.1" />
+      <PackageReference Include="LinqGen.Generator" Version="0.3.1" />
       <PackageReference Include="Silk.NET" Version="2.17.1" />
       <PackageReference Include="Silk.NET.Assimp" Version="2.18.0" />
       <PackageReference Include="Silk.NET.Input.Extensions" Version="2.18.0" />

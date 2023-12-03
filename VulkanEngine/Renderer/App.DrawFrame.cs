@@ -49,17 +49,12 @@ public static partial class VKRender
             vk.ResetFences(device, 1, fence); //only reset if we are rendering
             vk.ResetCommandPool(device, GetCurrentFrame().commandPool, CommandPoolResetFlags.ReleaseResourcesBit);
         }
-        DoWhatMustBeDone();
+        ExecuteCleanupScheduledForCurrentFrame();
         
       
         EnsureMeshRelatedBuffersAreSized();
-        // If needed resize the object buffers
-        var neededBufferSize = RenderManager.RenderObjects.Count;
-        var currentBufferSize = GetCurrentFrame().hostRenderObjectsBufferSize;
-        if (neededBufferSize>currentBufferSize)//resize buffers
-        {
-            ResizeRenderObjectRelatedBuffer(neededBufferSize, currentBufferSize);
-        }
+        EnsureRenderObjectRelatedBuffersAreSized();
+        
         
         RenderManager.WriteOutObjectData(GetCurrentFrame().hostRenderObjectsBufferAsSpan);
         var objectCount=RenderManager.RenderObjects.Count;
@@ -76,26 +71,48 @@ public static partial class VKRender
         };
         vk.BeginCommandBuffer(computeCommandBuffer, &commandBufferBeginInfo)
             .Expect("failed to begin recording command buffer!");
+        vk.CmdCopyBuffer(computeCommandBuffer, GetCurrentFrame().hostRenderObjectsBuffer, GlobalData.deviceRenderObjectsBuffer, 1, new BufferCopy(0, 0, (uint)GetCurrentFrame().hostRenderObjectsBufferSizeInBytes));
         vk.CmdBindPipeline(computeCommandBuffer, PipelineBindPoint.Compute, ComputePipeline);
-        fixed (DescriptorSet* pDescriptorSet = &ComputeDescriptorSet)
-            vk.CmdBindDescriptorSets(computeCommandBuffer, PipelineBindPoint.Compute, ComputePipelineLayout, 0, 1, pDescriptorSet, 0, null);
+        var pDescriptorSet = stackalloc DescriptorSet[] { GetCurrentFrame().descriptorSets.Compute };
+        vk.CmdBindDescriptorSets(computeCommandBuffer, PipelineBindPoint.Compute, ComputePipelineLayout, 0, 1, pDescriptorSet, 0, null);
         int ComputeWorkGroupSize=256;
         var dispatchSize = (uint) (RenderManager.RenderObjects.Count / ComputeWorkGroupSize)+1;
+        {
+            var transfertocomputebarrier = new BufferMemoryBarrier()
+            {
+                SType = StructureType.BufferMemoryBarrier,
+                Buffer = GlobalData.deviceRenderObjectsBuffer,
+                SrcAccessMask = AccessFlags.TransferWriteBit,
+                DstAccessMask = AccessFlags.ShaderReadBit,
+                Offset = 0,
+                Size = (nuint) GetCurrentFrame().hostRenderObjectsBufferSizeInBytes,
+            };
+            vk.CmdPipelineBarrier(computeCommandBuffer,
+                PipelineStageFlags.TransferBit,
+                PipelineStageFlags.ComputeShaderBit,
+                DependencyFlags.None,
+                0,
+                null,
+                1,
+                &transfertocomputebarrier,
+                0,
+                null);
+        }
         vk.CmdDispatch(computeCommandBuffer, dispatchSize, 1, 1);
-        if (DrawIndirectCountAvaliable)
+        if (!DrawIndirectCountAvaliable)
         {
             var ComputeOutputBarrier = new BufferMemoryBarrier()
             {
                 SType = StructureType.BufferMemoryBarrier,
                 Buffer = GlobalData.deviceIndirectDrawBuffer,
-                SrcAccessMask = AccessFlags.ShaderWriteBit,
-                DstAccessMask = AccessFlags.HostReadBit,
+                SrcAccessMask = AccessFlags.MemoryWriteBit,
+                DstAccessMask = AccessFlags.TransferReadBit,
                 Offset = 0,
                 Size = 4,
             };
             vk.CmdPipelineBarrier(computeCommandBuffer,
                 PipelineStageFlags.ComputeShaderBit,
-                PipelineStageFlags.DrawIndirectBit | PipelineStageFlags.HostBit,
+                PipelineStageFlags.TransferBit,
                 DependencyFlags.None,
                 0,
                 null,
@@ -104,27 +121,49 @@ public static partial class VKRender
                 0,
                 null);
             var first4bytes = new BufferCopy(0, 0, 4);
+            //copy max draw count to device
             vk.CmdCopyBuffer(computeCommandBuffer, GlobalData.deviceIndirectDrawBuffer, GlobalData.ReadBackBuffer,1,first4bytes);
+            //zero out atomic counter from last frame
+            vk.CmdFillBuffer(computeCommandBuffer, GlobalData.deviceIndirectDrawBuffer, 0, 4, 0);
+
+            var transferToReadBackBarrier = new BufferMemoryBarrier()
+            {
+                SType = StructureType.BufferMemoryBarrier,
+                Buffer = GlobalData.ReadBackBuffer,
+                SrcAccessMask = AccessFlags.TransferWriteBit,
+                DstAccessMask = AccessFlags.HostReadBit,
+                Offset = 0,
+                Size = 4,
+            };
+            vk.CmdPipelineBarrier(computeCommandBuffer,
+                PipelineStageFlags.TransferBit,
+                PipelineStageFlags.HostBit,
+                DependencyFlags.None,
+                0,
+                null,
+                1,
+                &transferToReadBackBarrier,
+                0,
+                null);
         }
-        
         vk.EndCommandBuffer(computeCommandBuffer)
             .Expect("failed to record command buffer!");
         var pWaitDstStageMask = stackalloc PipelineStageFlags[]{ PipelineStageFlags.ComputeShaderBit};
-        var lastFrameComputeSemaphore = stackalloc Semaphore[]{GetLastFrame().ComputeSemaphore,default};
-        var currentFrameComputeSemaphore = stackalloc Semaphore[]{GetCurrentFrame().ComputeSemaphore};
+        var pWaitSemaphores = stackalloc Semaphore[]{GetLastFrame().ComputeSemaphore};
+        var pSignalSemaphores = stackalloc Semaphore[]{GetCurrentFrame().ComputeSemaphore,default};
         if (DrawIndirectCountAvaliable)
         {
-            lastFrameComputeSemaphore[1] = GetCurrentFrame().ComputeSemaphore2;
+            pSignalSemaphores[1] = GetCurrentFrame().ComputeSemaphore2;
         }
         var computeSubmitInfo = new SubmitInfo()
         {
             SType = StructureType.SubmitInfo,
             CommandBufferCount = 1,
             PCommandBuffers = &computeCommandBuffer,
-            PSignalSemaphores = currentFrameComputeSemaphore,
             SignalSemaphoreCount = (uint) (DrawIndirectCountAvaliable?2:1),
-            PWaitSemaphores = lastFrameComputeSemaphore,
+            PSignalSemaphores = pSignalSemaphores,
             WaitSemaphoreCount = (uint) (CurrentFrame==0?0:1),
+            PWaitSemaphores = pWaitSemaphores,
             PWaitDstStageMask = pWaitDstStageMask,
         };
         vk.QueueSubmit(computeQueue, 1, &computeSubmitInfo, DrawIndirectCountAvaliable?default:GetCurrentFrame().computeFence)
@@ -144,14 +183,17 @@ public static partial class VKRender
             .Expect("failed to record command buffer!");
         UpdateUniformBuffer(CurrentFrameIndex);
         
-        var waitSemaphores = stackalloc Semaphore[] { GetCurrentFrame().RenderSemaphore };
-        var waitStages= stackalloc PipelineStageFlags[] { PipelineStageFlags.ColorAttachmentOutputBit };
-    
+        var waitSemaphores = stackalloc Semaphore[] { GetCurrentFrame().RenderSemaphore,default };
+        var waitStages= stackalloc PipelineStageFlags[] { PipelineStageFlags.ColorAttachmentOutputBit,PipelineStageFlags.DrawIndirectBit|PipelineStageFlags.VertexShaderBit };
+        if (DrawIndirectCountAvaliable)
+        {
+            waitSemaphores[1] = GetCurrentFrame().ComputeSemaphore2;
+        }
         var signalSemaphores = stackalloc[] { GetCurrentFrame().presentSemaphore };
         var submitInfo = new SubmitInfo
         {
             SType = StructureType.SubmitInfo,
-            WaitSemaphoreCount = 1,
+            WaitSemaphoreCount = (uint) (DrawIndirectCountAvaliable?2:1),
             PWaitSemaphores = waitSemaphores,
             PWaitDstStageMask = waitStages,
             CommandBufferCount = 1,
@@ -194,7 +236,7 @@ public static partial class VKRender
         deltaTime= (float) deltaSeconds;
     }
 
-    private static unsafe void UpdateUniformBuffer(int currentImage)
+    private static unsafe void UpdateUniformBuffer(int index)
     {
         var time = (float)window!.Time;
 
@@ -221,7 +263,7 @@ public static partial class VKRender
         
         
         var size = (nuint) sizeof(UniformBufferObject);
-        var data = uniformBuffersMapped[currentImage]!;
+        var data = FrameData[index].uniformBufferMapped!;
         Unsafe.CopyBlock(data, &ubo, (uint)size);
     }
 }

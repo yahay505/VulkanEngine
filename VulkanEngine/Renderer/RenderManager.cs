@@ -13,9 +13,10 @@ public static class RenderManager
     public static void RegisterRenderObject(RenderObject renderObject)
     {
         RenderObjects.Add(renderObject);
+        renderObject.RenderManagerROIndex = RenderObjects.Count - 1;
     }
     
-    public static unsafe void RegisterMesh(Mesh_internal mesh)
+    public static unsafe Mesh_ref RegisterMesh(Mesh_internal mesh)
     {
         Meshes.Add(mesh);
         VKRender.EnsureMeshRelatedBuffersAreSized();
@@ -28,16 +29,17 @@ public static class RenderManager
             vertexLoadOffset = vertexOffset,
             IBOsize = (uint) mesh.indexBuffer.Length,
         };
+        return new() {index = Meshes.Count - 1};
     }
 
     private static uint LoadIndices(uint[] meshIndexBuffer)
     {
-        throw new NotImplementedException();
+        return VKRender.indexBuffer.Upload(meshIndexBuffer);
     }
 
-    private static int LoadVertices(Vertex[] meshVertexBuffer)
+    private static uint LoadVertices(Vertex[] meshVertexBuffer)
     {
-        throw new NotImplementedException();
+        return VKRender.vertexBuffer.Upload(meshVertexBuffer);
     }
 
 
@@ -64,7 +66,7 @@ public static class RenderManager
 
 public struct Material_ref
 {
-    public int index;    
+    public int index;
 }
 public struct Mesh_ref
 {

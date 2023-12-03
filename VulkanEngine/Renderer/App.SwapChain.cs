@@ -129,7 +129,7 @@ public static partial class VKRender
             ImageUsage = ImageUsageFlags.ColorAttachmentBit,
         };
 
-        var indices = FindQueueFamilies(physicalDevice);
+        var indices = DeviceInfo.indices;
         var queueFamilyIndices = stackalloc[] { indices.graphicsFamily!.Value, indices.presentFamily!.Value };
 
         if (indices.graphicsFamily != indices.presentFamily)

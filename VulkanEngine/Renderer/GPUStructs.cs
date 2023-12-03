@@ -11,6 +11,8 @@ public static class BindingPoints
     public const int GPU_Gfx_UBO = 0;
     public const int GPU_Gfx_Image_Sampler = 1;
     public const int GPU_Gfx_Input_Indirect = 2;
+    
+
 }
 
 
@@ -49,5 +51,5 @@ public struct ComputeOutputConfig{
 public struct MeshInfo{
     public uint IBOoffset;
     public uint IBOsize;
-    public int vertexLoadOffset;
+    public uint vertexLoadOffset;
 };

@@ -11,22 +11,25 @@ public static class Game
 {
     static Camera camera = new();
     static FPSCounter fpsCounter = new(100000);
-    private static RenderObject monkey;
+    private static RenderObject monkey1;
+    private static RenderObject monkey2;
 
     public static void Run()
     {
         CompileShadersTEMP();
         
         VKRender.InitializeRenderer();
-        RenderManager.Meshes.Add(
+        var mesh_ref=RenderManager.RegisterMesh(
             new Mesh_internal()
             {
                 name = "demo monkey", indexBuffer = VKRender.indices, vertexBuffer = VKRender.vertices,
                 indexCount = VKRender.indices.Length, vertexCount = VKRender.vertices.Length
             }
         );
-        monkey = new RenderObject(new Transform(new(0),Quaternion<float>.Identity, float3.One),new(){index = 0},new(){index = 0});
-        RenderManager.RenderObjects.Add(monkey);
+        monkey1 = new RenderObject(new Transform(new(0,0,1),Quaternion<float>.Identity, float3.One),new(){index = 0},new(){index = 0});
+        RenderManager.RegisterRenderObject(monkey1);
+        monkey2 = new RenderObject(new Transform(new(0,0,0),Quaternion<float>.Identity, float3.One),new(){index = 0},new(){index = 0});
+        RenderManager.RegisterRenderObject(monkey2);
         Start();
         
         while (!VKRender.window!.IsClosing)

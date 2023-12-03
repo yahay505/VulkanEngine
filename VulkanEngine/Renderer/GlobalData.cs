@@ -8,9 +8,6 @@ public static partial class VKRender
 {
     public static class GlobalData
     {
-        public static Buffer VertexBuffer;
-        public static DeviceMemory VertexBufferMemory;
-
         public static Image depthImage;
         public static Format depthFormat;
         public static DeviceMemory depthImageMemory;
@@ -21,10 +18,25 @@ public static partial class VKRender
         
         public static Buffer deviceRenderObjectsBuffer;
         public static DeviceMemory deviceRenderObjectsMemory;
-        
+        public static int deviceRenderObjectsBufferSize;
+        public static int deviceRenderObjectsBufferSizeInBytes;
+        public static unsafe void* DEBUG_deviceRenderObjectsBufferPtr;
+        public static unsafe GPUStructs.ComputeInputConfig* DEBUG_deviceRenderObjectsBufferCONFIG =>
+            (GPUStructs.ComputeInputConfig*) DEBUG_deviceRenderObjectsBufferPtr;
+        public static unsafe Span<GPUStructs.ComputeInput> DEBUG_deviceRenderObjectsBufferDATAAsSpan=>new((void*)
+            ((UIntPtr) DEBUG_deviceRenderObjectsBufferPtr+ComputeInSSBOStartOffset), deviceRenderObjectsBufferSize);
+
         public static Buffer deviceIndirectDrawBuffer;
         public static DeviceMemory deviceIndirectDrawBufferMemory;
-        
+        public static int deviceIndirectDrawBufferSize;
+        public static int deviceIndirectDrawBufferSizeInBytes;
+        public static unsafe void* DEBUG_deviceIndirectDrawBufferPtr;
+
+        public static unsafe GPUStructs.ComputeOutputConfig* DEBUG_deviceIndirectDrawBufferCONFIG =>
+            (GPUStructs.ComputeOutputConfig*) DEBUG_deviceIndirectDrawBufferPtr;
+        public static unsafe Span<GPUStructs.ComputeOutput> DEBUG_deviceIndirectDrawBufferDATAAsSpan=>new((void*)
+            ((UIntPtr) DEBUG_deviceIndirectDrawBufferPtr+ComputeOutSSBOStartOffset), deviceIndirectDrawBufferSize);
+
         public static Buffer MeshInfoBuffer;
         public static DeviceMemory MeshInfoBufferMemory;
         public static int MeshInfoBufferSize;

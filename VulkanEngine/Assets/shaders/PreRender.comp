@@ -61,16 +61,16 @@ void main()
 //        frustrum culling
 //        visible = visible && center.z * cullData.frustum[1] - abs(center.x) * cullData.frustum[0] > -radius;
 //        visible = visible && center.z * cullData.frustum[3] - abs(center.y) * cullData.frustum[2] > -radius;
-//        vulkan atomic increment
+
         uint index = atomicAdd(outputData.config.objectCount, 1);
 
         // do math
-        outputData.data[gID].materialID = sourceData.inputs[gID].materialID;
-        outputData.data[gID].model = sourceData.inputs[gID].transform;
-        outputData.data[gID].command.indexCount = meshDB.meshes[meshID].IBOsize;
-        outputData.data[gID].command.instanceCount = 1;
-        outputData.data[gID].command.firstIndex = meshDB.meshes[meshID].IBOoffset;
-        outputData.data[gID].command.vertexOffset = meshDB.meshes[meshID].vertexLoadOffset;
-        outputData.data[gID].command.firstInstance = 0;
+        outputData.data[index].materialID = sourceData.inputs[gID].materialID;
+        outputData.data[index].model = sourceData.inputs[gID].transform;
+        outputData.data[index].command.indexCount = meshDB.meshes[meshID].IBOsize;
+        outputData.data[index].command.instanceCount = 1;
+        outputData.data[index].command.firstIndex = meshDB.meshes[meshID].IBOoffset;
+        outputData.data[index].command.vertexOffset = meshDB.meshes[meshID].vertexLoadOffset;
+        outputData.data[index].command.firstInstance = 0;
     }
 }

@@ -11,7 +11,7 @@ public struct FrameData
         // ImguiSemaphore, //imgui render finished
         presentSemaphore, //render finished can be presented
         RenderSemaphore, //swapchain render target acquired
-        ComputeSemaphore,//transfer finished
+        ComputeSemaphore,
         ComputeSemaphore2;
     public Fence renderFence, computeFence;
     public CommandPool commandPool;
@@ -26,6 +26,16 @@ public struct FrameData
         hostRenderObjectsBufferSize);
     public unsafe GPUStructs.ComputeInputConfig* computeInputConfig=>(ComputeInputConfig*) hostRenderObjectsBufferPtr;
     public int hostRenderObjectsBufferSize;
+    public int hostRenderObjectsBufferSizeInBytes;
     public CommandBuffer GfxCommandBuffer, ComputeCommandBuffer;
+    public DescriptorSets descriptorSets;
 
+    public Buffer uniformBuffer;
+    public DeviceMemory uniformBufferMemory;
+    public unsafe void* uniformBufferMapped;
+    
+    public struct DescriptorSets
+    {
+        public DescriptorSet GFX, Compute;
+    }
 }
