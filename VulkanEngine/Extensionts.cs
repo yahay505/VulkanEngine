@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Cathei.LinqGen;
 using Cathei.LinqGen.Hidden;
 using Silk.NET.Vulkan;
@@ -30,12 +31,28 @@ public static class Extensions
     
     }
 
-
+    public delegate void ActionRef<T>(ref T item);
+    public static void ForEachRef<T>(this List<T> list, ActionRef<T> action)
+    {
+        var listSpan = CollectionsMarshal.AsSpan(list);
+        for (var i = 0; i < list.Count; i++)
+        {
+            action(ref listSpan[i]);
+        }
+    }
     public static void ForEach<T>(this IEnumerable<T> enumerable, Action<T> action)
     {
         foreach (var item in enumerable)
         {
             action(item);
+        }
+    }
+    public static void ForEach<T>(this IEnumerable<T> enumerable, Action<T,int> action)
+    {
+        var i = 0;
+        foreach (var item in enumerable)
+        {
+            action(item,i++);
         }
     }
 }

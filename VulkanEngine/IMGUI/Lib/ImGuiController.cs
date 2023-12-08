@@ -45,6 +45,7 @@ namespace Silk.NET.Vulkan.Extensions.ImGui
         private Image _fontImage;
         private ImageView _fontView;
         private ulong _bufferMemoryAlignment = 256;
+        private static readonly Key[] KeyValues = Enum.GetValues<Key>();
 
         /// <summary>
         /// Constructs a new ImGuiController.
@@ -707,7 +708,7 @@ namespace Silk.NET.Vulkan.Extensions.ImGui
             io.MouseWheel = wheel.Y;
             io.MouseWheelH = wheel.X;
 
-            foreach (var key in Enum.GetValues<Key>())
+            foreach (var key in KeyValues)
             {
                 if (key == Key.Unknown)
                 {

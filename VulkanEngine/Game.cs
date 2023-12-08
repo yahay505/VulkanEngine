@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Numerics;
 using ImGuiNET;
+using Silk.NET.Input;
 using Silk.NET.Maths;
 using VulkanEngine.Renderer.Internal;
 
@@ -13,12 +14,15 @@ public static class Game
     static FPSCounter fpsCounter = new(100000);
     private static RenderObject monkey1;
     private static RenderObject monkey2;
+    public static IInputContext InputCntx;
 
     public static void Run()
     {
         CompileShadersTEMP();
-        
         VKRender.InitializeRenderer();
+        InputCntx=VKRender.window.CreateInput();
+        Input.Input.Init(InputCntx);
+
         var mesh_ref=RenderManager.RegisterMesh(
             new Mesh_internal()
             {
@@ -39,13 +43,14 @@ public static class Game
             var fps=fpsCounter.AddAndGetFrame();
             VKRender.imGuiController.Update(VKRender.deltaTime);
             DisplayFps();
-            ImGui.ShowDemoWindow();
-            VKRender.Render();
+            Editor.EditorRoot.Render();            
             //input
             //systems
             Update();
             //physics
             // DrawFrame();
+            VKRender.Render();
+            Input.Input.ClearFrameState();
         }
         VKRender.vk.DeviceWaitIdle(VKRender.device);
         VKRender.CleanUp();

@@ -5,6 +5,7 @@ using Silk.NET.Assimp;
 using Silk.NET.Core;
 using Silk.NET.Core.Native;
 using Silk.NET.Input;
+using Silk.NET.Input.Extensions;
 using Silk.NET.Maths;
 using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.EXT;
@@ -83,15 +84,14 @@ public static partial class VKRender
             FrameCleanup[i]+=cleanup;
         }
     }
-    private static IInputContext Input;
     public static ImGuiController imGuiController = null!;
     public static void InitializeRenderer()
     {
         InitWindow();
         LoadMesh();
         InitVulkan();
-        Input=window.CreateInput();
-        imGuiController = new ImGuiController(vk,window,Input,new ImGuiFontConfig(AssetsPath+"/fonts/FiraSansCondensed-ExtraLight.otf",12),physicalDevice,_familyIndices.graphicsFamily!.Value,swapChainImages.Length,swapChainImageFormat,GlobalData.depthFormat);
+
+    imGuiController = new ImGuiController(vk,window,Game.InputCntx,new ImGuiFontConfig(AssetsPath+"/fonts/FiraSansCondensed-ExtraLight.otf",12),physicalDevice,_familyIndices.graphicsFamily!.Value,swapChainImages.Length,swapChainImageFormat,GlobalData.depthFormat);
         ImGui.GetIO().ConfigFlags |= ImGuiConfigFlags.DockingEnable;
     }
 
