@@ -11,7 +11,7 @@ public static partial class VKRender
         var options = WindowOptions.DefaultVulkan with
         {
             Size = new Vector2D<int>(Width, Height),
-            Title = "Vulkan2",
+            Title = "🎉🤯🎉",
         };
 
         window = Window.Create(options);

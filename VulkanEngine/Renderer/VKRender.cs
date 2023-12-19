@@ -27,7 +27,7 @@ public static partial class VKRender
     private const int Height=600;
 
     public static DeviceInfo DeviceInfo = null!;
-    public static IWindow? window;
+    public static IWindow window = null!;
     public static Vk vk=null!;
 
     private static Instance instance;
@@ -85,13 +85,14 @@ public static partial class VKRender
         }
     }
     public static ImGuiController imGuiController = null!;
-    public static void InitializeRenderer()
+    public static void InitializeRenderer(out IInputContext inputContext)
     {
         InitWindow();
         LoadMesh();
         InitVulkan();
+        inputContext=VKRender.window.CreateInput();
 
-    imGuiController = new ImGuiController(vk,window,Game.InputCntx,new ImGuiFontConfig(AssetsPath+"/fonts/FiraSansCondensed-ExtraLight.otf",12),physicalDevice,_familyIndices.graphicsFamily!.Value,swapChainImages.Length,swapChainImageFormat,GlobalData.depthFormat);
+    imGuiController = new ImGuiController(vk,window,inputContext,new ImGuiFontConfig(AssetsPath+"/fonts/FiraSansCondensed-ExtraLight.otf",12),physicalDevice,_familyIndices.graphicsFamily!.Value,swapChainImages.Length,swapChainImageFormat,GlobalData.depthFormat);
         ImGui.GetIO().ConfigFlags |= ImGuiConfigFlags.DockingEnable;
     }
 

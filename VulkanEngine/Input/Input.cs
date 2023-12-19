@@ -7,7 +7,6 @@ public static class Input
     static List<char> enteredThisFrame = new();
     static IInputContext context;
     static List<KeyState> KeyStates = new();
-    
     public static void Init(IInputContext _context)
     {
         context = _context;//bad code

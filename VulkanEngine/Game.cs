@@ -19,8 +19,7 @@ public static class Game
     public static void Run()
     {
         CompileShadersTEMP();
-        VKRender.InitializeRenderer();
-        InputCntx=VKRender.window.CreateInput();
+        VKRender.InitializeRenderer(out InputCntx);
         Input.Input.Init(InputCntx);
 
         var mesh_ref=RenderManager.RegisterMesh(

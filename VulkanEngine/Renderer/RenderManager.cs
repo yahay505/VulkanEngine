@@ -54,7 +54,7 @@ public static class RenderManager
             var renderObject = RenderObjects[i];
             target[i] = new ComputeInput()
             {
-                transform=renderObject.transform.ModelMatrix,
+                transform=renderObject.transform.CreateParentToChildSpaceMatrix(),
                 meshID = (uint) renderObject.mesh.index,
                 materialID = (uint) renderObject.material.index
             };
