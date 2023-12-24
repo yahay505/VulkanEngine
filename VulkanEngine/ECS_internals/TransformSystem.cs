@@ -3,12 +3,14 @@ using Silk.NET.Maths;
 using VulkanEngine.ECS_internals;
 
 namespace VulkanEngine;
+// [Derive("SystemInit")]
+public static class TransformSystem{
+    static TransformSystem()
+    {
+        ECS.RegisterSystem<TransformD>(_data,typeof(Transform_ref));
+    }
+    public static ComponentStorage<TransformD> _data=new(false,100);
 
-[ECSSystem(DataType = typeof(TransformD),FrontEnd = typeof(Transform_ref))]
-public static class TransformSystem
-{
-    public static PagedMemory<TransformD> data=new();
-    public static Memory<TransformD> transforms => data.ComponentList;
     public static int AddItemWithGlobalID(int ID)
     {
         var t = new TransformD();
@@ -20,13 +22,12 @@ public static class TransformSystem
         t.child_id = -1;
         t.sibling_id = -1;
         t.dirty = true;
-        return data.AddItemWithGlobalID(t,ID);
+        // return data.AddItemWithGlobalID(t,ID);
+        throw new NotImplementedException();
     }
 
 }
-
-
-public struct Transform_ref
+public struct Transform_ref:Iinterface
 {
     public static readonly Transform_ref invalid = new Transform_ref(0);
     public readonly int id=0;
@@ -35,7 +36,7 @@ public struct Transform_ref
         this.id = id;
     }
 
-    public ref TransformD transform=>ref TransformSystem.transforms.Span[id];
+    public ref TransformD transform=>ref TransformSystem._data.ComponentList.Span[id];
     public float3 right => new(transform.local_to_world_matrix.M11,transform.local_to_world_matrix.M12,transform.local_to_world_matrix.M13);
     public float3 forward => new(transform.local_to_world_matrix.M21,transform.local_to_world_matrix.M22,transform.local_to_world_matrix.M23);
     public float3 up => new (transform.local_to_world_matrix.M31,transform.local_to_world_matrix.M32,transform.local_to_world_matrix.M33);
@@ -44,7 +45,7 @@ public struct Transform_ref
         var t = id;
         while(t!=-1)
         {
-            ref var a = ref TransformSystem.transforms.Span[t];
+            ref var a = ref TransformSystem._data.ComponentList.Span[t];
             if (!a.dirty)
             {
                 a.dirty = true;
@@ -224,7 +225,7 @@ public struct Transform_ref
     }
 }
 [StructLayout(LayoutKind.Sequential,Pack = 64)]
-public struct TransformD
+public struct TransformD:Idata
 {
     public float4x4 local_to_world_matrix;
     public Quaternion<float> local_rotation;

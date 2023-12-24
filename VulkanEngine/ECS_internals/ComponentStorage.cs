@@ -1,6 +1,14 @@
+using System.Runtime.CompilerServices;
+
 namespace VulkanEngine.ECS_internals;
 
-public class PagedMemory<T> where T:unmanaged
+interface Icompstore
+{
+    ref Memory<int> EntityIndicesProp { get; }
+    ref Memory<int> EntityListProp { get; }
+    ref int usedProp { get; }
+}
+public class ComponentStorage<T>:Icompstore where T:unmanaged,Idata
 {
     /*
  EntityIndices
@@ -21,11 +29,36 @@ ComponentList
     Contains component data (of this pool type)
     It is aligned with EntityList such that the element at EntityList[N] has component data of ComponentList[N]
      */
+    public ref Memory<int> EntityIndicesProp => ref EntityIndices;
+    public ref Memory<int> EntityListProp => ref EntityList;
+    public ref int usedProp => ref this.used;
     public Memory<int> EntityIndices;//global ID to internal ID
     public Memory<int> EntityList;//internal ID to global ID
     public Memory<T> ComponentList;//component data
     public int capacity, used;
-    public Span<T> Allocate(ReadOnlySpan<int> globalIDs,out int startIndex)
+    public bool tagOnly;
+    public ComponentStorage(bool tagOnly, int initial_capacity)
+    {
+        this.tagOnly = tagOnly;
+        capacity = Math.Max(1,initial_capacity);
+        used = 1;//0 is reserved for invalid
+        EntityIndices = new Memory<int>(new int[capacity]);
+        EntityList = new Memory<int>(new int[capacity]);
+        if (!tagOnly)
+            ComponentList = new Memory<T>(new T[capacity]);
+    }
+    public ComponentStorage(Memory<byte> bundle)
+    {
+        throw new NotImplementedException();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public int internalID(int globalID)
+    {
+        return EntityIndices.Span[globalID];
+    }
+        
+    private Span<T> Allocate(ReadOnlySpan<int> globalIDs,out int startIndex)
     {
         var count = globalIDs.Length;
         startIndex = used;
@@ -36,11 +69,14 @@ ComponentList
             var newEntityList = new Memory<int>(new int[capacity]);
             var newComponentList = new Memory<T>(new T[capacity]);
             EntityIndices.CopyTo(newEntityIndices);
-            EntityList.CopyTo(newEntityList);
-            ComponentList.CopyTo(newComponentList);
             EntityIndices = newEntityIndices;   
+            EntityList.CopyTo(newEntityList);
             EntityList = newEntityList;
-            ComponentList = newComponentList;
+            if (!tagOnly)
+            {
+                ComponentList.CopyTo(newComponentList);
+                ComponentList = newComponentList;
+            }
         }
         for (int i = 0; i < count; i++)
         {
@@ -54,21 +90,25 @@ ComponentList
         used += count;
         return ret.Span;
     }
-
     public void Delete_internal(int internalID)
     {
-        ComponentList.Span[internalID] = ComponentList.Span[used-1];
+        if (!tagOnly)
+            ComponentList.Span[internalID] = ComponentList.Span[used-1];
         EntityList.Span[internalID] = EntityList.Span[used-1];
         EntityIndices.Span[EntityList.Span[internalID]] = internalID;
         used--;
-        ComponentList.Span[used] = default;
+        if (!tagOnly)
+            ComponentList.Span[used] = default;
         EntityList.Span[used] = default;
         EntityIndices.Span[EntityList.Span[used]] = default;
     }
-    
     public void Delete_global(int globalID)
     {
         Delete_internal(EntityIndices.Span[globalID]);
+    }
+    public Memory<byte> Bundle()
+    {
+        throw new NotImplementedException();
     }
     
 }

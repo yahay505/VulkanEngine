@@ -1,3 +1,4 @@
+#define ASSERTS
 using System.Collections;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -18,7 +19,6 @@ public static class Extensions
             throw new(error_text+"with error: "+result+"\n");
         }
     }
-
     public static IEnumerable<int> Times(this Range range)
     {
      //improvement: use a struct enumerator, LinqGen
@@ -30,7 +30,6 @@ public static class Extensions
         }
     
     }
-
     public delegate void ActionRef<T>(ref T item);
     public static void ForEachRef<T>(this List<T> list, ActionRef<T> action)
     {
@@ -53,6 +52,23 @@ public static class Extensions
         foreach (var item in enumerable)
         {
             action(item,i++);
+        }
+    }
+    [Conditional("ASSERTS")]
+    public static void Assert(this bool b,string message="assertion failed")
+    {
+        if (!b)
+        {
+            throw new(message);
+        }
+    }
+    [Conditional("ASSERTS")]
+    public static void AssertLog(this bool b,string message="assertion failed")
+    {
+        if (!b)
+        {
+            Console.Write("Assert:");
+            Console.WriteLine(message);
         }
     }
 }
