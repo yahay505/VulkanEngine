@@ -17,24 +17,22 @@ public static class ECS
             refToData.Add(frontEnd,typeof(T));
     }
 
-    public static void Run()
-    {
-    }
-    public ref struct ECSQuery<T1> where T1:unmanaged
+
+    public  struct ECSQuery<T1> where T1:unmanaged
     {
         internal int t1index;
         public int t1count;
-        public ref Memory<int> EntityList,EntityIndices;
+        public Memory<int> EntityList,EntityIndices;
     }
     public static unsafe ECSQuery<T1> MakeQuery<T1>(T1* _=null) where T1 : unmanaged, Idata
     {
         var t = (ComponentStorage<T1>)dataToSystem[typeof(T1)];
-        return new ECSQuery<T1>() {t1index = 1, t1count = t.used, EntityList = ref t.EntityList, EntityIndices = ref t.EntityIndices};
+        return new ECSQuery<T1>() {t1index = 1, t1count = t.used, EntityList = t.EntityList, EntityIndices = t.EntityIndices};
     }
     public static ECSQuery<T1> MakeQuery<T1>(T1 _=default) where T1 : unmanaged, Iinterface
     {
         var t = dataToSystem[typeof(T1)];
-        return new ECSQuery<T1>() {t1index = 1, t1count = t.usedProp, EntityList = ref t.EntityIndicesProp, EntityIndices = ref t.EntityIndicesProp};
+        return new ECSQuery<T1>() {t1index = 1, t1count = t.usedProp, EntityList = t.EntityIndicesProp, EntityIndices = t.EntityIndicesProp};
     }
     public static unsafe bool HasResults<T1>(this ref ECSQuery<T1> query,out int globalID,out T1* t1) where T1 :unmanaged,Idata
     {
@@ -74,13 +72,13 @@ public static class ECS
     }
     
     [StructLayout(LayoutKind.Sequential)]
-    public ref struct ECSQuery<T1,T2>
+    public struct ECSQuery<T1,T2>
     {
         public int mainindex;
         public int maincount;
         public int mainTypeIndex;
-        public ref Memory<int> EntityListPacked;
-        public ref Memory<int> EntityIndicesSparse1;
+        public Memory<int> EntityListPacked;
+        public Memory<int> EntityIndicesSparse1;
     }
 
     public static unsafe ECSQuery<T1,T2> MakeQuery<T1,T2>(T1* _=null,T2* __=null) where T1 : unmanaged, Idata where T2 : unmanaged, Idata
@@ -91,7 +89,7 @@ public static class ECS
         var mainTypeIndex = t1.used<t2.used?1:2;
         var minstorage=mainTypeIndex==1?(Icompstore)t1:t2;
         var otherstorage=mainTypeIndex==1?(Icompstore)t2:t1;
-        return new ECSQuery<T1,T2>() {mainindex = 1, maincount = minstorage.usedProp, mainTypeIndex = mainTypeIndex, EntityListPacked = ref minstorage.EntityListProp, EntityIndicesSparse1 = ref otherstorage.EntityIndicesProp};
+        return new ECSQuery<T1,T2>() {mainindex = 1, maincount = minstorage.usedProp, mainTypeIndex = mainTypeIndex, EntityListPacked = minstorage.EntityListProp, EntityIndicesSparse1 = otherstorage.EntityIndicesProp};
     }
     public static unsafe ECSQuery<T1,T2> MakeQuery<T1,T2>(T1 _=default,T2* __=default) where T1 : unmanaged, Iinterface where T2 : unmanaged, Idata
     {
@@ -101,7 +99,7 @@ public static class ECS
         var mainTypeIndex = t1.usedProp<t2.used?1:2;
         var minstorage=mainTypeIndex==1?(Icompstore)t1:t2;
         var otherstorage=mainTypeIndex==1?(Icompstore)t2:t1;
-        return new ECSQuery<T1,T2>() {mainindex = 1, maincount = minstorage.usedProp, mainTypeIndex = mainTypeIndex, EntityListPacked = ref minstorage.EntityListProp, EntityIndicesSparse1 = ref otherstorage.EntityIndicesProp};
+        return new ECSQuery<T1,T2>() {mainindex = 1, maincount = minstorage.usedProp, mainTypeIndex = mainTypeIndex, EntityListPacked = minstorage.EntityListProp, EntityIndicesSparse1 = otherstorage.EntityIndicesProp};
     }
     public static ECSQuery<T1,T2> MakeQuery<T1,T2>(T1 _=default,T2 __=default) where T1 : unmanaged, Iinterface where T2 : unmanaged, Iinterface
     {
@@ -111,7 +109,7 @@ public static class ECS
         var mainTypeIndex = t1.usedProp<t2.usedProp?1:2;
         var minstorage=mainTypeIndex==1?(Icompstore)t1:t2;
         var otherstorage=mainTypeIndex==1?(Icompstore)t2:t1;
-        return new ECSQuery<T1,T2>() {mainindex = 1, maincount = minstorage.usedProp, mainTypeIndex = mainTypeIndex, EntityListPacked = ref minstorage.EntityListProp, EntityIndicesSparse1 = ref otherstorage.EntityIndicesProp};
+        return new ECSQuery<T1,T2>() {mainindex = 1, maincount = minstorage.usedProp, mainTypeIndex = mainTypeIndex, EntityListPacked = minstorage.EntityListProp, EntityIndicesSparse1 = otherstorage.EntityIndicesProp};
     }
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static int TryFindSolutionGivenFirstAsSearch(ref int mainIndex, ref int maxCount, ref Memory<int> EntityListPacked, ref Memory<int> EntityIndicesSparse1)
@@ -189,3 +187,4 @@ public static class ECS
 }
 public interface Iinterface{}
 public interface Idata{}
+public interface Iresult{}

@@ -3,6 +3,7 @@ using System.Numerics;
 using ImGuiNET;
 using Silk.NET.Input;
 using Silk.NET.Maths;
+using VulkanEngine.ECS_internals;
 using VulkanEngine.Renderer.Internal;
 
 namespace VulkanEngine;
@@ -22,6 +23,14 @@ public static class Game
         VKRender.InitializeRenderer(out InputCntx);
         Input.Input.Init(InputCntx);
 
+        
+        Scheduler.InitSync();
+        
+        
+        
+        
+        
+        
         var mesh_ref=RenderManager.RegisterMesh(
             new Mesh_internal()
             {
@@ -87,17 +96,9 @@ public static class Game
 
     }
 
-    public static void Update()
-    {
-        var cam_dist=3f;
-        // Thread.Sleep(15);
-        // camera.transform.
-    }
+   
 
-    public static void Start()
-    {
-        
-    }
+
     
     private static void DisplayFps()
     {
