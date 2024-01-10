@@ -6,7 +6,17 @@ public static class RenderJob
     {
         // Scheduler.RegisterRecurrent();
     }
-    
+
+    public static void Register()
+    {
+        var a=new ExecutionUnitBuilder(Render)
+            .Named("Render")
+            .Reads()
+            .Writes()
+            .RunsAfter( /*ticksDone*/)
+            .Build();
+        // Scheduler.RegisterRecurrent(a);
+    }
     [ECSJob(nameof(Render)
         // typeof(ECSQuery<Transform_ref,MeshData>),Reads=new []{Transform_ref,MeshData},Writes=null,RunAfter=null,RunBefore=null
         )]

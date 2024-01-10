@@ -42,7 +42,7 @@ public static class Game
         RenderManager.RegisterRenderObject(monkey1);
         monkey2 = new RenderObject(new Transform(new(0,0,0),Quaternion<float>.Identity, float3.One),new(){index = 0},new(){index = 0});
         RenderManager.RegisterRenderObject(monkey2);
-        Start();
+        // Start();
         
         while (!VKRender.window!.IsClosing)
         {
@@ -54,7 +54,7 @@ public static class Game
             Editor.EditorRoot.Render();            
             //input
             //systems
-            Update();
+            // Update();
             //physics
             // DrawFrame();
             VKRender.Render();
