@@ -12,23 +12,20 @@ public class ExecutionGroupChain
     // as in dependency chain
     
     //List holding a chain composed of stages with mutually exclusive execution groups
-    public List<List<ExecutionGroup>> Groups;
+    public List<List<ExecutionUnit>> Groups=new();
 }
-public class ExecutionGroup
-{
-    public ExecutionUnit[] Units;
-    public IResource[] Reads;
-    public IResource[] Writes;
-}
+
 public class ExecutionUnit
 {
     public string Name;
-    // public ExecutionUnit[] RunBefore = null!;
-    public ExecutionUnit[] RunAfter = null!;
+    public List<ExecutionUnit> backlinks = null!;
+    public List<ExecutionUnit> DependsOn = null!;
     public IResource[] Reads = null!;
     public IResource[] Writes = null!;
     public Delegate Function = null!;
-    public int color= 0;
+    public int color = 0;
+    public int groupID = 0;
+    public int depth = 0;
 }
 public class ExecutionUnitBuilder
 {
@@ -49,7 +46,12 @@ public class ExecutionUnitBuilder
     // }
     public ExecutionUnitBuilder RunsAfter(params ExecutionUnit[] units)
     {
-        unit.RunAfter = units;
+        unit.DependsOn??=new();
+        unit.DependsOn.AddRange(units);
+        foreach (var sas in units)
+        {
+            sas.backlinks.Add(unit);
+        }
         return this;
     }
     public ExecutionUnitBuilder Reads(params IResource[] resources)

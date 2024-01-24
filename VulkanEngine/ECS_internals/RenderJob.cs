@@ -18,18 +18,17 @@ public static class RenderJob
         // Scheduler.RegisterRecurrent(a);
     }
     [ECSJob(nameof(Render)
-        // typeof(ECSQuery<Transform_ref,MeshData>),Reads=new []{Transform_ref,MeshData},Writes=null,RunAfter=null,RunBefore=null
+        // typeof(ECSQuery<Transform_ref,MeshData>),Reads=new []{Transform_ref,MeshData},Writes=null,DependsOn=null,RunBefore=null
         )]
     public static void Render(ref ECSQuery<Transform_ref,MeshData> query)
     {
-        Console.WriteLine("asasasasasas");
-        // unsafe // unsafe because MeshData doesn't have a proxy struct(so mesh is a MeshData*)
-        // {
-        //     
-        //     while (HasResults(ref query,out _,out var transform,out var mesh))
-        //     {
-        //         // code here
-        //     }
-        // }
+        unsafe // unsafe because MeshData doesn't have a proxy struct(so mesh is a MeshData*)
+        {
+            
+            while (HasResults(ref query,out _,out var transform,out var mesh))
+            {
+                // code here
+            }
+        }
     }
 }

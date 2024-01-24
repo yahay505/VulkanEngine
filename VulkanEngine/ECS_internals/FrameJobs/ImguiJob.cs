@@ -4,7 +4,7 @@ namespace VulkanEngine.ECS_internals.FrameJobs;
 [ECSScan]
 public static class ImguiJob
 {
-    // [ECSJob(nameof(RenderImgui),RunBefore = "frame",RunAfter = new[] {nameof(StartTicks.AddTicks)},Writes = ImGuiResource)]
+    // [ECSJob(nameof(RenderImgui),RunBefore = "frame",DependsOn = new[] {nameof(StartTicks.AddTicks)},Writes = ImGuiResource)]
     public static void RenderImgui()
     {
         aaaa(RenderImgui);
