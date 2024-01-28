@@ -19,12 +19,19 @@ public static class Game
 
     public static void Run()
     {
+        MIT.Start();
+        
+        RegisterJobs.LoadTest();
+        Scheduler.Init();
+        
+        
+        
         CompileShadersTEMP();
         VKRender.InitializeRenderer(out InputCntx);
         Input.Input.Init(InputCntx);
 
         
-        Scheduler.InitSync();
+
         
         
         

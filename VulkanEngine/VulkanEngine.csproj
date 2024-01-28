@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <TargetFramework>net8.0</TargetFramework>
@@ -7,7 +6,7 @@
         <Nullable>enable</Nullable>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <Configurations>Debug;Release</Configurations>
-        <Platforms>AnyCPU;Mac</Platforms>
+        <Platforms>AnyCPU;Mac;Windows</Platforms>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|Mac' ">
@@ -19,6 +18,14 @@
       <DefineConstants>TRACE;MAC</DefineConstants>
       <PlatformTarget>AnyCPU</PlatformTarget>
     </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|Windows' ">
+      <DefineConstants>TRACE;WINDOWS</DefineConstants>
+    </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|Windows' ">
+      <DefineConstants>TRACE;WINDOWS</DefineConstants>
+    </PropertyGroup>
     <ItemGroup>
       <PackageReference Include="ImGui.NET" Version="1.89.9.3" />
       <PackageReference Include="LinqGen" Version="0.3.1" />
@@ -29,6 +36,7 @@
       <PackageReference Include="Silk.NET.Vulkan.Extensions.EXT" Version="2.17.1" />
       <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.17.1" />
       <PackageReference Include="SixLabors.ImageSharp" Version="3.0.2" />
+      <PackageReference Include="Hardware.Info" Version="100.0.1.1" />
     </ItemGroup>
 
     <ItemGroup>

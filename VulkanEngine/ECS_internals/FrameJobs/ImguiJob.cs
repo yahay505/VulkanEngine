@@ -1,5 +1,3 @@
-using VulkanEngine.ECS_internals.Resources;
-
 namespace VulkanEngine.ECS_internals.FrameJobs;
 [ECSScan]
 public static class ImguiJob

@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Silk.NET.Core;
 using Silk.NET.Core.Native;
@@ -9,7 +8,6 @@ using Silk.NET.Vulkan.Extensions.KHR;
 using VulkanEngine.Renderer.GPUStructs;
 using Buffer = Silk.NET.Vulkan.Buffer;
 using Image = Silk.NET.Vulkan.Image;
-using Semaphore = Silk.NET.Vulkan.Semaphore;
 
 namespace VulkanEngine.Renderer;
 

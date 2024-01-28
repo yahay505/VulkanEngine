@@ -1,12 +1,7 @@
 using System.Diagnostics;
-using System.Numerics;
 using System.Runtime.CompilerServices;
-using ImGuiNET;
-using Silk.NET.Core.Native;
 using Silk.NET.Maths;
 using Silk.NET.Vulkan;
-using Silk.NET.Vulkan.Extensions.KHR;
-using Buffer = Silk.NET.Vulkan.Buffer;
 using Semaphore = Silk.NET.Vulkan.Semaphore;
 
 namespace VulkanEngine.Renderer;

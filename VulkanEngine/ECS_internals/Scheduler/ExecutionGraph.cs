@@ -2,11 +2,6 @@
 
 namespace VulkanEngine.ECS_internals;
 
-public class ExecutionGraph
-{
-    List<ExecutionGroupChain> ParallelExecutionGroupChains = new();
-}
-
 public class ExecutionGroupChain
 {
     // as in dependency chain
@@ -18,10 +13,10 @@ public class ExecutionGroupChain
 public class ExecutionUnit
 {
     public string Name;
-    public List<ExecutionUnit> backlinks = null!;
-    public List<ExecutionUnit> DependsOn = null!;
-    public IResource[] Reads = null!;
-    public IResource[] Writes = null!;
+    public List<ExecutionUnit> backlinks = new();
+    public List<ExecutionUnit> DependsOn = new();
+    public ECSResource[] Reads = Array.Empty<ECSResource>();
+    public ECSResource[] Writes = Array.Empty<ECSResource>();
     public Delegate Function = null!;
     public int color = 0;
     public int groupID = 0;
@@ -54,12 +49,12 @@ public class ExecutionUnitBuilder
         }
         return this;
     }
-    public ExecutionUnitBuilder Reads(params IResource[] resources)
+    public ExecutionUnitBuilder Reads(params ECSResource[] resources)
     {
         unit.Reads = resources;
         return this;
     }
-    public ExecutionUnitBuilder Writes(params IResource[] resources)
+    public ExecutionUnitBuilder Writes(params ECSResource[] resources)
     {
         unit.Writes = resources;
         return this;
@@ -72,6 +67,3 @@ public class ExecutionUnitBuilder
         return unit;
     }
 }
-
-
-public interface IExecutionStreamThing {}

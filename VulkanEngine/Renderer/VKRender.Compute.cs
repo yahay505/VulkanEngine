@@ -1,6 +1,5 @@
 ﻿
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using Silk.NET.Core.Native;
 using Silk.NET.Vulkan;
 using VulkanEngine.Renderer.GPUStructs;

@@ -1,32 +1,37 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VulkanEngine", "VulkanEngine\VulkanEngine.csproj", "{86FD812E-5E34-484E-9CB8-DE56A79BBA88}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SourceGen", "SourceGen\SourceGen.csproj", "{42169033-0DDF-48C9-99F0-41DF0CC11D36}"
+# Visual Studio Version 17
+VisualStudioVersion = 17.2.32630.192
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VulkanEngine", "VulkanEngine\VulkanEngine.csproj", "{86FD812E-5E34-484E-9CB8-DE56A79BBA88}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Debug|Mac = Debug|Mac
+		Debug|Windows = Debug|Windows
 		Release|Any CPU = Release|Any CPU
 		Release|Mac = Release|Mac
+		Release|Windows = Release|Windows
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{86FD812E-5E34-484E-9CB8-DE56A79BBA88}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{86FD812E-5E34-484E-9CB8-DE56A79BBA88}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{86FD812E-5E34-484E-9CB8-DE56A79BBA88}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{86FD812E-5E34-484E-9CB8-DE56A79BBA88}.Release|Any CPU.Build.0 = Release|Any CPU
 		{86FD812E-5E34-484E-9CB8-DE56A79BBA88}.Debug|Mac.ActiveCfg = Debug|Mac
 		{86FD812E-5E34-484E-9CB8-DE56A79BBA88}.Debug|Mac.Build.0 = Debug|Mac
+		{86FD812E-5E34-484E-9CB8-DE56A79BBA88}.Debug|Windows.ActiveCfg = Debug|Windows
+		{86FD812E-5E34-484E-9CB8-DE56A79BBA88}.Debug|Windows.Build.0 = Debug|Windows
+		{86FD812E-5E34-484E-9CB8-DE56A79BBA88}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{86FD812E-5E34-484E-9CB8-DE56A79BBA88}.Release|Any CPU.Build.0 = Release|Any CPU
 		{86FD812E-5E34-484E-9CB8-DE56A79BBA88}.Release|Mac.ActiveCfg = Release|Mac
 		{86FD812E-5E34-484E-9CB8-DE56A79BBA88}.Release|Mac.Build.0 = Release|Mac
-		{42169033-0DDF-48C9-99F0-41DF0CC11D36}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{42169033-0DDF-48C9-99F0-41DF0CC11D36}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{42169033-0DDF-48C9-99F0-41DF0CC11D36}.Debug|Mac.ActiveCfg = Debug|Any CPU
-		{42169033-0DDF-48C9-99F0-41DF0CC11D36}.Debug|Mac.Build.0 = Debug|Any CPU
-		{42169033-0DDF-48C9-99F0-41DF0CC11D36}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{42169033-0DDF-48C9-99F0-41DF0CC11D36}.Release|Any CPU.Build.0 = Release|Any CPU
-		{42169033-0DDF-48C9-99F0-41DF0CC11D36}.Release|Mac.ActiveCfg = Release|Any CPU
-		{42169033-0DDF-48C9-99F0-41DF0CC11D36}.Release|Mac.Build.0 = Release|Any CPU
+		{86FD812E-5E34-484E-9CB8-DE56A79BBA88}.Release|Windows.ActiveCfg = Release|Windows
+		{86FD812E-5E34-484E-9CB8-DE56A79BBA88}.Release|Windows.Build.0 = Release|Windows
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {6966BE18-EBD2-4CEB-BFF0-C30C4BF22D14}
 	EndGlobalSection
 EndGlobal

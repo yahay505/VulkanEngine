@@ -1,6 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
-using Silk.NET.Vulkan;
-
 namespace VulkanEngine.Renderer;
 
 public static partial class VKRender

@@ -11,7 +11,7 @@
 // {
 //     private static readonly AssemblyBuilder _assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(new AssemblyName("DynamicMethodBuilderAssembly"), AssemblyBuilderAccess.Run);
 //     private static readonly ModuleBuilder _moduleBuilder = _assemblyBuilder.DefineDynamicModule("DynamicModule");
-//     public static unsafe void CollectViaReflection()
+//     public static unsafe void CollectçöçöççöççöçöçöçöçöçöçöçöçöçöçöçöçöçöçöçöçöçöçöçöçööçöçöçöçöçöçöçççöçöçöçöçöçöçöçöççöçöçöçöçöçööçöççöçöçöçöçöçöçöçöçöçöçöçöçöçöViaReflection()
 //     {
 //
 //         var nameWithoutCollision = $"ECS_Call_Proxy_{Guid.NewGuid():N}";

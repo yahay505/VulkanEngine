@@ -1,9 +1,6 @@
 #define ASSERTS
-using System.Collections;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using Cathei.LinqGen;
-using Cathei.LinqGen.Hidden;
 using Silk.NET.Vulkan;
 using Range = System.Range;
 

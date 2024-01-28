@@ -1,7 +1,5 @@
-using System.Collections;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Cathei.LinqGen.Hidden;
 
 namespace VulkanEngine.ECS_internals;
 

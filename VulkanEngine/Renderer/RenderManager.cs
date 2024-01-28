@@ -1,5 +1,3 @@
-using Silk.NET.Maths;
-using Silk.NET.Vulkan;
 using VulkanEngine.Renderer.GPUStructs;
 using VulkanEngine.Renderer.Internal;
 
