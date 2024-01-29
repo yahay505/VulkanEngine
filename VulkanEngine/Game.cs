@@ -21,8 +21,8 @@ public static class Game
     {
         MIT.Start();
         
-        RegisterJobs.LoadTest();
-        Scheduler.Init();
+        RegisterJobs.LoadTest(); //reference to call static constructor
+        Scheduler.Init(LoadTestLoop());
         
         
         
@@ -71,6 +71,14 @@ public static class Game
         VKRender.CleanUp();
     }
 
+    static IEnumerable<string> LoadTestLoop()
+    {
+        var stopwatch = Stopwatch.StartNew();
+        yield return "LOADTEST";
+        stopwatch.Stop();
+        Console.WriteLine($"LoadTestLoop took {stopwatch.ElapsedMilliseconds}ms");
+    }
+    
     private static void CompileShadersTEMP()
     {
         //if env has renderdoc return early

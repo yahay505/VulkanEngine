@@ -46,7 +46,7 @@ public class WorkerThread
         {
             if (WorkStack.WorkerTryPop(out var job))
             {
-                job.Function();
+                job.Item->Function();
                 // release resources
                 foreach (var ecsResource in job.Item->Writes)
                 {

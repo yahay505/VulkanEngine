@@ -21,7 +21,7 @@ public static class ScheduleMaker
         }
     }
 
-    public static void Build()
+    public static unsafe void Build()
     {
         if (built)
         {
@@ -124,6 +124,7 @@ public static class ScheduleMaker
                         Writes = item.Writes,
                         IsCompleted = false,
                         IsScheduled = false,
+                        Function = (delegate* managed<void>)(void*)item.Function.Method.MethodHandle.GetFunctionPointer()
                     });
                     i++;
                 }

@@ -6,7 +6,7 @@ namespace VulkanEngine.ECS_internals;
 public class WorkerWorkStack
 {
     // make lockfree
-    Channel<WorkUnit> channel = Channel.CreateUnbounded<WorkUnit>();
+    Channel<RuntimeScheduleItemPtr> channel = Channel.CreateUnbounded<RuntimeScheduleItemPtr>();
     // public int tail; // workers side 
     // public int[] ringBuffer = new int[15];
     // public int head; // scheduler side 
@@ -25,15 +25,15 @@ public class WorkerWorkStack
     {
         return channel.Reader.TryPeek(out _);
     }
-    public bool WorkerTryPop(out WorkUnit job)
+    public bool WorkerTryPop(out RuntimeScheduleItemPtr job)
     {
         return channel.Reader.TryRead(out job);
     }
-    public void WorkerPush(WorkUnit job)
+    public void WorkerPush(RuntimeScheduleItemPtr job)
     {
         unsafe
         {
-            job.Function();
+            job.Item->Function();
             //todo actual implementation
         }
     }
@@ -42,12 +42,12 @@ public class WorkerWorkStack
     {
         return false;
     }
-    public void OtherAdd(Span<int> ints)
+    public void OtherAdd(Span<RuntimeScheduleItemPtr> ints)
     {
 
         foreach (var data in ints)
         {
-            channel.Writer.TryWrite(new WorkUnit());
+            channel.Writer.TryWrite(data);
         }
     }
 }

@@ -24,13 +24,18 @@ public class RuntimeScheduleState
         {
             Volatile.Write(ref Items[i].IsCompleted, false);
             Volatile.Write(ref Items[i].IsScheduled, false);
-            
         }
+        Volatile.Write(ref Tail, 0);
+        Volatile.Write(ref Head, 0);
+        Volatile.Write(ref IsCompleted, false); 
     }
 
     public enum SyncMode
     {
         NA,
+        /// <summary>
+        /// BROKEN (NEED TO CANGE BOOL TO INT in finished counter )
+        /// </summary>
         DontSync,
         SyncAtEnd,
         SyncIfRepeated,

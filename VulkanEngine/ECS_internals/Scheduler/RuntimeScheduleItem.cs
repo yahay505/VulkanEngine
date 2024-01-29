@@ -9,4 +9,9 @@ public struct RuntimeScheduleItem
     public int[] Dependencies;
     public ECSResource[] Reads;
     public ECSResource[] Writes;
+    public unsafe delegate* managed<void> Function;
+}
+public struct RuntimeScheduleItemPtr
+{
+    public unsafe RuntimeScheduleItem* Item;
 }

@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using VulkanEngine.ECS_internals.Resources;
 
 namespace VulkanEngine.ECS_internals;
@@ -14,8 +16,10 @@ public static class Scheduler
     
     public static Dictionary<string,RuntimeScheduleState> RuntimeScheduleStates = null!;
     private static RuntimeScheduleState _currentRuntimeScheduleState = null!;
-    
-    
+
+    public static IEnumerable<string> TargetEnumarable=null!;
+    private static IEnumerator<string> currentTargetEnumerator=null!;
+
     static Scheduler()
     {
         // CollectViaReflection();
@@ -26,12 +30,13 @@ public static class Scheduler
         return 4;
     }
     
-    public static void Init()
+    public static void Init(IEnumerable<string> loop)
     {
         if (Interlocked.CompareExchange(ref schedulerLock, 1,0) != 0)
         {
             throw new Exception("uninitialized scheduler already locked");
         }
+        TargetEnumarable = loop;
         
         ScheduleMaker.Build();
         
@@ -108,7 +113,9 @@ public static class Scheduler
         
         
         //Normal selection Procedure
-        Span<int> tmpList = stackalloc int[20];
+        Span<RuntimeScheduleItemPtr> tmpList = stackalloc RuntimeScheduleItemPtr[20];
+        tmpList.Clear();
+        
         var count = 0;
         for (var i = _currentRuntimeScheduleState.Tail; i < _currentRuntimeScheduleState.Items.Length; i++)
         {
@@ -117,6 +124,7 @@ public static class Scheduler
                 break;
             }
             ref var item = ref _currentRuntimeScheduleState.Items[i];
+            
             if (item.IsScheduled) continue;
             
             var canSchedule = true;
@@ -168,7 +176,8 @@ public static class Scheduler
             if (!canSchedule) continue;
             
             item.IsScheduled = true;
-            tmpList[count++]=i;
+            tmpList[count++] =   new(){Item=(RuntimeScheduleItem*) Unsafe.AsPointer(ref item)};
+            
             if (i==_currentRuntimeScheduleState.Tail)
             {
                 _currentRuntimeScheduleState.Tail++;
@@ -208,14 +217,23 @@ public static class Scheduler
         }
         return true;
     }
-
+    
     static string TMPSELECTOR()
     {
-        return "LOADTEST";    
+        currentTargetEnumerator ??= TargetEnumarable.GetEnumerator();
+        if (!currentTargetEnumerator.MoveNext())
+        {
+            currentTargetEnumerator.Dispose();
+            currentTargetEnumerator = TargetEnumarable.GetEnumerator();
+            currentTargetEnumerator.MoveNext();
+        }
+
+        return currentTargetEnumerator.Current;
+        
     }
     static void TMPSYNCPOINT()
     {
-     
+
     }
 }
 
@@ -234,4 +252,3 @@ public class ECSJobAttribute : Attribute
         Name = JobName;
     }
 }
-// year is 202xx

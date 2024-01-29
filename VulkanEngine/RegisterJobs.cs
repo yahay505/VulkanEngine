@@ -8,7 +8,7 @@ public static class RegisterJobs
 {
     static RegisterJobs()
     {
-        for (int i = 0; i < 8; i++)
+        for (int i = 0; i < 30; i++)
         {
             var renderUnit = new ExecutionUnitBuilder(LoadTest)
                 .Named($"LOAD{i}")
@@ -18,7 +18,16 @@ public static class RegisterJobs
     }
     public static void LoadTest()
     {
-        var stopw = Stopwatch.StartNew();
-        while (stopw.ElapsedMilliseconds<2) { }
+        GetNthFibonacci_Rec(40);
+    }
+    
+    public static int GetNthFibonacci_Rec(int n)
+    {
+        if ((n == 0) || (n == 1))
+        {
+            return n;
+        }
+        else
+            return GetNthFibonacci_Rec(n - 1) + GetNthFibonacci_Rec(n - 2);
     }
 }
