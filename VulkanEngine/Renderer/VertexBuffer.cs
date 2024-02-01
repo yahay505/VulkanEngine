@@ -5,7 +5,7 @@ namespace VulkanEngine.Renderer;
 public static partial class VKRender{
 public class VertexBuffer
 {
-    VKRender.GPUDynamicBuffer<Vertex> buffer;
+    public VKRender.GPUDynamicBuffer<Vertex> buffer;
     public unsafe VertexBuffer(ulong initialSize)
     {
         buffer = new(initialSize,

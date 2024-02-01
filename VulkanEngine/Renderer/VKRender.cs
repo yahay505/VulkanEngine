@@ -16,7 +16,11 @@ namespace VulkanEngine.Renderer;
 public static partial class VKRender
 {
 
-    private static bool DrawIndirectCountAvaliable => DeviceInfo.supportsCmdDrawIndexedIndirectCount;
+    private static bool DrawIndirectCountAvaliable =>
+        DeviceInfo.supportsCmdDrawIndexedIndirectCount
+        // false
+        ;
+    
 
     private const int Width=800;
     private const int Height=600;
@@ -59,9 +63,6 @@ public static partial class VKRender
     private static DescriptorSetLayout ComputeDescriptorSetLayout;
     static DescriptorPool DescriptorPool;
 
-    private static DescriptorSet ComputeDescriptorSet=>GetCurrentFrame().descriptorSets.Compute;
-    private static DescriptorSet GfxDescriptorSet=>GetCurrentFrame().descriptorSets.GFX;
-    
 
     public static int CurrentFrame = 0;
     static int CurrentFrameIndex = 0;

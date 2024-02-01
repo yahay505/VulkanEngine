@@ -12,13 +12,14 @@ public static class Scheduler
     public static bool WorkerThreadEnable = false;
     public static bool ShouldSync = false;
     public static Barrier SyncBarrier = null!;
-    
+    public static bool Stopping = false;
     
     public static Dictionary<string,RuntimeScheduleState> RuntimeScheduleStates = null!;
     private static RuntimeScheduleState _currentRuntimeScheduleState = null!;
 
     public static IEnumerable<string> TargetEnumarable=null!;
     private static IEnumerator<string> currentTargetEnumerator=null!;
+    private static RuntimeScheduleItem[] __runtimeScheduleItems = new RuntimeScheduleItem[20];
 
     static Scheduler()
     {
@@ -29,8 +30,12 @@ public static class Scheduler
     {
         return 4;
     }
-    
-    public static void Init(IEnumerable<string> loop)
+    public static void Stop()
+    {
+        Volatile.Write(ref Stopping, true);
+        Volatile.Write(ref ShouldSync, true);
+    }
+    public static void Run(IEnumerable<string> loop)
     {
         if (Interlocked.CompareExchange(ref schedulerLock, 1,0) != 0)
         {
@@ -76,13 +81,18 @@ public static class Scheduler
         {
             return false;
         }
+
+        
         
         DistributeWork();
-        
+    
+
         if (Interlocked.Exchange(ref schedulerLock, 0) != 1)
         {
             throw new Exception("uninitialized scheduler lock failed");
         }
+        
+
         return true;
     }
     
@@ -113,8 +123,7 @@ public static class Scheduler
         
         
         //Normal selection Procedure
-        Span<RuntimeScheduleItemPtr> tmpList = stackalloc RuntimeScheduleItemPtr[20];
-        tmpList.Clear();
+        var tmpList = __runtimeScheduleItems;
         
         var count = 0;
         for (var i = _currentRuntimeScheduleState.Tail; i < _currentRuntimeScheduleState.Items.Length; i++)
@@ -140,7 +149,7 @@ public static class Scheduler
             for (var j = 0; j < item.Writes.Length; j++)//try acquire write locks
             {
                 var resource = item.Writes[j];
-                if (Interlocked.CompareExchange(ref resource.state, 0, -1) != -1)
+                if (Interlocked.CompareExchange(ref resource.state, -1, 0) != 0)
                 {
                     canSchedule = false;
                     while (j<0)
@@ -176,7 +185,7 @@ public static class Scheduler
             if (!canSchedule) continue;
             
             item.IsScheduled = true;
-            tmpList[count++] =   new(){Item=(RuntimeScheduleItem*) Unsafe.AsPointer(ref item)};
+            tmpList[count++] = item;
             
             if (i==_currentRuntimeScheduleState.Tail)
             {
@@ -214,10 +223,14 @@ public static class Scheduler
         {
             Volatile.Write(ref ShouldSync,false);
             SyncBarrier.SignalAndWait();
+            if (Volatile.Read(ref Stopping))
+            {
+                return false;
+            }
         }
         return true;
     }
-    
+
     static string TMPSELECTOR()
     {
         currentTargetEnumerator ??= TargetEnumarable.GetEnumerator();

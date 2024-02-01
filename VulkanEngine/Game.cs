@@ -4,6 +4,9 @@ using ImGuiNET;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using VulkanEngine.ECS_internals;
+using VulkanEngine.Phases.FramePreamblePhase;
+using VulkanEngine.Phases.FrameRender;
+using VulkanEngine.Phases.Tick;
 using VulkanEngine.Renderer.Internal;
 
 namespace VulkanEngine;
@@ -19,11 +22,14 @@ public static class Game
 
     public static void Run()
     {
+      
+        
+        
         MIT.Start();
         
         RegisterJobs.LoadTest(); //reference to call static constructor
-        Scheduler.Init(LoadTestLoop());
-        
+        // Scheduler.Run(LoadTestLoop());
+
         
         
         CompileShadersTEMP();
@@ -49,24 +55,19 @@ public static class Game
         RenderManager.RegisterRenderObject(monkey1);
         monkey2 = new RenderObject(new Transform(new(0,0,0),Quaternion<float>.Identity, float3.One),new(){index = 0},new(){index = 0});
         RenderManager.RegisterRenderObject(monkey2);
-        // Start();
+
+        PreambleSequence.Register();
+        FrameRenderSequence.Register();
+        MockTickSequence.Register();
         
-        while (!VKRender.window!.IsClosing)
-        {
-            VKRender.window.DoEvents();
-            VKRender.UpdateTime();
-            var fps=fpsCounter.AddAndGetFrame();
-            VKRender.imGuiController.Update(VKRender.deltaTime);
-            DisplayFps();
-            Editor.EditorRoot.Render();            
-            //input
-            //systems
-            // Update();
-            //physics
-            // DrawFrame();
-            VKRender.Render();
-            Input.Input.ClearFrameState();
-        }
+        
+        
+        
+        Scheduler.Run(Gameloop());
+        
+        
+        
+        
         VKRender.vk.DeviceWaitIdle(VKRender.device);
         VKRender.CleanUp();
     }
@@ -78,7 +79,24 @@ public static class Game
         stopwatch.Stop();
         Console.WriteLine($"LoadTestLoop took {stopwatch.ElapsedMilliseconds}ms");
     }
-    
+
+    public static long calcMS = 0;
+    static IEnumerable<string> Gameloop()
+    {
+        while (true)
+        {
+            yield return "frame_preamble";
+            Volatile.Write(ref calcMS, Stopwatch.GetTimestamp());
+            
+            yield return "tick";
+            
+            // yield return "tick";
+            // yield return "tick";
+            yield return "frame_render";
+        }
+        yield return "LOADTEST";
+        // Console.WriteLine($"LoadTestLoop took {stopwatch.ElapsedMilliseconds}ms");
+    }
     private static void CompileShadersTEMP()
     {
         //if env has renderdoc return early
@@ -115,45 +133,5 @@ public static class Game
 
 
     
-    private static void DisplayFps()
-    {
-        int location = 0;
-        var io = ImGui.GetIO();
-        var flags = ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoNav | ImGuiWindowFlags.AlwaysAutoResize |
-                    ImGuiWindowFlags.NoFocusOnAppearing | ImGuiWindowFlags.NoSavedSettings;
-
-        if (location >= 0)
-        {
-            const float PAD = 10.0f;
-            var viewport = ImGui.GetMainViewport();
-            var work_pos = viewport.WorkPos; // Use work area to avoid menu-bar/task-bar, if any!
-            var work_size = viewport.WorkSize;
-            Vector2 window_pos, window_pos_pivot;
-            window_pos.X = (location & 1) != 0 ? (work_pos.X + work_size.X - PAD) : (work_pos.X + PAD);
-            window_pos.Y = (location & 2) != 0 ? (work_pos.Y + work_size.Y - PAD) : (work_pos.Y + PAD);
-            window_pos_pivot.X = (location & 1) != 0 ? 1.0f : 0.0f;
-            window_pos_pivot.Y = (location & 2) != 0 ? 1.0f : 0.0f;
-            
-            ImGui.SetNextWindowPos(window_pos, ImGuiCond.Always, window_pos_pivot);
-            flags |= ImGuiWindowFlags.NoMove;
-        } else if (location == -2)
-        {
-            ImGui.SetNextWindowPos(io.DisplaySize - new Vector2(0.0f, 0.0f), ImGuiCond.Always, new Vector2(1.0f, 1.0f));
-            flags |= ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove;
-        }
-        ImGui.SetNextWindowBgAlpha(0.35f);
-        if (ImGui.Begin("Example: Simple overlay", ImGuiWindowFlags.NoDecoration |
-                                                    ImGuiWindowFlags.AlwaysAutoResize |
-                                                    ImGuiWindowFlags.NoSavedSettings |
-                                                    ImGuiWindowFlags.NoFocusOnAppearing |
-                                                    ImGuiWindowFlags.NoNav))
-        {
-            // TODO: Rightclick to change pos
-            ImGui.Text("Demo Scene");
-            ImGui.Separator();
-            ImGui.Text($"Application average {1000.0f / ImGui.GetIO().Framerate:F3} ms/frame ({ImGui.GetIO().Framerate:F1} FPS)");
-            ImGui.End();
-        }
-        
-    }
+ 
 }

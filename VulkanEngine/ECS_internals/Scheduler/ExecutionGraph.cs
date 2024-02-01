@@ -51,12 +51,20 @@ public class ExecutionUnitBuilder
     }
     public ExecutionUnitBuilder Reads(params ECSResource[] resources)
     {
-        unit.Reads = resources;
+        if (resources.Any(r=>r==null))
+        {
+            throw new Exception("Cannot read null resource");
+        }
+        unit.Reads = unit.Reads.Concat(resources).ToArray();
         return this;
     }
     public ExecutionUnitBuilder Writes(params ECSResource[] resources)
     {
-        unit.Writes = resources;
+        if (resources.Any(r=>r==null))
+        {
+            throw new Exception("Cannot write null resource");
+        }
+        unit.Writes = unit.Writes.Concat(resources).ToArray();
         return this;
     }
     

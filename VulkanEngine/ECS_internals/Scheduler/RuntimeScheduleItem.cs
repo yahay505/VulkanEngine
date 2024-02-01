@@ -2,7 +2,7 @@
 
 namespace VulkanEngine.ECS_internals;
 
-public struct RuntimeScheduleItem
+public class RuntimeScheduleItem
 {
     public bool IsScheduled;
     public bool IsCompleted;
@@ -10,8 +10,4 @@ public struct RuntimeScheduleItem
     public ECSResource[] Reads;
     public ECSResource[] Writes;
     public unsafe delegate* managed<void> Function;
-}
-public struct RuntimeScheduleItemPtr
-{
-    public unsafe RuntimeScheduleItem* Item;
 }

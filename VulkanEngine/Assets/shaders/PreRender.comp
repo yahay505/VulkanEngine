@@ -1,5 +1,5 @@
 #version 450
-layout (local_size_x = 256) in;
+layout (local_size_x = 16) in;
 struct Input{
     uint meshID;
     uint materialID;
@@ -55,6 +55,7 @@ void main()
     if(gID < sourceData.config.objectCount)
     {
         uint meshID = sourceData.inputs[gID].meshID;
+//        uint meshID = 0;
         
         bool visible = true;
 
@@ -63,7 +64,7 @@ void main()
 //        visible = visible && center.z * cullData.frustum[3] - abs(center.y) * cullData.frustum[2] > -radius;
 
         uint index = atomicAdd(outputData.config.objectCount, 1);
-
+//        uint index = 0;
         // do math
         outputData.data[index].materialID = sourceData.inputs[gID].materialID;
         outputData.data[index].model = sourceData.inputs[gID].transform;

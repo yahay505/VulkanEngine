@@ -1,4 +1,5 @@
 using Silk.NET.Input;
+using VulkanEngine.ECS_internals.Resources;
 
 namespace VulkanEngine.Input;
 
@@ -6,6 +7,8 @@ public static class Input
 {
     static List<char> enteredThisFrame = new();
     static IInputContext context;
+    public static ECSResource InputResource = new ECSResource("INPUT");
+    
     static List<KeyState> KeyStates = new();
     public static void Init(IInputContext _context)
     {

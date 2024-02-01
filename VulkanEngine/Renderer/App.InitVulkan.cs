@@ -40,8 +40,7 @@ public static partial class VKRender
         CreateUniformBuffers();
         CreateDescriptionPool();
         CreateDescriptorSets();
-        indexBuffer = new IndexBuffer(1);
-        vertexBuffer = new VertexBuffer(1);
+
         CreateComputeResources();
         
     }
@@ -60,8 +59,7 @@ public static partial class VKRender
         0, 1, 2, 2, 3, 0
     };
 
-    internal static VertexBuffer vertexBuffer;
-    public static IndexBuffer indexBuffer;
+
     private static ImageView textureImageView;
     private static Sampler textureSampler;
 
@@ -614,11 +612,25 @@ public static partial class VKRender
             PImmutableSamplers = null,
         };
         var bindings = stackalloc[] {uboLayoutBinding, samplerLayoutBinding,drawcallSSBOBinding};
+        var pBindingFlags= stackalloc DescriptorBindingFlags[]
+        {
+            DescriptorBindingFlags.UpdateUnusedWhilePendingBit,
+            DescriptorBindingFlags.UpdateUnusedWhilePendingBit,
+            DescriptorBindingFlags.UpdateUnusedWhilePendingBit,
+            // DescriptorBindingFlags.None
+        };
+        var descriptorSetLayoutBindingFlagsCreateInfo = new DescriptorSetLayoutBindingFlagsCreateInfo()
+        {
+            SType = StructureType.DescriptorSetLayoutBindingFlagsCreateInfo,
+            BindingCount = 3,
+            PBindingFlags = pBindingFlags
+        };
         var layoutInfo = new DescriptorSetLayoutCreateInfo
         {
             SType = StructureType.DescriptorSetLayoutCreateInfo,
             BindingCount = 3,
             PBindings = bindings,
+            PNext = &descriptorSetLayoutBindingFlagsCreateInfo,
         };
         vk.CreateDescriptorSetLayout(device, layoutInfo, null, out DescriptorSetLayout)
             .Expect("failed to create descriptor set layout!");
@@ -655,7 +667,7 @@ public static partial class VKRender
         vk.AllocateMemory(device, &allocInfo, null, bufferMemory) 
             .Expect("failed to allocate buffer memory!");
         
-        vk.BindBufferMemory(device, *buffer, *bufferMemory, 0);
+        vk.BindBufferMemory(device, *buffer, *bufferMemory, 0).Expect();
     }
    
 
@@ -734,21 +746,35 @@ public static partial class VKRender
             Offset = new Offset2D(0, 0),
             Extent = swapChainExtent,
         };
-
-
+        // var memoryBarrier = new MemoryBarrier
+        // {
+        //     SType = StructureType.MemoryBarrier,
+        //     SrcAccessMask = AccessFlags.ShaderWriteBit,
+        //     DstAccessMask = AccessFlags.TransferWriteBit,
+        // };
+        // vk.CmdPipelineBarrier(commandBuffer,
+        //     PipelineStageFlags.FragmentShaderBit,
+        //     PipelineStageFlags.TransferBit,
+        //     0,
+        //     1,
+        //     memoryBarrier,
+        //     0,
+        //     null,
+        //     0,
+        //     null);
         vk.CmdBeginRenderPass(commandBuffer, renderPassInfo, SubpassContents.Inline);
         // vk.CmdCopyBuffer();
         vk.CmdBindPipeline(commandBuffer, PipelineBindPoint.Graphics, GraphicsPipeline);
         vk.CmdSetViewport(commandBuffer,0,1,&viewPort);
         vk.CmdSetScissor(commandBuffer,0,1,&scissor);
-        var vertexBuffers =stackalloc []{(Buffer)vertexBuffer};
+        var vertexBuffers =stackalloc []{(Buffer)GlobalData.vertexBuffer};
         var offsets = stackalloc []{(ulong)0};
         
         // vk!.CmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
         vk.CmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
         var pDescriptorSet = stackalloc DescriptorSet[] {GetCurrentFrame().descriptorSets.GFX};
+        vk.CmdBindIndexBuffer(commandBuffer, GlobalData.indexBuffer, 0, IndexType.Uint32);
         vk.CmdBindDescriptorSets(commandBuffer, PipelineBindPoint.Graphics, GfxPipelineLayout, 0, 1, pDescriptorSet, 0, null);
-        vk.CmdBindIndexBuffer(commandBuffer, indexBuffer, 0, IndexType.Uint32);
 
 
         if (DrawIndirectCountAvaliable)
@@ -807,7 +833,7 @@ public static partial class VKRender
             SrcSubpass = Vk.SubpassExternal,
             DstSubpass = 0,
             SrcStageMask = PipelineStageFlags.ColorAttachmentOutputBit|PipelineStageFlags.EarlyFragmentTestsBit,
-            SrcAccessMask = 0,
+            SrcAccessMask = AccessFlags.ColorAttachmentWriteBit|AccessFlags.DepthStencilAttachmentWriteBit,
             DstStageMask = PipelineStageFlags.ColorAttachmentOutputBit|PipelineStageFlags.EarlyFragmentTestsBit,
             DstAccessMask =
                 // AccessFlags.ColorAttachmentReadBit |
@@ -1200,7 +1226,6 @@ public static partial class VKRender
 
         return validationLayers.All(availableLayerNames.Contains);
     }
-
     private static unsafe uint DebugCallback(DebugUtilsMessageSeverityFlagsEXT messageSeverity, DebugUtilsMessageTypeFlagsEXT messageTypes, DebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
     {
         var s = Marshal.PtrToStringAnsi((nint)pCallbackData->PMessage);

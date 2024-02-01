@@ -12,8 +12,8 @@ public static partial class VKRender
         CleanupBufferImmediately(GPUDynamicBuffer.stagingBuffer, GPUDynamicBuffer.stagingMemory);
         imGuiController.Dispose();
         FreeGlobalData();
-        vk.DestroyBuffer(device, vertexBuffer, null);
-        vk.FreeMemory(device, vertexBuffer, null);
+        vk.DestroyBuffer(device, GlobalData.vertexBuffer, null);
+        vk.FreeMemory(device, GlobalData.vertexBuffer, null);
         CleanUpSwapChainStuff();
         
         vk.DestroySampler(device, textureSampler, null);
@@ -29,8 +29,8 @@ public static partial class VKRender
         vk.DestroyDescriptorPool(device, DescriptorPool, null);
         vk.DestroyDescriptorSetLayout(device, DescriptorSetLayout, null);
         
-        vk.DestroyBuffer(device, indexBuffer, null);
-        vk.FreeMemory(device, indexBuffer, null);
+        vk.DestroyBuffer(device, GlobalData.indexBuffer, null);
+        vk.FreeMemory(device, GlobalData.indexBuffer, null);
 
 
 

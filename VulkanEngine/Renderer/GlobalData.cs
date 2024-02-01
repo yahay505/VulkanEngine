@@ -41,10 +41,14 @@ public static partial class VKRender
         public static DeviceMemory MeshInfoBufferMemory;
         public static int MeshInfoBufferSize;
         public static unsafe void* MeshInfoBufferPtr;
+        public static unsafe Span<GPUStructs.MeshInfo> DEBUG_MeshInfoBufferDATAAsSpan=>new((void*)MeshInfoBufferPtr, MeshInfoBufferSize);
         
         public static DeviceMemory ReadBackMemory;
         public static Buffer ReadBackBuffer;
         public static unsafe void* ReadBackBufferPtr;
+        
+        internal static VertexBuffer vertexBuffer;
+        public static IndexBuffer indexBuffer;
     }
 
     private static unsafe void AllocateGlobalData()
@@ -67,6 +71,8 @@ public static partial class VKRender
         fixed(CommandBuffer* cmd = &GlobalData.oneTimeUseCommandBuffer)
             vk.AllocateCommandBuffers(device, &allocInfo, cmd)
                 .Expect("failed to allocate command buffer!");
+        GlobalData.indexBuffer = new IndexBuffer(1);
+        GlobalData.vertexBuffer = new VertexBuffer(1);
     }
     private static unsafe void FreeGlobalData()
     {

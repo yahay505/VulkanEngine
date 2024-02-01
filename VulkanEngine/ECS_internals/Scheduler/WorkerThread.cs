@@ -46,17 +46,21 @@ public class WorkerThread
         {
             if (WorkStack.WorkerTryPop(out var job))
             {
-                job.Item->Function();
+                job.Function();
                 // release resources
-                foreach (var ecsResource in job.Item->Writes)
+                foreach (var ecsResource in job.Writes)
                 {
                     Volatile.Write(ref ecsResource.state, 0);
                 }
-                foreach (var ecsResource in job.Item->Reads)
+                foreach (var ecsResource in job.Reads)
                 {
                     Interlocked.Decrement(ref ecsResource.state);
                 }
-                Volatile.Write(ref job.Item->IsCompleted,true);
+                Volatile.Write(ref job.IsCompleted,true);
+                if (Scheduler.Stopping)
+                {
+                    return;
+                }
             }
             else
             {
@@ -80,10 +84,15 @@ public class WorkerThread
                 if (Scheduler.ShouldSync)
                 {
                     Sync();
+                    if (Scheduler.Stopping)
+                    {
+                        return;
+                    }
                 }
                 continue;
             }
         }
+        Console.WriteLine($"thread {ThreadID} exited");
     }
     private bool TrySteal(int i)
     {

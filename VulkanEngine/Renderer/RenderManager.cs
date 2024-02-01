@@ -32,12 +32,12 @@ public static class RenderManager
 
     private static uint LoadIndices(uint[] meshIndexBuffer)
     {
-        return VKRender.indexBuffer.Upload(meshIndexBuffer);
+        return VKRender.GlobalData.indexBuffer.Upload(meshIndexBuffer);
     }
 
     private static uint LoadVertices(Vertex[] meshVertexBuffer)
     {
-        return VKRender.vertexBuffer.Upload(meshVertexBuffer);
+        return VKRender.GlobalData.vertexBuffer.Upload(meshVertexBuffer);
     }
 
 
