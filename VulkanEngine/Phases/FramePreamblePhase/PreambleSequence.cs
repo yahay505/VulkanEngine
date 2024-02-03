@@ -16,11 +16,9 @@ public static class PreambleSequence
     }
     private static void HandleInputAndWindow()
     {
-        if (VKRender.window!.IsClosing)
+        if (VKRender.window!.IsClosing&&!Volatile.Read(ref Scheduler.Stopping))
         {
             Scheduler.Stop();
         }
-        Input.Input.ClearFrameState();
-        VKRender.window.DoEvents();
     }
 }

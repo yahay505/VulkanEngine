@@ -7,7 +7,7 @@ public static class MockTickSequence
 {
     public static void Register()
     {
-        for(var i=0;i<30;i++)
+        for(var i=0;i<300;i++)
         {
             var work = new ExecutionUnitBuilder(Work)
                 .Named("Work")
@@ -19,7 +19,7 @@ public static class MockTickSequence
     }
     private static void Work()
     {
-        GetNthFibonacci_Rec(Random.Shared.Next(30));
+        GetNthFibonacci_Rec(Random.Shared.Next(10));
     }
     
     public static int GetNthFibonacci_Rec(int n)

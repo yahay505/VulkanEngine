@@ -15,7 +15,7 @@ public class IndexBuffer
     }
     public uint Upload(Span<uint> data)
     {
-        return buffer.Upload(data);
+        return buffer.Upload(data, PipelineStageFlags.VertexInputBit);
     }
     //implicit cast
     public static implicit operator Buffer(IndexBuffer indexBuffer) => indexBuffer.buffer.buffer;

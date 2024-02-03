@@ -72,6 +72,8 @@ public static partial class VKRender
     public static  FrameData GetCurrentFrame()=> FrameData[CurrentFrameIndex];
     public static FrameData GetLastFrame()=> FrameData[(CurrentFrameIndex+FRAME_OVERLAP-1)%FRAME_OVERLAP];
     public static Action[] FrameCleanup = null!;
+    
+    public static Camera currentCamera = new();
     public static void RegisterActionOnAllOtherFrames(Action cleanup)
     {
         for (int i = 0; i < FRAME_OVERLAP; i++)
@@ -125,7 +127,12 @@ public static void ExecuteCleanupScheduledForCurrentFrame()
     FrameCleanup[CurrentFrameIndex]();
     FrameCleanup[CurrentFrameIndex]=()=>{};
 }
-
+public struct Camera
+{
+    public float4x4 view;
+    public float4x4 proj;
+        
+}
 private static unsafe void LoadMesh()
     {
         using var assimp = Assimp.GetApi()!;
@@ -188,7 +195,4 @@ private static unsafe void LoadMesh()
             }
         }
     }
-
-
-
 }

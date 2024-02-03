@@ -1,10 +1,13 @@
 using System.Diagnostics;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using ImGuiNET;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using VulkanEngine.ECS_internals;
 using VulkanEngine.Phases.FramePreamblePhase;
+using VulkanEngine.Phases.FramePreRenderPhase;
+using VulkanEngine.Phases.FramePreTickPhase;
 using VulkanEngine.Phases.FrameRender;
 using VulkanEngine.Phases.Tick;
 using VulkanEngine.Renderer.Internal;
@@ -14,7 +17,7 @@ using VulkanEngine.Renderer;
 
 public static class Game
 {
-    static Camera camera = new();
+    static Camera2 camera = new();
     static FPSCounter fpsCounter = new(100000);
     private static RenderObject monkey1;
     private static RenderObject monkey2;
@@ -22,7 +25,10 @@ public static class Game
 
     public static void Run()
     {
-      
+        foreach (var type in System.Reflection.Assembly.GetCallingAssembly().GetTypes())
+        {
+          RuntimeHelpers.RunClassConstructor(type.TypeHandle);
+        }
         
         
         MIT.Start();
@@ -36,14 +42,16 @@ public static class Game
         VKRender.InitializeRenderer(out InputCntx);
         Input.Input.Init(InputCntx);
 
-        
 
-        
-        
-        
-        
-        
-        
+
+
+        var CameraTarget = CreateEntity();
+        TransformSystem.AddItemWithGlobalID(CameraTarget);
+        var Cam = CreateEntity();
+        TransformSystem.AddItemWithGlobalID(Cam);
+        // Camera2
+
+
         var mesh_ref=RenderManager.RegisterMesh(
             new Mesh_internal()
             {
@@ -57,6 +65,8 @@ public static class Game
         RenderManager.RegisterRenderObject(monkey2);
 
         PreambleSequence.Register();
+        FramePreTickSequence.Register();
+        FramePreRenderSequence.Register();
         FrameRenderSequence.Register();
         MockTickSequence.Register();
         
@@ -87,11 +97,12 @@ public static class Game
         {
             yield return "frame_preamble";
             Volatile.Write(ref calcMS, Stopwatch.GetTimestamp());
-            
+            // yield return "framePreTick";
             yield return "tick";
             
             // yield return "tick";
             // yield return "tick";
+            yield return "framePreRender";
             yield return "frame_render";
         }
         yield return "LOADTEST";

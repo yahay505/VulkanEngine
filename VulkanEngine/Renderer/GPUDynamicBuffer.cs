@@ -31,24 +31,25 @@ public class GPUDynamicBuffer<T> where T:unmanaged
 #if GPUDEBG
         _properties &= ~MemoryPropertyFlags.DeviceLocalBit;
         _properties |= MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit;
-        
-        
 #endif
         
         
         currentSize = (int) initialSizeInItems;
     
         CreateBuffer(currentSizeInBytes,_usage,_properties,out buffer,out memory);
-        
+#if GPUDEBG
+
         unsafe
         {
             fixed (void** debugPtr = &DebugPtr)
                 vk.MapMemory(device, memory, 0, currentSizeInBytes, 0,
                     debugPtr);
         }
+#endif
+
     }
 
-    public unsafe uint Upload(Span<T> data)
+    public unsafe uint Upload(Span<T> data, PipelineStageFlags dstStageMask)
     {
         var cmdBuf=BeginSingleTimeCommands();
 
@@ -62,9 +63,11 @@ public class GPUDynamicBuffer<T> where T:unmanaged
             var newSize = Math.Max( data.Length,(currentSize * 2));
             currentSize = newSize;
             CreateBuffer(currentSizeInBytes,_usage,_properties,out buffer,out memory);
+#if GPUDEBG
             fixed (void** debugPtr = &DebugPtr)
                 vk.MapMemory(device, memory, 0, currentSizeInBytes, 0,
                     debugPtr);
+#endif
             vk.CmdCopyBuffer(cmdBuf, oldbuf, buffer, 1, new BufferCopy()
             {
                 Size = oldbufsizeinbytes
@@ -146,7 +149,7 @@ public class GPUDynamicBuffer<T> where T:unmanaged
         };
         vk.CmdPipelineBarrier(cmdBuf,
             PipelineStageFlags.TransferBit,
-            PipelineStageFlags.AllCommandsBit,
+            dstStageMask,
             0,
             0,
             null,

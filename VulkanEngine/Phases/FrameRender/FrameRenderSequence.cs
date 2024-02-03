@@ -13,13 +13,22 @@ public class FrameRenderSequence
     {
         var renderUnit = new ExecutionUnitBuilder(Render)
             .Named("Render")
-            .Writes(VKRender.RendererEcsResource)
-            .Writes(VKRender.IMGUIResource)
+            .Reads(TransformSystem.Resource)
+            .Writes(VKRender.RendererEcsResource,VKRender.IMGUIResource)
             .Build();
         ScheduleMaker.RegisterToTarget(renderUnit, "frame_render");
     }
     private static void Render()
     {
+        unsafe
+        {
+            var query = MakeQuery<Transform_ref,Camera2>();
+            if (!HasResults(ref query, out _, out var transform, out var camera))
+            {
+                throw new NotImplementedException();
+            }
+            VKRender.SetCamera(transform, *camera);
+        }
         VKRender.imGuiController.Update(VKRender.deltaTime);
         VKRender.UpdateTime();
         DisplayFps();

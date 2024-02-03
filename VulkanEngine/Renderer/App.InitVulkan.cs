@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using Pastel;
 using Silk.NET.Core;
 using Silk.NET.Core.Native;
 using Silk.NET.Vulkan;
@@ -801,6 +802,11 @@ public static partial class VKRender
 
         
         // vk!.CmdDraw(commandBuffer, (uint) vertices.Length, 1, 0, 0);
+        
+        
+        
+        imGuiController.Render(commandBuffer,swapChainFramebuffers![imageIndex],swapChainExtent);
+
         vk.CmdEndRenderPass(commandBuffer);
     }
 
@@ -1234,9 +1240,13 @@ public static partial class VKRender
             return Vk.False;
         }
 
+        if ((messageSeverity & DebugUtilsMessageSeverityFlagsEXT.WarningBitExt) != 0&&(messageTypes & DebugUtilsMessageTypeFlagsEXT.PerformanceBitExt) == 0)
+        {
+            ;
+        }
         if ((messageSeverity & DebugUtilsMessageSeverityFlagsEXT.ErrorBitExt) != 0)
         {
-            Console.WriteLine($"validation layer:" + s+"\n"+new StackTrace(true).ToString());
+            Console.WriteLine(($"\nvalidation layer: " + s.Pastel(ConsoleColor.Red) + "\n" + new StackTrace(true).ToString().Pastel(ConsoleColor.Gray)));
             ;
         }
         else

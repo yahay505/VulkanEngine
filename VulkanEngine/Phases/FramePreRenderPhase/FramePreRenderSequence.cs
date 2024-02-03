@@ -1,0 +1,16 @@
+﻿using VulkanEngine.ECS_internals;
+
+namespace VulkanEngine.Phases.FramePreRenderPhase;
+
+public static class FramePreRenderSequence
+{
+    public static void Register()
+    {
+        var work = new ExecutionUnitBuilder(CameraControllerJob.CameraControl)
+            .Named("Work")
+            .Reads(Input.Input.InputResource)
+            .Writes(TransformSystem.Resource)
+            .Build();
+        ScheduleMaker.RegisterToTarget(work, "framePreRender");
+    }
+}

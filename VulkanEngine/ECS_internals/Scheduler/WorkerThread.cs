@@ -9,12 +9,14 @@ public class WorkerThread
     Thread SystemThread = null!;
     [ThreadStatic]
     public static int ThreadID;
+
+    private int _threadID;
     public static bool IsMainThread => ThreadID == 0;
     public WorkerWorkStack WorkStack = new();
 
     private WorkerThread(int threadId)
     {
-        ThreadID = threadId;
+        _threadID = threadId;
     }
 
     public static WorkerThread Create(int id,bool SummonThread=true)
@@ -36,6 +38,7 @@ public class WorkerThread
 
     internal unsafe void entryPoint()
     {
+        ThreadID = _threadID;
         // Thread.BeginThreadAffinity();
         
         // ManagedThreadIDToUnmanagedThreadID.Add(Thread.CurrentThread.ManagedThreadId,);
@@ -57,13 +60,20 @@ public class WorkerThread
                     Interlocked.Decrement(ref ecsResource.state);
                 }
                 Volatile.Write(ref job.IsCompleted,true);
-                if (Scheduler.Stopping)
+                if (Volatile.Read(ref Scheduler.Stopping))
                 {
-                    return;
+                    // return;
                 }
             }
             else
             {
+                if (Volatile.Read(ref Scheduler.Stopping))
+                {
+                    if (!Scheduler.ShouldSync)
+                    {
+                        break;
+                    }
+                }
                 if(TrySteal((ThreadID + 1)% Scheduler.ThreadCount)) continue;
                 if(Scheduler.TrySchedule()) continue;
 
@@ -80,13 +90,14 @@ public class WorkerThread
                 }
                 // if all else fails, wait for work or scheduler
                 // alloc is ok as we have nothing to do
-                SpinWait.SpinUntil(() => WorkStack.WorkerHasAny() || Volatile.Read(ref Scheduler.ShouldSync) || Scheduler.TrySchedule());
+                SpinWait.SpinUntil(() => WorkStack.WorkerHasAny() ||  Scheduler.ShouldSync || Scheduler.TrySchedule());
                 if (Scheduler.ShouldSync)
                 {
+                    Volatile.Write(ref Scheduler.syncReq,false);
                     Sync();
                     if (Scheduler.Stopping)
                     {
-                        return;
+                        break;
                     }
                 }
                 continue;

@@ -10,7 +10,19 @@ public static class Scheduler
     public static WorkerThread[] threads = null!;
     public static int ThreadCount = -1;
     public static bool WorkerThreadEnable = false;
-    public static bool ShouldSync = false;
+    public static bool ShouldSync
+    {
+        get
+        {
+            if (SyncBarrier.ParticipantsRemaining != SyncBarrier.ParticipantCount) 
+                return true;
+            if (Volatile.Read(ref syncReq)) 
+                return true;
+            return false;
+        }
+    }
+
+    public static bool syncReq = false;
     public static Barrier SyncBarrier = null!;
     public static bool Stopping = false;
     
@@ -32,8 +44,9 @@ public static class Scheduler
     }
     public static void Stop()
     {
+        Volatile.Write(ref syncReq,true);
         Volatile.Write(ref Stopping, true);
-        Volatile.Write(ref ShouldSync, true);
+        SyncBarrier.SignalAndWait();
     }
     public static void Run(IEnumerable<string> loop)
     {
@@ -77,6 +90,10 @@ public static class Scheduler
     
     public static bool TrySchedule()
     {
+        if ( ShouldSync)
+        {
+            return false;
+        }
         if (Interlocked.CompareExchange(ref schedulerLock, 1,0) != 0)
         {
             return false;
@@ -113,7 +130,7 @@ public static class Scheduler
             if (PreviousSyncMode == RuntimeScheduleState.SyncMode.SyncAtEnd || 
                 (PreviousName == nextTarget && PreviousSyncMode == RuntimeScheduleState.SyncMode.SyncIfRepeated))
             {
-                Volatile.Write(ref ShouldSync,true);
+                Volatile.Write(ref syncReq,true);
                 SpinWait.SpinUntil(()=>SyncBarrier.ParticipantsRemaining == 1);
                 TMPSYNCPOINT();
             }
@@ -165,14 +182,14 @@ public static class Scheduler
 
             for (int j = 0; j < item.Reads.Length; j++)
             {
-                var resource = item.Writes[j];
+                var resource = item.Reads[j];
                 var value = Volatile.Read(ref resource.state);
                 if (value == -1)
                 {//fail unlock all
                     while (j<0)//unlock all reads
                     {
                         j--;
-                        var resource2 = item.Writes[j];
+                        var resource2 = item.Reads[j];
                         Interlocked.Decrement(ref resource2.state);
                     }
                     foreach (var t in item.Writes)
@@ -221,7 +238,7 @@ public static class Scheduler
         //add sanity checks
         if (ShouldSync)
         {
-            Volatile.Write(ref ShouldSync,false);
+            Volatile.Write(ref syncReq,false);
             SyncBarrier.SignalAndWait();
             if (Volatile.Read(ref Stopping))
             {

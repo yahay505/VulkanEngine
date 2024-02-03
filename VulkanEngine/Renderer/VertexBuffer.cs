@@ -14,7 +14,7 @@ public class VertexBuffer
     }
     public uint Upload(Span<Vertex> data)
     {
-        return buffer.Upload(data);
+        return buffer.Upload(data, PipelineStageFlags.VertexInputBit);
     }
     public static implicit operator Buffer(VertexBuffer vertexBuffer) => vertexBuffer.buffer.buffer;
     public static implicit operator DeviceMemory(VertexBuffer vertexBuffer) => vertexBuffer.buffer.memory;

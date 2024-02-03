@@ -244,7 +244,6 @@ public static partial class VKRender
         
         RecordCommandBuffer(gfxCommandBuffer, imageIndex);
         
-        imGuiController.Render(gfxCommandBuffer,swapChainFramebuffers![imageIndex],swapChainExtent);
         
         vk.EndCommandBuffer(gfxCommandBuffer)
             .Expect("failed to record command buffer!");
@@ -306,32 +305,16 @@ public static partial class VKRender
 
     private static unsafe void UpdateUniformBuffer(int index)
     {
-        var time = (float)window!.Time;
-
-        var translate = Matrix4X4<float>.Identity;
-        var scale = Matrix4X4<float>.Identity;
-        var rot = Matrix4X4.CreateFromAxisAngle<float>(new Vector3D<float>(0, 0, 1), time * Scalar.DegreesToRadians(90.0f));
-
-        Camera camera = new Camera();
-        var cameraPosition = new float3(2, 2, 3);
-        var objectPosition = new float3(0, 0, 0);
-        var cameraUpVector = new float3(0, 0, 1);
-        var fov = 45.0f;
-
-        var nearPlaneDistance = 0.1f;
-        var farPlaneDistance = 10.0f;
         var ubo = new UniformBufferObject
         {
-            model = translate * rot * scale,
-            view = Matrix4X4.CreateLookAt(cameraPosition, objectPosition, cameraUpVector),
-            proj = Matrix4X4.CreatePerspectiveFieldOfView(Scalar.DegreesToRadians(fov),
-                (float) swapChainExtent.Width / swapChainExtent.Height, nearPlaneDistance, farPlaneDistance),
+            viewproj = currentCamera.view*currentCamera.proj,
         };
-        ubo.proj.M22 *= -1;
         
         
         var size = (nuint) sizeof(UniformBufferObject);
         var data = FrameData[index].uniformBufferMapped!;
         Unsafe.CopyBlock(data, &ubo, (uint)size);
     }
+
+
 }

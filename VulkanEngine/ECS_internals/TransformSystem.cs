@@ -1,10 +1,12 @@
 using System.Runtime.InteropServices;
 using Silk.NET.Maths;
 using VulkanEngine.ECS_internals;
+using VulkanEngine.ECS_internals.Resources;
 
 namespace VulkanEngine;
 // [Derive("SystemInit")]
 public static class TransformSystem{
+    public static ECSResource Resource = new ECSResource("TransformSystem");
     static TransformSystem()
     {
         ECS.RegisterSystem<TransformD>(_data,typeof(Transform_ref));

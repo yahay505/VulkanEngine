@@ -8,6 +8,19 @@ public static class ECS
 {
     static Dictionary<Type,Icompstore> dataToSystem = new();
     static Dictionary<Type,Type> refToData = new();
+    // static ComponentStorage<_> _entityStorage = new(true,1000);
+    // public struct _ : Idata {}
+    public static int nextEntityID=1;
+    public static int CreateEntity()
+    {
+        return nextEntityID++;
+    }
+    // public static void DestroyEntity(int id)
+    // {
+    //     _entityStorage.EntityIndices.Span[id] = 0;
+    // }
+    
+    
     public static void RegisterSystem<T>(ComponentStorage<T> storage, Type? frontEnd = null) where T : unmanaged, Idata
     {
         dataToSystem.Add(typeof(T),storage);
@@ -91,7 +104,7 @@ public static class ECS
     }
     public static unsafe ECSQuery<T1,T2> MakeQuery<T1,T2>(T1 _=default,T2* __=default) where T1 : unmanaged, Iinterface where T2 : unmanaged, Idata
     {
-        var t1 = dataToSystem[typeof(T1)];
+        var t1 = dataToSystem[refToData[typeof(T1)]];
         var t2 = (ComponentStorage<T2>)dataToSystem[typeof(T2)];
 
         var mainTypeIndex = t1.usedProp<t2.used?1:2;
