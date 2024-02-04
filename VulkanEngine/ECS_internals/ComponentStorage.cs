@@ -2,9 +2,15 @@ using System.Runtime.CompilerServices;
 
 namespace VulkanEngine.ECS_internals;
 
-interface Icompstore
+public interface Icompstore
 {
+    /// <summary>
+    /// global ID to internal ID
+    /// </summary>
     ref Memory<int> EntityIndicesProp { get; }
+    /// <summary>
+    /// internal ID to global ID
+    /// </summary>
     ref Memory<int> EntityListProp { get; }
     ref int usedProp { get; }
 }
@@ -32,9 +38,18 @@ ComponentList
     public ref Memory<int> EntityIndicesProp => ref EntityIndices;
     public ref Memory<int> EntityListProp => ref EntityList;
     public ref int usedProp => ref this.used;
-    public Memory<int> EntityIndices;//global ID to internal ID
-    public Memory<int> EntityList;//internal ID to global ID
-    public Memory<T> ComponentList;//component data
+    /// <summary>
+    /// global ID to internal ID
+    /// </summary>
+    public Memory<int> EntityIndices;
+    /// <summary>
+    /// internal ID to global ID
+    /// </summary>
+    public Memory<int> EntityList;
+    /// <summary>
+    /// internal ID to component data
+    /// </summary>
+    public Memory<T> ComponentList;
     public int capacity, used;
     public bool tagOnly;
     public ComponentStorage(bool tagOnly, int initial_capacity)
@@ -57,23 +72,36 @@ ComponentList
     {
         return EntityIndices.Span[globalID];
     }
+    public int globalID(int internalID)
+    {
+        return EntityList.Span[internalID];
+    }
+    public ref T GetComponentGlobalID(int globalID)
+    {
+        return ref ComponentList.Span[EntityIndices.Span[globalID]];
+    }
+    public ref T GetComponentInternalID(int internalID)
+    {
+        return ref ComponentList.Span[internalID];
+    }
+    
         
     private Span<T> Allocate(ReadOnlySpan<int> globalIDs,out int startIndex)
     {
         var count = globalIDs.Length;
         startIndex = used;
-        if (used+count>capacity)
+        if (used+count>=capacity)
         {
             capacity = Math.Max(capacity * 2, used + count);
             var newEntityIndices = new Memory<int>(new int[capacity]);
-            var newEntityList = new Memory<int>(new int[capacity]);
-            var newComponentList = new Memory<T>(new T[capacity]);
             EntityIndices.CopyTo(newEntityIndices);
             EntityIndices = newEntityIndices;   
+            var newEntityList = new Memory<int>(new int[capacity]);
             EntityList.CopyTo(newEntityList);
             EntityList = newEntityList;
             if (!tagOnly)
             {
+                var newComponentList = new Memory<T>(new T[capacity]);
                 ComponentList.CopyTo(newComponentList);
                 ComponentList = newComponentList;
             }
@@ -85,10 +113,14 @@ ComponentList
             EntityList.Span[next_local_ID] = globalIDs[i];
         }
         
-        
-        var ret = ComponentList.Slice(used,count);
+        var oldUsed = used; 
         used += count;
-        return ret.Span;
+        if (!tagOnly)
+        {
+            var ret = ComponentList.Slice(oldUsed ,count);
+            return ret.Span;
+        }
+        return default;
     }
     public void Delete_internal(int internalID)
     {
@@ -110,5 +142,11 @@ ComponentList
     {
         throw new NotImplementedException();
     }
-    
+
+    public int AddItemWithGlobalID(int globalID, T data)
+    {
+        var span = Allocate(stackalloc int[]{globalID},out var internalID);
+        span[0] = data;
+        return internalID;
+    }
 }

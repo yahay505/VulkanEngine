@@ -101,8 +101,8 @@ public static class Scheduler
 
         
         
-        DistributeWork();
-    
+        var res=DistributeWork();
+        
 
         if (Interlocked.Exchange(ref schedulerLock, 0) != 1)
         {
@@ -110,7 +110,7 @@ public static class Scheduler
         }
         
 
-        return true;
+        return res;
     }
     
     private static unsafe bool DistributeWork()
@@ -229,10 +229,18 @@ public static class Scheduler
         var workPerThread = count / threadCount;
         var remainder = count % threadCount;
         var start = 0;
+        // foreach (var item in tmpList)
+        // {
+        //     if (item==null||item.Name=="Work")
+        //     {
+        //         continue;
+        //     }
+        //     Console.WriteLine($"{item.Name} {item.IsScheduled} {item.IsCompleted} {item.Reads.Length} {item.Writes.Length} {item.Dependencies.Length}");
+        // }
         foreach (var thread in threads)
         {
             
-            thread.WorkStack.OtherAdd(tmpList[start..(start+workPerThread+(remainder-->0?1:0))]);
+            thread.WorkStack.OtherAdd(tmpList.AsSpan()[start..(start+workPerThread+(remainder-->0?1:0))]);
         }
         
         //add sanity checks

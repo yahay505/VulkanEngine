@@ -7,7 +7,7 @@ public static class FramePreRenderSequence
     public static void Register()
     {
         var work = new ExecutionUnitBuilder(CameraControllerJob.CameraControl)
-            .Named("Work")
+            .Named("CameraControl")
             .Reads(Input.Input.InputResource)
             .Writes(TransformSystem.Resource)
             .Build();

@@ -20,4 +20,8 @@ public struct MeshData:Idata
     public int material_id;
     public int texture_id;
 }
-
+public struct Mesh_ref:Iinterface
+{
+    public int id;
+    public ref MeshData data => ref MeshSystem.data.ComponentList.Span[id];
+}

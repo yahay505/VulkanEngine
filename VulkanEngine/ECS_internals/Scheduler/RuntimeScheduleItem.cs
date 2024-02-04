@@ -4,6 +4,7 @@ namespace VulkanEngine.ECS_internals;
 
 public class RuntimeScheduleItem
 {
+    public string Name;
     public bool IsScheduled;
     public bool IsCompleted;
     public int[] Dependencies;

@@ -51,6 +51,7 @@ public static class Extensions
             action(item,i++);
         }
     }
+
     [Conditional("ASSERTS")]
     public static void Assert(this bool b,string message="assertion failed")
     {

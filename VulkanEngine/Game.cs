@@ -17,7 +17,7 @@ using VulkanEngine.Renderer;
 
 public static class Game
 {
-    static Camera2 camera = new();
+    static CameraData camera = new();
     static FPSCounter fpsCounter = new(100000);
     private static RenderObject monkey1;
     private static RenderObject monkey2;
@@ -46,12 +46,16 @@ public static class Game
 
 
         var CameraTarget = CreateEntity();
-        TransformSystem.AddItemWithGlobalID(CameraTarget);
+        var CamTargetTransform=TransformSystem.AddItemWithGlobalID(CameraTarget);
+        
         var Cam = CreateEntity();
-        TransformSystem.AddItemWithGlobalID(Cam);
-        // Camera2
-
-
+        var CamTransform = TransformSystem.AddItemWithGlobalID(Cam);
+        CameraData._data.AddItemWithGlobalID(Cam,new(){farPlaneDistance = 1000f,nearPlaneDistance = 0.01f,fov = 90});
+        CamTransform.parent = CamTargetTransform;
+        CamTransform.local_position = new float3(10,0,0);    
+        // look towards the target
+        CamTransform.local_rotation = Quaternion<float>.CreateFromYawPitchRoll(0, 0, 90*(Single.Pi / 180));
+        
         var mesh_ref=RenderManager.RegisterMesh(
             new Mesh_internal()
             {

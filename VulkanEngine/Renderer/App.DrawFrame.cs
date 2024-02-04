@@ -100,7 +100,7 @@ public static partial class VKRender
             null);
         
         //zero out atomic counter from last frame
-        vk.CmdFillBuffer(computeCommandBuffer, GlobalData.deviceIndirectDrawBuffer, 0, 4, 0);
+        vk.CmdFillBuffer(computeCommandBuffer, GlobalData.deviceIndirectDrawBuffer, 0, 64, 0);
         var transfertocomputebarrier = stackalloc BufferMemoryBarrier[]{
                 new()
                 {
@@ -305,6 +305,25 @@ public static partial class VKRender
 
     private static unsafe void UpdateUniformBuffer(int index)
     {
+        
+        
+        var time = (float)window!.Time;
+
+        var translate = Matrix4X4<float>.Identity;
+        var scale = Matrix4X4<float>.Identity;
+        var rot = Matrix4X4.CreateFromAxisAngle<float>(new Vector3D<float>(0, 0, 1), time * Scalar.DegreesToRadians(90.0f));
+
+        // Camera camera = new Camera();
+        // var cameraPosition = new float3(2, 2, 3);
+        // var objectPosition = new float3(0, 0, 0);
+        // var cameraUpVector = new float3(0, 0, 1);
+        // var fov = 45.0f;
+        //
+        // var nearPlaneDistance = 0.1f;
+        // var farPlaneDistance = 10.0f;
+        
+        
+        
         var ubo = new UniformBufferObject
         {
             viewproj = currentCamera.view*currentCamera.proj,

@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Silk.NET.Maths;
 using VulkanEngine.ECS_internals;
@@ -13,7 +14,7 @@ public static class TransformSystem{
     }
     public static ComponentStorage<TransformD> _data=new(false,100);
 
-    public static int AddItemWithGlobalID(int ID)
+    public static Transform_ref AddItemWithGlobalID(int ID)
     {
         var t = new TransformD();
         t.local_to_world_matrix = float4x4.Identity;
@@ -24,8 +25,7 @@ public static class TransformSystem{
         t.child_id = -1;
         t.sibling_id = -1;
         t.dirty = true;
-        // return data.AddItemWithGlobalID(t,ID);
-        throw new NotImplementedException();
+        return Unsafe.BitCast<int,Transform_ref>(_data.AddItemWithGlobalID(ID,t));
     }
 
 }

@@ -52,9 +52,11 @@ public static class RenderManager
             var renderObject = RenderObjects[i];
             target[i] = new ComputeInput()
             {
-                transform=renderObject.transform.CreateParentToChildSpaceMatrix(),
+                transform=
+                    renderObject.transform.LocalToWorldMatrix,
+                    // float4x4.Identity,
                 meshID = (uint) renderObject.mesh.index,
-                materialID = (uint) renderObject.material.index
+                materialID = (uint) renderObject.material.index,
             };
         }
     }

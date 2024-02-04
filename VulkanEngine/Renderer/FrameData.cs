@@ -22,7 +22,7 @@ public struct FrameData
     public DeviceMemory hostRenderObjectsMemory;
     public unsafe void* hostRenderObjectsBufferPtr;
     public unsafe Span<GPUStructs.ComputeInput> hostRenderObjectsBufferAsSpan=>new((void*)
-        ((UIntPtr) hostRenderObjectsBufferPtr + VKRender.ComputeInSSBOStartOffset),
+        ((nint) hostRenderObjectsBufferPtr + VKRender.ComputeInSSBOStartOffset),
         hostRenderObjectsBufferSize);
     public unsafe GPUStructs.ComputeInputConfig* computeInputConfig=>(ComputeInputConfig*) hostRenderObjectsBufferPtr;
     public int hostRenderObjectsBufferSize;

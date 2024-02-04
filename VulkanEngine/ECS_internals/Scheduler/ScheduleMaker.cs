@@ -119,6 +119,7 @@ public static class ScheduleMaker
                 {
                     result.Add(new RuntimeScheduleItem()
                     {
+                        Name = item.Name,
                         Dependencies = item.DependsOn.Select(a=>combined.ToList().IndexOf(a)).ToArray(),
                         Reads = item.Reads,
                         Writes = item.Writes,

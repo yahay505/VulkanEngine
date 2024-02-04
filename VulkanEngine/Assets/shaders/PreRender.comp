@@ -1,9 +1,10 @@
 #version 450
 layout (local_size_x = 16) in;
 struct Input{
+    mat4 transform;
     uint meshID;
     uint materialID;
-    mat4 transform;
+    uint[14]padding;
 };
 struct VkDrawIndexedIndirectCommand {
     uint    indexCount;
@@ -67,11 +68,17 @@ void main()
 //        uint index = 0;
         // do math
         outputData.data[index].materialID = sourceData.inputs[gID].materialID;
-        outputData.data[index].model = sourceData.inputs[gID].transform;
+//        outputData.data[index].model = sourceData.inputs[gID].transform;
+        outputData.data[index].model = mat4(1.0);
         outputData.data[index].command.indexCount = meshDB.meshes[meshID].IBOsize;
         outputData.data[index].command.instanceCount = 1;
         outputData.data[index].command.firstIndex = meshDB.meshes[meshID].IBOoffset;
         outputData.data[index].command.vertexOffset = meshDB.meshes[meshID].vertexLoadOffset;
         outputData.data[index].command.firstInstance = 0;
+//        outputData.data[index].command.
+    }
+    else
+    {
+        return;
     }
 }

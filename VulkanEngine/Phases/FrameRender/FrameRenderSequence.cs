@@ -22,12 +22,12 @@ public class FrameRenderSequence
     {
         unsafe
         {
-            var query = MakeQuery<Transform_ref,Camera2>();
+            var query = MakeQuery<Transform_ref,Camera_ref>();
             if (!HasResults(ref query, out _, out var transform, out var camera))
             {
                 throw new NotImplementedException();
             }
-            VKRender.SetCamera(transform, *camera);
+            VKRender.SetCamera(transform, camera.data);
         }
         VKRender.imGuiController.Update(VKRender.deltaTime);
         VKRender.UpdateTime();

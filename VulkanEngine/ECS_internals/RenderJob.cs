@@ -20,7 +20,7 @@ public static class RenderJob
     [ECSJob(nameof(Render)
         // typeof(ECSQuery<Transform_ref,MeshData>),Reads=new []{Transform_ref,MeshData},Writes=null,DependsOn=null,RunBefore=null
         )]
-    public static void Render(ref ECSQuery<Transform_ref,MeshData> query)
+    public static void Render(ref ECSQuery<Transform_ref,Mesh_ref> query)
     {
         unsafe // unsafe because MeshData doesn't have a proxy struct(so mesh is a MeshData*)
         {

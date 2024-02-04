@@ -48,21 +48,23 @@ public static class Input
            m.MouseUp += OnMouseUp;
            m.DoubleClick += OnMouseDoubleClick;   
        });
+       MouseKeyStates.AddRange(new KeyState[20]);
     }
 
     private static void OnMouseDoubleClick(IMouse arg1, MouseButton arg2, Vector2 arg3)
     {
-        throw new NotImplementedException();
+        // throw new NotImplementedException();
     }
 
     private static void OnMouseUp(IMouse arg1, MouseButton arg2)
     {
-        throw new NotImplementedException();
+        MouseKeyStates[(int) arg2]&=~KeyState.Down;
+        MouseKeyStates[(int) arg2]|=KeyState.Released;
     }
 
     private static void OnMouseDown(IMouse arg1, MouseButton arg2)
     {
-        throw new NotImplementedException();
+        MouseKeyStates[(int) arg2]|=KeyState.Down|KeyState.Pressed;
     }
 
     private static void OnMouseScroll(IMouse arg1, ScrollWheel arg2)
@@ -79,7 +81,7 @@ public static class Input
 
     private static void OnMouseClick(IMouse arg1, MouseButton arg2, Vector2 arg3)
     {
-        throw new NotImplementedException();
+        // throw new NotImplementedException();
     }
 
     public static void Update()
