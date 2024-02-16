@@ -12,6 +12,5 @@ static class Program
         Console.OutputEncoding=Encoding.UTF8;
         Console.WriteLine("Hello, World!");
         Game.Run();
-
     }
 }

@@ -86,7 +86,7 @@ public static partial class VKRender
             SrcAccessMask = AccessFlags.ShaderReadBit,
             DstAccessMask = AccessFlags.TransferWriteBit,
             Offset = 0,
-            Size = (nuint)4,
+            Size = (nuint)64,
         };
         vk.CmdPipelineBarrier(computeCommandBuffer,
             PipelineStageFlags.ComputeShaderBit,

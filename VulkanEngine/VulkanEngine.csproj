@@ -41,9 +41,9 @@
       <PackageReference Include="Hardware.Info" Version="100.0.1.1" />
     </ItemGroup>
 
-    <ItemGroup>
+    <ItemGroup><!--      <Folder Include="Assets\shaders\compiled\" />-->
+    
       <Folder Include="Assets\shaders\compiled\" />
-      <Folder Include="textures\" />
     </ItemGroup>
 
 </Project>

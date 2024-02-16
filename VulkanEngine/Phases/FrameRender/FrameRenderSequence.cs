@@ -20,6 +20,8 @@ public class FrameRenderSequence
     }
     private static void Render()
     {
+        VKRender.UpdateTime();
+        DisplayFps();
         unsafe
         {
             var query = MakeQuery<Transform_ref,Camera_ref>();
@@ -29,12 +31,12 @@ public class FrameRenderSequence
             }
             VKRender.SetCamera(transform, camera.data);
         }
-        VKRender.imGuiController.Update(VKRender.deltaTime);
-        VKRender.UpdateTime();
-        DisplayFps();
+
         Editor.EditorRoot.Render();            
 
         VKRender.Render();
+        VKRender.imGuiController.Update(VKRender.deltaTime);
+
     }
     private static void DisplayFps()
     {

@@ -1,11 +1,6 @@
 #version 460
 
-layout(binding = 0) uniform UniformBufferObject {
-//    mat4 model;
-//    mat4 view;
-//    mat4 proj;
-    mat4 viewproj;
-} ubo;
+
 struct VkDrawIndexedIndirectCommand {
     uint    indexCount;
     uint    instanceCount;
@@ -22,6 +17,12 @@ struct Compute_Output {
     uint materialID;
     mat4 model;
 };
+layout(binding = 0) uniform UniformBufferObject {
+    //    mat4 model;
+    //    mat4 view;
+    //    mat4 proj;
+    mat4 viewproj;
+} ubo;
 layout(set = 0, binding = 2) buffer Compute_OutputBuffer {
     OutputConfig config;
     Compute_Output[] data;
@@ -37,7 +38,7 @@ layout(location = 1) out vec2 fragTexCoord;
 
 void main() {
     //move x direction by gl_Index*2 model based on gl_InstanceIndex
-    gl_Position = ubo.viewproj * outputData.data[gl_InstanceIndex].model * vec4(inPosition, 1.0) ;
+    gl_Position =    ubo.viewproj*(outputData.data[gl_InstanceIndex].model * vec4(inPosition, 1.0)) ;
 //    gl_Position = ubo.proj * ubo.view * ubo.model * vec4(inPosition, 1.0);
     fragColor = inColor;
     fragTexCoord = inTexCoord;

@@ -40,7 +40,7 @@ public static class Scheduler
     
     public static int CalculateThreadCount()
     {
-        return 4;
+        return 1;
     }
     public static void Stop()
     {

@@ -12,6 +12,7 @@ public static partial class VKRender
         {
             Size = new Vector2D<int>(Width, Height),
             Title = "🎉🤯🎉",
+            VSync = true,
         };
 
         window = Window.Create(options);

@@ -17,7 +17,7 @@ public static class TransformSystem{
     public static Transform_ref AddItemWithGlobalID(int ID)
     {
         var t = new TransformD();
-        t.local_to_world_matrix = float4x4.Identity;
+        // t.local_to_world_matrix = float4x4.Identity;
         t.local_rotation = Quaternion<float>.Identity;
         t.local_position = float3.Zero;
         t.local_scale = float3.One;
@@ -39,9 +39,9 @@ public struct Transform_ref:Iinterface
     }
 
     public ref TransformD transform=>ref TransformSystem._data.ComponentList.Span[id];
-    public float3 right => new(transform.local_to_world_matrix.M11,transform.local_to_world_matrix.M12,transform.local_to_world_matrix.M13);
-    public float3 forward => new(transform.local_to_world_matrix.M21,transform.local_to_world_matrix.M22,transform.local_to_world_matrix.M23);
-    public float3 up => new (transform.local_to_world_matrix.M31,transform.local_to_world_matrix.M32,transform.local_to_world_matrix.M33);
+    public float3 right => new(local_to_world_matrix.M11,local_to_world_matrix.M12,local_to_world_matrix.M13);
+    public float3 forward => new(local_to_world_matrix.M21,local_to_world_matrix.M22,local_to_world_matrix.M23);
+    public float3 up => new (local_to_world_matrix.M31,local_to_world_matrix.M32,local_to_world_matrix.M33);
     private static void DirtyBelow(int id)
     {
         var t = id;
@@ -65,15 +65,15 @@ public struct Transform_ref:Iinterface
         {
             EnsureValidity(t.transform.parent_id);
             var parent = new Transform_ref(t.transform.parent_id);
-            t.transform.local_to_world_matrix = parent.local_to_world_matrix * t.CreateChildToParentSpaceMatrix();
+            // t.local_to_world_matrix = t.CreateSRTMatrix() * parent.local_to_world_matrix;
         }
         else
         {
-            t.transform.local_to_world_matrix = t.CreateChildToParentSpaceMatrix();
+            // t.local_to_world_matrix = t.CreateSRTMatrix();
         }
         t.transform.dirty = false;
     }
-    public float4x4 CreateChildToParentSpaceMatrix()
+    public float4x4 CreateSRTMatrix()
     {
         return
             (((
@@ -110,16 +110,23 @@ public struct Transform_ref:Iinterface
     }
     public float4x4 local_to_world_matrix
     {
-        get => transform.local_to_world_matrix;
+        get
+        {
+            if (parent.id!=-1)
+            {
+                return parent.CreateSRTMatrix() * CreateSRTMatrix();
+            }
+            return CreateSRTMatrix();
+        }
     }
-    
+
     public float3 world_position
     {
         get
         {
             EnsureValidity(id);
-            return new float3(transform.local_to_world_matrix.M41, transform.local_to_world_matrix.M42,
-                transform.local_to_world_matrix.M43);
+            return new float3(local_to_world_matrix.M41, local_to_world_matrix.M42,
+                local_to_world_matrix.M43);
         }
         set
         {
@@ -132,7 +139,7 @@ public struct Transform_ref:Iinterface
         get
         {
             EnsureValidity(id);
-            Matrix4X4.Decompose(transform.local_to_world_matrix,out var scale,out _,out _);
+            Matrix4X4.Decompose(local_to_world_matrix,out var scale,out _,out _);
             return scale;
         }
         set
@@ -146,7 +153,7 @@ public struct Transform_ref:Iinterface
         get
         {
             EnsureValidity(id);
-            Matrix4X4.Decompose(transform.local_to_world_matrix,out _,out var rotation,out _);
+            Matrix4X4.Decompose(local_to_world_matrix,out _,out var rotation,out _);
             return rotation;
         }
         set
@@ -229,7 +236,11 @@ public struct Transform_ref:Iinterface
 [StructLayout(LayoutKind.Sequential,Pack = 64)]
 public struct TransformD:Idata
 {
-    public float4x4 local_to_world_matrix;
+    // public float4x4 _local_to_world_matrix
+    // {
+    //     get { throw new NotImplementedException(); }
+    // }
+
     public Quaternion<float> local_rotation;
     public float3 local_position;
     public float3 local_scale;

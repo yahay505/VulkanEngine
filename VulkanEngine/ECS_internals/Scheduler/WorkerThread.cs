@@ -103,6 +103,7 @@ public class WorkerThread
                 continue;
             }
         }
+        Scheduler.SyncBarrier.RemoveParticipant();
         Console.WriteLine($"thread {ThreadID} exited");
     }
     private bool TrySteal(int i)
