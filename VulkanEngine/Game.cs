@@ -45,18 +45,16 @@ public static class Game
 
 
 
-        // var CameraTarget = CreateEntity();
-        // var CamTargetTransform=TransformSystem.AddItemWithGlobalID(CameraTarget);
+        var CameraTarget = CreateEntity();
+        var CamTargetTransform=TransformSystem.AddItemWithGlobalID(CameraTarget);
         
         var Cam = CreateEntity();
         var CamTransform = TransformSystem.AddItemWithGlobalID(Cam);
         CameraData._data.AddItemWithGlobalID(Cam,new(){farPlaneDistance = 1000f,nearPlaneDistance = 0.01f,fov = 60});
-        // CamTransform.parent = CamTargetTransform;
+        CamTransform.parent = CamTargetTransform;
         
-        
-        // look towards the target
-        // Silk.NET.Maths.Matrix4X4.Decompose(Silk.NET.Maths.Matrix4X4.CreateLookAt(CamTransform.local_position, new (0,0,0), new (0,0,1)), out var scale, out var rotation, out var translation);
-        CamTransform.local_position = new float3(1,0,0);    
+        CamTransform.local_position = new float3(0,0,0);
+        CamTransform.local_position = new float3(10,0,0);    
 
         CamTransform.local_rotation = Quaternion<float>.Identity;
         

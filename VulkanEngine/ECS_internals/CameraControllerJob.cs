@@ -52,14 +52,14 @@ public static class CameraControllerJob
             // rotate camera
             var delta = Input.Input.mouseDelta*CameraRotSpeed;
             Quaternion<float> q = Quaternion<float>.CreateFromYawPitchRoll(0, -delta.Y,-delta.X );
-            camTransform.local_position += move;
-            camTransform.local_rotation *= q;
-            // var camTransformParent = camTransform.parent;
-            // camTransformParent.local_rotation *= q;
-            // ImGui.Begin("SetCamera");
-            // ImGui.Text($"Camera Position: {camTransformParent.world_position}");
-            // ImGui.Text($"Camera Rotation: {camTransformParent.local_rotation}");
-            // ImGui.End();
+            // camTransform.local_position += move;
+            // camTransform.local_rotation *= q;
+            var camTransformParent = camTransform.parent;
+            camTransformParent.local_rotation *= q;
+            ImGui.Begin("SetCamera");
+            ImGui.Text($"Camera Position: {camTransformParent.world_position}");
+            ImGui.Text($"Camera Rotation: {camTransformParent.local_rotation}");
+            ImGui.End();
             break;
         }
     }
