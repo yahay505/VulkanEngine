@@ -1,4 +1,4 @@
-namespace VulkanEngine.Maths;
+namespace VulkanEngine;
 
 public class floats
 {

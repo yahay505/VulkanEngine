@@ -10,9 +10,19 @@ public static class CameraControllerJob
 {
     
     public static float CameraRotSpeed = 0.01f;
+    public static bool CameraControlEnabled = true;
     public static void CameraControl()
     {
-        if (!Input.Input.MouseButton(0))
+        if (Input.Input.MouseButton(0))
+        {
+            CameraControlEnabled = true;
+        }
+
+        if (Input.Input.Key(Key.Escape))
+        {
+            CameraControlEnabled = false;
+        }
+        if (!CameraControlEnabled)
         {
             return;
         }
@@ -52,13 +62,18 @@ public static class CameraControllerJob
             // rotate camera
             var delta = Input.Input.mouseDelta*CameraRotSpeed;
             Quaternion<float> q = Quaternion<float>.CreateFromYawPitchRoll(0, -delta.Y,-delta.X );
-            // camTransform.local_position += move;
-            // camTransform.local_rotation *= q;
-            var camTransformParent = camTransform.parent;
-            camTransformParent.local_rotation *= q;
+            camTransform.local_position += move;
+            camTransform.local_rotation *= q;
+            // camTransform.local_position = float3.UnitY * 3;
+            // var camTransformParent = camTransform.parent;
+            // camTransformParent.local_rotation *= q;
+            // // convert to euler angles
+            // var euler = camTransformParent.local_rotation.ToEuler();
+            // camTransformParent.local_rotation=Quaternion<float>.CreateFromYawPitchRoll(euler.X,euler.Y-delta.Y,euler.Z-delta.X);
+            
             ImGui.Begin("SetCamera");
-            ImGui.Text($"Camera Position: {camTransformParent.world_position}");
-            ImGui.Text($"Camera Rotation: {camTransformParent.local_rotation}");
+            ImGui.Text($"Camera Position: {camTransform.world_position}");
+            ImGui.Text($"Camera Rotation: {camTransform.world_rotation.ToEuler()}");
             ImGui.End();
             break;
         }
