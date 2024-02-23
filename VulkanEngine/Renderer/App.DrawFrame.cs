@@ -2,6 +2,8 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Silk.NET.Maths;
 using Silk.NET.Vulkan;
+using VulkanEngine.Phases.FrameRender;
+using Buffer = Silk.NET.Vulkan.Buffer;
 using Semaphore = Silk.NET.Vulkan.Semaphore;
 
 namespace VulkanEngine.Renderer;
@@ -50,14 +52,13 @@ public static partial class VKRender
 
         ExecuteCleanupScheduledForCurrentFrame();
         
-      
         EnsureMeshRelatedBuffersAreSized();
 
-        EnsureRenderObjectRelatedBuffersAreSized();
+        // EnsureRenderObjectRelatedBuffersAreSized();
 
         
-        RenderManager.WriteOutObjectData(GetCurrentFrame().hostRenderObjectsBufferAsSpan);
-        var objectCount=RenderManager.RenderObjects.Count;
+        // GPURenderRegistry.WriteOutObjectData(GetCurrentFrame().hostRenderObjectsBufferAsSpan);
+        var objectCount=Volatile.Read(ref WriteoutRenderObjects.writenObjectCount);
         GetCurrentFrame().computeInputConfig->objectCount = (uint) objectCount;
         
         
@@ -78,7 +79,7 @@ public static partial class VKRender
         var pDescriptorSet = stackalloc DescriptorSet[] { GetCurrentFrame().descriptorSets.Compute };
         vk.CmdBindDescriptorSets(computeCommandBuffer, PipelineBindPoint.Compute, ComputePipelineLayout, 0, 1, pDescriptorSet, 0, null);
         int ComputeWorkGroupSize=16;
-        var dispatchSize = (uint) (RenderManager.RenderObjects.Count / ComputeWorkGroupSize)+1;
+        var dispatchSize = (uint) (objectCount / ComputeWorkGroupSize)+1;
         BufferMemoryBarrier to0first4bytes = new()
         {
             SType = StructureType.BufferMemoryBarrier,
@@ -242,7 +243,7 @@ public static partial class VKRender
         
         var gfxCommandBuffer = GetCurrentFrame().GfxCommandBuffer;
         
-        RecordCommandBuffer(gfxCommandBuffer, imageIndex);
+        RecordCommandBuffer(gfxCommandBuffer, imageIndex, objectCount);
         
         
         vk.EndCommandBuffer(gfxCommandBuffer)
@@ -336,4 +337,111 @@ public static partial class VKRender
     }
 
 
+    private static unsafe void RecordCommandBuffer(CommandBuffer commandBuffer, uint imageIndex, int maxDrawCount)
+    {
+        var beginInfo = new CommandBufferBeginInfo
+        {
+            SType = StructureType.CommandBufferBeginInfo,
+            Flags = CommandBufferUsageFlags.OneTimeSubmitBit,
+            PInheritanceInfo = null,
+        };
+        vk.BeginCommandBuffer(commandBuffer, beginInfo)
+            .Expect("failed to begin recording command buffer!");
+
+        var clearValues = stackalloc ClearValue[]
+        {
+            new(new(0.125f,0.125f,0.125f,1)),
+            new(null,new(1,0))
+        };
+        var renderPassInfo = new RenderPassBeginInfo
+        {
+            SType = StructureType.RenderPassBeginInfo,
+            RenderPass = RenderPass,
+            Framebuffer = swapChainFramebuffers![imageIndex],
+            RenderArea = new Rect2D
+            {
+                Offset = new Offset2D(0, 0),
+                Extent = swapChainExtent,
+            },
+            ClearValueCount = 2,
+            
+            PClearValues = (clearValues)
+        };
+        
+        var viewPort = new Viewport()
+        {
+            X = 0,
+            Y = 0,
+            Width = swapChainExtent.Width,
+            Height = swapChainExtent.Height,
+            MinDepth = 0,
+            MaxDepth = 1,
+        };
+        var scissor = new Rect2D
+        {
+            Offset = new Offset2D(0, 0),
+            Extent = swapChainExtent,
+        };
+        // var memoryBarrier = new MemoryBarrier
+        // {
+        //     SType = StructureType.MemoryBarrier,
+        //     SrcAccessMask = AccessFlags.ShaderWriteBit,
+        //     DstAccessMask = AccessFlags.TransferWriteBit,
+        // };
+        // vk.CmdPipelineBarrier(commandBuffer,
+        //     PipelineStageFlags.FragmentShaderBit,
+        //     PipelineStageFlags.TransferBit,
+        //     0,
+        //     1,
+        //     memoryBarrier,
+        //     0,
+        //     null,
+        //     0,
+        //     null);
+        vk.CmdBeginRenderPass(commandBuffer, renderPassInfo, SubpassContents.Inline);
+        // vk.CmdCopyBuffer();
+        vk.CmdBindPipeline(commandBuffer, PipelineBindPoint.Graphics, GraphicsPipeline);
+        vk.CmdSetViewport(commandBuffer,0,1,&viewPort);
+        vk.CmdSetScissor(commandBuffer,0,1,&scissor);
+        var vertexBuffers =stackalloc []{(Buffer)GlobalData.vertexBuffer};
+        var offsets = stackalloc []{(ulong)0};
+        
+        // vk!.CmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+        vk.CmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+        var pDescriptorSet = stackalloc DescriptorSet[] {GetCurrentFrame().descriptorSets.GFX};
+        vk.CmdBindIndexBuffer(commandBuffer, GlobalData.indexBuffer, 0, IndexType.Uint32);
+        vk.CmdBindDescriptorSets(commandBuffer, PipelineBindPoint.Graphics, GfxPipelineLayout, 0, 1, pDescriptorSet, 0, null);
+
+
+        if (DrawIndirectCountAvaliable)
+        {
+            vk.CmdDrawIndexedIndirectCount(commandBuffer,
+                GlobalData.deviceIndirectDrawBuffer,
+                ComputeOutSSBOStartOffset,
+                GlobalData.deviceIndirectDrawBuffer,
+                0,
+                (uint) maxDrawCount,
+                (uint) sizeof(GPUStructs.ComputeOutput));
+        }
+        else
+        {
+            vk.WaitForFences(device,1,GetCurrentFrame().computeFence,true,ulong.MaxValue);
+            var postCullCount = *(int*) GlobalData.ReadBackBufferPtr;
+            vk.ResetFences(device,1,GetCurrentFrame().computeFence);
+            vk.CmdDrawIndexedIndirect(commandBuffer,
+                GlobalData.deviceIndirectDrawBuffer,
+                ComputeOutSSBOStartOffset,
+                (uint) postCullCount,
+                (uint) sizeof(GPUStructs.ComputeOutput));
+        }
+
+        
+        // vk!.CmdDraw(commandBuffer, (uint) vertices.Length, 1, 0, 0);
+        
+        
+        
+        imGuiController.Render(commandBuffer,swapChainFramebuffers![imageIndex],swapChainExtent);
+
+        vk.CmdEndRenderPass(commandBuffer);
+    }
 }

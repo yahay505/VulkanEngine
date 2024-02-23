@@ -9,7 +9,7 @@ public static class ECS
 {
     static Dictionary<Type,Icompstore> dataToSystem = new();
     static Dictionary<Type,Type> refToData = new();
-    // static ComponentStorage<_> _entityStorage = new(true,1000);
+    // static Pool<_> _entityStorage = new(true,1000);
     // public struct _ : Idata {}
     public static int nextEntityID=1;
     public static int CreateEntity()
@@ -22,7 +22,7 @@ public static class ECS
     // }
     
     
-    public static void RegisterSystem<T>(ComponentStorage<T> storage, Type? frontEnd = null) where T : unmanaged, Idata
+    public static void RegisterSystem<T>(Pool<T> storage, Type? frontEnd = null) where T : unmanaged, Idata
     {
         dataToSystem.Add(typeof(T),storage);
         if (frontEnd!=null)
@@ -53,7 +53,7 @@ public static class ECS
         globalID = query.EntityList.Span[query.t1index];
         
         //start Idata segment
-        var t = (ComponentStorage<T1>)dataToSystem[typeof(T1)];
+        var t = (Pool<T1>)dataToSystem[typeof(T1)];
         fixed(T1*_t1=&t.ComponentList.Span[query.t1index])
             t1=_t1;
         //end Idata segment
@@ -89,8 +89,8 @@ public static class ECS
 
     // public static unsafe ECSQuery<T1,T2> MakeQuery<T1,T2>(T1* _=null,T2* __=null) where T1 : unmanaged, Idata where T2 : unmanaged, Idata
     // {
-    //     var t1 = (ComponentStorage<T1>)dataToSystem[typeof(T1)];
-    //     var t2 = (ComponentStorage<T2>)dataToSystem[typeof(T2)];
+    //     var t1 = (Pool<T1>)dataToSystem[typeof(T1)];
+    //     var t2 = (Pool<T2>)dataToSystem[typeof(T2)];
     //
     //     var mainTypeIndex = t1.usedProp<t2.usedProp?1:2;
     //     var minstorage=mainTypeIndex==1?(Icompstore)t1:t2;
@@ -100,7 +100,7 @@ public static class ECS
     // public static unsafe ECSQuery<T1,T2> MakeQuery<T1,T2>(T1 _=default,T2* __=default) where T1 : unmanaged, Iinterface where T2 : unmanaged, Idata
     // {
     //     var t1 = dataToSystem[refToData[typeof(T1)]];
-    //     var t2 = (ComponentStorage<T2>)dataToSystem[typeof(T2)];
+    //     var t2 = (Pool<T2>)dataToSystem[typeof(T2)];
     //
     //     var mainTypeIndex = t1.usedProp<t2.usedProp?1:2;
     //     var minstorage=mainTypeIndex==1?(Icompstore)t1:t2;
@@ -146,10 +146,10 @@ public static class ECS
     //         return false;
     //     }
     //     globalID = Gid;
-    //     var ts1 = (ComponentStorage<T1>)dataToSystem[typeof(T1)];
+    //     var ts1 = (Pool<T1>)dataToSystem[typeof(T1)];
     //     fixed(T1*_t1=&ts1.ComponentList.Span[query.mainindex])
     //         t1=_t1;
-    //     var ts2 = (ComponentStorage<T2>)dataToSystem[typeof(T2)];
+    //     var ts2 = (Pool<T2>)dataToSystem[typeof(T2)];
     //     fixed(T2*_t2=&ts2.ComponentList.Span[query.mainindex])
     //         t2=_t2;
     //     return true;
@@ -167,7 +167,7 @@ public static class ECS
     //     GlobalID = Gid;
     //     var ts1 = dataToSystem[refToData[typeof(T1)]];
     //     t1=Unsafe.BitCast<int,T1>(query.mainindex);
-    //     var ts2 = (ComponentStorage<T2>)dataToSystem[typeof(T2)];
+    //     var ts2 = (Pool<T2>)dataToSystem[typeof(T2)];
     //     fixed(T2*_t2=&ts2.ComponentList.Span[query.mainindex])
     //         t2=_t2;
     //     return true;

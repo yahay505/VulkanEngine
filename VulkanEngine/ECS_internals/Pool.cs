@@ -14,7 +14,7 @@ public interface Icompstore
     ref Memory<int> EntityListProp { get; }
     ref int usedProp { get; }
 }
-public class ComponentStorage<T>:Icompstore where T:unmanaged,Idata
+public class Pool<T>:Icompstore where T:unmanaged,Idata
 {
     /*
  EntityIndices
@@ -52,7 +52,7 @@ ComponentList
     public Memory<T> ComponentList;
     public int capacity, used;
     public bool tagOnly;
-    public ComponentStorage(bool tagOnly, int initial_capacity)
+    public Pool(bool tagOnly, int initial_capacity)
     {
         this.tagOnly = tagOnly;
         capacity = Math.Max(1,initial_capacity);
@@ -62,7 +62,7 @@ ComponentList
         if (!tagOnly)
             ComponentList = new Memory<T>(new T[capacity]);
     }
-    public ComponentStorage(Memory<byte> bundle)
+    public Pool(Memory<byte> bundle)
     {
         throw new NotImplementedException();
     }
