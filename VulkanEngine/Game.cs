@@ -10,6 +10,7 @@ using VulkanEngine.Phases.FramePreRenderPhase;
 using VulkanEngine.Phases.FramePreTickPhase;
 using VulkanEngine.Phases.FrameRender;
 using VulkanEngine.Phases.Tick;
+using VulkanEngine.Renderer.ECS;
 using VulkanEngine.Renderer.Internal;
 
 namespace VulkanEngine;
@@ -44,7 +45,7 @@ public static class Game
 
 
 
-
+        ECS.RegisterSystem(MeshComponent._data,typeof(MeshComponent));
         var CameraTarget = CreateEntity();
         var CamTargetTransform=TransformSystem.AddItemWithGlobalID(CameraTarget);
         
@@ -58,18 +59,15 @@ public static class Game
 
         CamTransform.local_rotation = Quaternion<float>.Identity;
         
-        var mesh_ref=RenderManager.RegisterMesh(
-            new Mesh_internal()
-            {
-                name = "demo monkey", indexBuffer = VKRender.indices, vertexBuffer = VKRender.vertices,
-                indexCount = VKRender.indices.Length, vertexCount = VKRender.vertices.Length
-            }
-        );
+        var mesh_ref=GPURenderRegistry.RegisterMesh(new () {indexBuffer = VKRender.indices, vertexBuffer = VKRender.vertices});
         monkey1 = new RenderObject(new Transform(new(0,0,1),Quaternion<float>.Identity, float3.One),new(){index = 0},new(){index = 0});
-        RenderManager.RegisterRenderObject(monkey1);
+        // GPURenderRegistry.RegisterRenderObject(monkey1);
         monkey2 = new RenderObject(new Transform(new(0,0,0),Quaternion<float>.Identity, float3.One),new(){index = 0},new(){index = 0});
-        RenderManager.RegisterRenderObject(monkey2);
-
+        // GPURenderRegistry.RegisterRenderObject(monkey2);
+        var monkey = CreateEntity();
+        var trans = TransformSystem.AddItemWithGlobalID(monkey);
+        var meshcomp= MeshComponent._data.AddItemWithGlobalID(monkey,new(){registryMeshID = mesh_ref.index});
+        
         PreambleSequence.Register();
         FramePreTickSequence.Register();
         FramePreRenderSequence.Register();

@@ -8,7 +8,7 @@ public struct CameraData: Idata
     {
         ECS.RegisterSystem<CameraData>(_data,typeof(Camera_ref));
     }
-    public static ComponentStorage<CameraData> _data=new(false,2);
+    public static Pool<CameraData> _data=new(false,2);
 
     public float fov;
     public float nearPlaneDistance;

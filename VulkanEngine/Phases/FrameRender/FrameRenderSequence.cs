@@ -4,6 +4,7 @@ using ImGuiNET;
 using Silk.NET.Vulkan.Extensions.ImGui;
 using VulkanEngine.ECS_internals;
 using VulkanEngine.Renderer;
+using VulkanEngine.Renderer.ECS;
 
 namespace VulkanEngine.Phases.FrameRender;
 
@@ -11,11 +12,18 @@ public class FrameRenderSequence
 {
     public static void Register()
     {
+        var writeoutRenderObjectsUnit = new ExecutionUnitBuilder(WriteoutRenderObjects.WriteOutObjectData)
+            .Named("WriteoutRenderObjects")
+            .Reads(TransformSystem.Resource,MeshComponent.Resource)
+            .Writes(VKRender.RendererEcsResource)
+            .Build();
         var renderUnit = new ExecutionUnitBuilder(Render)
+            .RunsAfter(writeoutRenderObjectsUnit)
             .Named("Render")
             .Reads(TransformSystem.Resource)
             .Writes(VKRender.RendererEcsResource,VKRender.IMGUIResource)
             .Build();
+        ScheduleMaker.RegisterToTarget(writeoutRenderObjectsUnit, "frame_render");
         ScheduleMaker.RegisterToTarget(renderUnit, "frame_render");
     }
     private static void Render()

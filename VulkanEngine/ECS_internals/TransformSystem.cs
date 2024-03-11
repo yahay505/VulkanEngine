@@ -12,7 +12,7 @@ public static class TransformSystem{
     {
         ECS.RegisterSystem<TransformD>(_data,typeof(Transform_ref));
     }
-    public static ComponentStorage<TransformD> _data=new(false,100);
+    public static Pool<TransformD> _data=new(false,100);
 
     public static Transform_ref AddItemWithGlobalID(int ID)
     {

@@ -7,7 +7,7 @@ public struct RenderIndirectIndexedItem
     uint indexCount;
     uint instanceCount;
     uint firstIndex;
-    uint vertexOffset;
+    int vertexOffset;
     uint firstInstance;
     //extra data
     public float4x4 modelMatrix;

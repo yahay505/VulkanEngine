@@ -137,7 +137,7 @@ public static partial class VKRender
         CleanupStack.Push(()=>vk.DestroyPipeline(device,ComputePipeline, null));
         
         EnsureMeshRelatedBuffersAreSized();
-        EnsureRenderObjectRelatedBuffersAreSized();
+        EnsureRenderObjectRelatedBuffersAreSized(5);
         vk.DestroyShaderModule(device, computeMOdule, null);
         CleanupStack.Push(()=>
         {
@@ -233,9 +233,9 @@ public static partial class VKRender
         
     }
 
-    private static unsafe void EnsureRenderObjectRelatedBuffersAreSized()
+    public static unsafe void EnsureRenderObjectRelatedBuffersAreSized(int minimumSize)
     {
-        var ROtarget = Math.Max(10,RenderManager.RenderObjects.Count);
+        var ROtarget = Math.Max(10,minimumSize);
         var hostCurrentBufferSize = GetCurrentFrame().hostRenderObjectsBufferSize;
         if (hostCurrentBufferSize <= ROtarget)
         {
@@ -356,7 +356,7 @@ public static partial class VKRender
 
     public static unsafe void EnsureMeshRelatedBuffersAreSized()
     {
-        if (GlobalData.MeshInfoBufferSize > RenderManager.Meshes.Count)//should be idempotent
+        if (GlobalData.MeshInfoBufferSize > GPURenderRegistry.Meshes.Count)//should be idempotent
         {
             return;
         }
@@ -366,7 +366,7 @@ public static partial class VKRender
 
         var oldMeshInfoBuffer = GlobalData.MeshInfoBuffer;
         var oldMeshInfoBufferMemory = GlobalData.MeshInfoBufferMemory;
-        var nextSize = Math.Max(RenderManager.Meshes.Count+1, GlobalData.MeshInfoBufferSize * 2); //exponential growth
+        var nextSize = Math.Max(GPURenderRegistry.Meshes.Count+1, GlobalData.MeshInfoBufferSize * 2); //exponential growth
         var newSize = (ulong) nextSize * (ulong) sizeof(MeshInfo);
         
         CreateBuffer(newSize, BufferUsageFlags.StorageBufferBit,
