@@ -86,7 +86,7 @@ public static partial class VKRender
     public static void InitializeRenderer(out IInputContext inputContext)
     {
         InitWindow();
-        LoadMesh();
+        LoadMesh(AssetsPath+"/models/model.obj");
         InitVulkan();
         inputContext=VKRender.window.CreateInput();
 
@@ -133,29 +133,29 @@ public struct Camera
     public float4x4 proj;
         
 }
-private static unsafe void LoadMesh()
+
+public static unsafe (Vertex[] vertices,uint[] indices)[] LoadMesh(string File)
     {
         using var assimp = Assimp.GetApi()!;
         
-        var scene=assimp.ImportFile(AssetsPath+"/models/model.obj", (uint)PostProcessPreset.TargetRealTimeMaximumQuality)!;
-        
-        var vertexMap = new Dictionary<Vertex, uint>();
-        var _vertices = new List<Vertex>();
-        var _indices = new List<uint>();
-        
+        var scene=assimp.ImportFile(File, (uint)PostProcessPreset.TargetRealTimeMaximumQuality)!;
+        var a = new List< (Vertex[] vertices,uint[] indices)>();
+
         VisitSceneNode(scene->MRootNode);
         
         assimp.ReleaseImport(scene);
         
-        vertices = _vertices.ToArray();
-        indices = _indices.ToArray();
+        return a.ToArray();
         
         void VisitSceneNode(Node* node)
         {
             for (int m = 0; m < node->MNumMeshes; m++)
             {
                 var mesh = scene->MMeshes[node->MMeshes[m]];
-        
+                var vertexMap = new Dictionary<Vertex, uint>();
+                var _vertices = new List<Vertex>();
+                var _indices = new List<uint>();
+
                 for (int f = 0; f < mesh->MNumFaces; f++)
                 {
                     var face = mesh->MFaces[f];
@@ -187,6 +187,7 @@ private static unsafe void LoadMesh()
                         }
                     }
                 }
+                a.Add((_vertices.ToArray(), _indices.ToArray()));
             }
         
             for (int c = 0; c < node->MNumChildren; c++)

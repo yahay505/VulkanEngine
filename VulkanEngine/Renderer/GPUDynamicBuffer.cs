@@ -60,38 +60,42 @@ public class GPUDynamicBuffer<T> where T:unmanaged
             var oldbuf=buffer;
             var oldmem=memory;
             var oldbufsizeinbytes=currentSizeInBytes;
-            var newSize = Math.Max( data.Length,(currentSize * 2));
-            currentSize = newSize;
+            var newSize = Math.Max(currentSize + data.Length,(currentSize * 2));
+            currentSize = newSize; //auto sets currentSizeInBytes
             CreateBuffer(currentSizeInBytes,_usage,_properties,out buffer,out memory);
 #if GPUDEBG
             fixed (void** debugPtr = &DebugPtr)
                 vk.MapMemory(device, memory, 0, currentSizeInBytes, 0,
                     debugPtr);
 #endif
-            vk.CmdCopyBuffer(cmdBuf, oldbuf, buffer, 1, new BufferCopy()
+            if (currentbyteOffset!=0)// if not empty
             {
-                Size = oldbufsizeinbytes
-            });
-            var BufferMemoryBarriers = new BufferMemoryBarrier()
-            {
-                SType = StructureType.BufferMemoryBarrier,
-                Buffer = buffer,
-                Size = currentSizeInBytes,
-                SrcAccessMask = AccessFlags.TransferWriteBit,
-                DstAccessMask = AccessFlags.TransferWriteBit,
-                SrcQueueFamilyIndex = (uint) VKRender._familyIndices.graphicsFamily,
-                DstQueueFamilyIndex = (uint) VKRender._familyIndices.graphicsFamily
-            };
-            vk.CmdPipelineBarrier(cmdBuf,
-                PipelineStageFlags.TransferBit,
-                PipelineStageFlags.TransferBit,
-                0,
-                0,
-                null,
-                1,
-                &BufferMemoryBarriers,
-                0u,
-                null);
+                vk.CmdCopyBuffer(cmdBuf, oldbuf, buffer, 1, new BufferCopy()
+                {
+                    Size = currentbyteOffset
+                });
+                var BufferMemoryBarriers = new BufferMemoryBarrier()
+                {
+                    SType = StructureType.BufferMemoryBarrier,
+                    Buffer = buffer,
+                    Size = currentSizeInBytes,
+                    SrcAccessMask = AccessFlags.TransferWriteBit,
+                    DstAccessMask = AccessFlags.TransferWriteBit,
+                    SrcQueueFamilyIndex = (uint) VKRender._familyIndices.graphicsFamily,
+                    DstQueueFamilyIndex = (uint) VKRender._familyIndices.graphicsFamily
+                };
+                vk.CmdPipelineBarrier(cmdBuf,
+                    PipelineStageFlags.TransferBit,
+                    PipelineStageFlags.TransferBit,
+                    0,
+                    0,
+                    null,
+                    1,
+                    &BufferMemoryBarriers,
+                    0u,
+                    null);
+            }
+
             RegisterBufferForCleanup(oldbuf, oldmem);
         }
 
@@ -107,60 +111,63 @@ public class GPUDynamicBuffer<T> where T:unmanaged
                 vk.MapMemory(device, GPUDynamicBuffer.stagingMemory, 0, (ulong) dataLength, 0,
                 pstagingMemoryPtr);
         }
-        data.CopyTo(new Span<T>(GPUDynamicBuffer.stagingMemoryPtr,data.Length));
-        //memory barrier
-        var BufferMemoryBarriers2 = new BufferMemoryBarrier()
-        {
-            SType = StructureType.BufferMemoryBarrier,
 
-            Buffer = GPUDynamicBuffer.stagingBuffer,
-            Size = (ulong) dataLength,
-            SrcAccessMask = AccessFlags.HostWriteBit,
-            DstAccessMask = AccessFlags.TransferReadBit,
-            SrcQueueFamilyIndex = (uint) VKRender._familyIndices.graphicsFamily,
-            DstQueueFamilyIndex = (uint) VKRender._familyIndices.graphicsFamily
-        };
-        vk.CmdPipelineBarrier(cmdBuf,
-            PipelineStageFlags.HostBit,
-            PipelineStageFlags.TransferBit,
-            0,
-            0,
-            null,
-            1,
-            &BufferMemoryBarriers2,
-            0u,
-            null);
-        vk.CmdCopyBuffer(cmdBuf, GPUDynamicBuffer.stagingBuffer, buffer, 1, new BufferCopy()
         {
-            Size = (ulong) dataLength,
-            SrcOffset = 0,
-            DstOffset = (ulong) currentbyteOffset
-        });
-        //memory barrier
-        var BufferMemoryBarriers3 = new BufferMemoryBarrier()
-        {
-            SType = StructureType.BufferMemoryBarrier,
-            Buffer = buffer,
-            Size = (ulong) dataLength,
-            SrcAccessMask = AccessFlags.TransferWriteBit,
-            DstAccessMask = AccessFlags.MemoryReadBit,
-            SrcQueueFamilyIndex = (uint) VKRender._familyIndices.graphicsFamily,
-            DstQueueFamilyIndex = (uint) VKRender._familyIndices.graphicsFamily
-        };
-        vk.CmdPipelineBarrier(cmdBuf,
-            PipelineStageFlags.TransferBit,
-            dstStageMask,
-            0,
-            0,
-            null,
-            1,
-            &BufferMemoryBarriers3,
-            0u,
-            null);
-        var r=currentbyteOffset;
+            data.CopyTo(new Span<T>(GPUDynamicBuffer.stagingMemoryPtr, data.Length));
+            //memory barrier
+            var BufferMemoryBarriers2 = new BufferMemoryBarrier()
+            {
+                SType = StructureType.BufferMemoryBarrier,
+
+                Buffer = GPUDynamicBuffer.stagingBuffer,
+                Size = (ulong) dataLength,
+                SrcAccessMask = AccessFlags.HostWriteBit,
+                DstAccessMask = AccessFlags.TransferReadBit,
+                SrcQueueFamilyIndex = (uint) VKRender._familyIndices.graphicsFamily,
+                DstQueueFamilyIndex = (uint) VKRender._familyIndices.graphicsFamily
+            };
+            vk.CmdPipelineBarrier(cmdBuf,
+                PipelineStageFlags.HostBit,
+                PipelineStageFlags.TransferBit,
+                0,
+                0,
+                null,
+                1,
+                &BufferMemoryBarriers2,
+                0u,
+                null);
+            vk.CmdCopyBuffer(cmdBuf, GPUDynamicBuffer.stagingBuffer, buffer, 1, new BufferCopy()
+            {
+                Size = (ulong) dataLength,
+                SrcOffset = 0,
+                DstOffset = (ulong) currentbyteOffset
+            });
+            //memory barrier
+            var BufferMemoryBarriers3 = new BufferMemoryBarrier()
+            {
+                SType = StructureType.BufferMemoryBarrier,
+                Buffer = buffer,
+                Size = (ulong) dataLength,
+                SrcAccessMask = AccessFlags.TransferWriteBit,
+                DstAccessMask = AccessFlags.MemoryReadBit,
+                SrcQueueFamilyIndex = (uint) VKRender._familyIndices.graphicsFamily,
+                DstQueueFamilyIndex = (uint) VKRender._familyIndices.graphicsFamily
+            };
+            vk.CmdPipelineBarrier(cmdBuf,
+                PipelineStageFlags.TransferBit,
+                dstStageMask,
+                0,
+                0,
+                null,
+                1,
+                &BufferMemoryBarriers3,
+                0u,
+                null);
+        }
+        var offset=currentbyteOffset/(uint)Unsafe.SizeOf<T>();
         currentbyteOffset += (uint)dataLength;
         EndSingleTimeCommands(cmdBuf);
-        return r;
+        return offset;
     }
     
 

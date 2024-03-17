@@ -26,8 +26,8 @@ public struct ComputeInput{
     public uint materialID;
     [FieldOffset(72)]
     unsafe fixed int padding[14];
-
 };
+
 [StructLayout(LayoutKind.Sequential, Size = 5*4, Pack = 1)]
 public struct VkDrawIndexedIndirectCommand {
     uint    indexCount;
@@ -37,9 +37,10 @@ public struct VkDrawIndexedIndirectCommand {
     uint    firstInstance;
 };
 [StructLayout(LayoutKind.Sequential, Size = 128, Pack = 1)]
-public struct ComputeOutput{
+public struct ComputeDrawOutput{
     VkDrawIndexedIndirectCommand command;
     uint materialID;
+    unsafe fixed int padding[10];
     float4x4 model;
 };
 [StructLayout(LayoutKind.Sequential, Size = 64, Pack = 1)]
@@ -58,4 +59,5 @@ public struct MeshInfo{
     public uint IBOoffset;
     public uint IBOsize;
     public uint vertexLoadOffset;
+    public int padding;
 };

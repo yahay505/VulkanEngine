@@ -82,6 +82,7 @@ public class FrameRenderSequence
             // TODO: Rightclick to change pos
             ImGui.Text("Demo Scene");
             ImGui.Separator();
+            ImGui.Text($"Frame# {VKRender.CurrentFrame}");
             ImGui.Text($"Application average {1000.0f / ImGui.GetIO().Framerate:F3} ms/frame ({ImGui.GetIO().Framerate:F1} FPS)");
             ImGui.Text($"Time spent calculating(not rendering): {(Stopwatch.GetTimestamp()-Volatile.Read(ref Game.calcMS))/(float)Stopwatch.Frequency * 1000f:F4} ms");
             ImGui.End();

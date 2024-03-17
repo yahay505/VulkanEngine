@@ -7,9 +7,9 @@ namespace VulkanEngine.Renderer;
 [StructLayout( LayoutKind.Sequential)]
 public struct Vertex
 {
-    public Vector3D<float> pos;
-    public Vector3D<float> color;
-    public Vector2D<float> texCoord;
+    public Vector3D<float> pos;//12
+    public Vector3D<float> color;//12
+    public Vector2D<float> texCoord;//8
 
     public static implicit operator Vertex(((float x, float y,float z) pos,(float r,float g,float b) color,(float u,float w) texCoord) d)
     {

@@ -58,15 +58,25 @@ public static class Game
         CamTransform.local_position = new float3(10,0,0);    
 
         CamTransform.local_rotation = Quaternion<float>.Identity;
+        var meshes = VKRender.LoadMesh(VKRender.AssetsPath + "/models/scene.fbx").Select((mesh)=>GPURenderRegistry.RegisterMesh(new(){indexBuffer = mesh.indices,vertexBuffer = mesh.vertices})).ToArray();
+
+        int[] staticScene = new int[meshes.Length];
+        // load scene
+        for (var i = 0; i < meshes.Length; i++)
+        {
+            var mesh = meshes[i];
+            staticScene[i] = CreateEntity();
+            TransformSystem.AddItemWithGlobalID(staticScene[i]);
+            MeshComponent._data.AddItemWithGlobalID(staticScene[i],new(){registryMeshID = mesh.index});
+        }
         
-        var mesh_ref=GPURenderRegistry.RegisterMesh(new () {indexBuffer = VKRender.indices, vertexBuffer = VKRender.vertices});
-        monkey1 = new RenderObject(new Transform(new(0,0,1),Quaternion<float>.Identity, float3.One),new(){index = 0},new(){index = 0});
-        // GPURenderRegistry.RegisterRenderObject(monkey1);
-        monkey2 = new RenderObject(new Transform(new(0,0,0),Quaternion<float>.Identity, float3.One),new(){index = 0},new(){index = 0});
-        // GPURenderRegistry.RegisterRenderObject(monkey2);
+        // load monkey
+        var (vertices, indices) = VKRender.LoadMesh(VKRender.AssetsPath + "/models/model.obj").Single();
+        var monkeyMeshRef = GPURenderRegistry.RegisterMesh(new(){indexBuffer = indices,vertexBuffer = vertices});
+
         var monkey = CreateEntity();
         var trans = TransformSystem.AddItemWithGlobalID(monkey);
-        var meshcomp= MeshComponent._data.AddItemWithGlobalID(monkey,new(){registryMeshID = mesh_ref.index});
+        var meshcomp= MeshComponent._data.AddItemWithGlobalID(monkey,new(){registryMeshID = monkeyMeshRef.index});
         
         PreambleSequence.Register();
         FramePreTickSequence.Register();
@@ -123,7 +133,7 @@ public static class Game
         ///Users/yavuz/VulkanSDK/1.3.261.1/macOS/bin/glslc triangle.vert -o vert.spv
          //   /Users/yavuz/VulkanSDK/1.3.261.1/macOS/bin/glslc triangle.frag -o frag.spv
 
-         new[]
+         var www=new[]
              {
                  "*.vert",
                  "*.frag",
@@ -133,14 +143,17 @@ public static class Game
                  SearchOption.AllDirectories))
              .Select(in_name =>
              {
-                 
-                 var out_name = VKRender.AssetsPath + "/shaders/compiled"+in_name[((VKRender.AssetsPath + "/shaders").Length)..]+".spv";
+
+                 var out_name = VKRender.AssetsPath + "/shaders/compiled" +
+                                in_name[((VKRender.AssetsPath + "/shaders").Length)..] + ".spv";
 
                  return Process.Start("glslc", $@"{in_name} -o {out_name}");
-             }).
-             ForEach(
-                 x => x!.WaitForExit()
-                 );
+             }).ToArray();
+         // wait for all in parallel
+            foreach (var process in www)
+            {
+                process.WaitForExit();
+            }
 
     }
 

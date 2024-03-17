@@ -1,3 +1,5 @@
+using Silk.NET.Vulkan;
+using Silk.NET.Vulkan.Extensions.EXT;
 using VulkanEngine.Renderer.ECS;
 using VulkanEngine.Renderer.GPUStructs;
 using VulkanEngine.Renderer.Internal;
@@ -21,14 +23,25 @@ public static class GPURenderRegistry
         VKRender.EnsureMeshRelatedBuffersAreSized();
         var vertexOffset = LoadVertices(mesh.vertexBuffer);
         var indexOffset = LoadIndices(mesh.indexBuffer);
-        
-        ((GPUStructs.MeshInfo*) VKRender.GlobalData.MeshInfoBufferPtr)[Meshes.Count - 1] = new()
+        Meshes[^1] = Meshes[^1] with
         {
-            IBOoffset = indexOffset,
-            vertexLoadOffset = vertexOffset,
-            IBOsize = (uint) mesh.indexBuffer.Length,
+            vertexBufferOffset = (int) vertexOffset,
+            indexBufferOffset = indexOffset,
         };
+        for (int i = 0; i < Meshes.Count; i++)
+        {
+            var me = Meshes[i];
+            ((MeshInfo*) VKRender.GlobalData.MeshInfoBufferPtr)[i] = new()
+            {
+                IBOoffset = me.indexBufferOffset,
+                IBOsize = (uint) me.indexBuffer.Length,
+                padding = i,
+                vertexLoadOffset = (uint) me.vertexBufferOffset,
+            };
+        }
+        
         return new() {index = Meshes.Count - 1};
+        
     }
 
     private static uint LoadIndices(uint[] meshIndexBuffer)

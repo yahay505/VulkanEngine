@@ -1,50 +1,22 @@
 #version 450
-layout (local_size_x = 16) in;
-struct Input{
-    mat4 transform;
-    uint meshID;
-    uint materialID;
-    uint[14]padding;
-};
-struct VkDrawIndexedIndirectCommand {
-    uint    indexCount;
-    uint    instanceCount;
-    uint    firstIndex;
-    int     vertexOffset;
-    uint    firstInstance;
-};
+#include "common.glsl"
 
-struct Output{
-    VkDrawIndexedIndirectCommand command;
-    uint materialID;
-    mat4 model;
-};
-struct InputConfig{
-    uint objectCount;
-    uint[15] padding;
-};
-struct OutputConfig{
-    uint objectCount;
-    uint[15] padding;
-};
-struct MeshInfo{
-    uint IBOoffset;
-    uint IBOsize;
-    int vertexLoadOffset;
-};
+layout (local_size_x = 16) in;
+
+
 
 layout(set = 0, binding = 1) readonly buffer  InputBuffer{
-    InputConfig config;
-    Input inputs[];
+    ComputeInputConfig config;
+    ComputeMeshInput inputs[];
 } sourceData;
 
 layout(set = 0, binding = 2) buffer  OutputBuffer{
-    OutputConfig config;
-    Output[] data;
+    ComputeOutputConfig config;
+    ComputeDrawOutput data[];
 } outputData;
 
 layout(set = 0, binding = 3) readonly buffer  MeshDB{
-    MeshInfo[] meshes;
+    MeshInfo meshes[];
 } meshDB;
 
 
@@ -76,6 +48,19 @@ void main()
         outputData.data[index].command.vertexOffset = meshDB.meshes[meshID].vertexLoadOffset;
         outputData.data[index].command.firstInstance = 0;
 //        outputData.data[index].command.
+        outputData.data[index].padding[0]=1;
+        outputData.data[index].padding[1]=2;
+        outputData.data[index].padding[2]=3;
+        outputData.data[index].padding[3]=4;
+        outputData.data[index].padding[4]=5;
+        outputData.data[index].padding[5]=6;
+        outputData.data[index].padding[6]=7;
+        outputData.data[index].padding[7]=8;
+        outputData.data[index].padding[8]=9;
+        outputData.data[index].padding[9]=10;
+        
+        
+        
     }
     else
     {

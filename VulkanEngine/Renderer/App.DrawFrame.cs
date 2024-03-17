@@ -421,7 +421,7 @@ public static partial class VKRender
                 GlobalData.deviceIndirectDrawBuffer,
                 0,
                 (uint) maxDrawCount,
-                (uint) sizeof(GPUStructs.ComputeOutput));
+                (uint) sizeof(GPUStructs.ComputeDrawOutput));
         }
         else
         {
@@ -432,7 +432,7 @@ public static partial class VKRender
                 GlobalData.deviceIndirectDrawBuffer,
                 ComputeOutSSBOStartOffset,
                 (uint) postCullCount,
-                (uint) sizeof(GPUStructs.ComputeOutput));
+                (uint) sizeof(GPUStructs.ComputeDrawOutput));
         }
 
         

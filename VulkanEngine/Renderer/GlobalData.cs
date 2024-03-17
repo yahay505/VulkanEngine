@@ -34,7 +34,7 @@ public static partial class VKRender
 
         public static unsafe GPUStructs.ComputeOutputConfig* DEBUG_deviceIndirectDrawBufferCONFIG =>
             (GPUStructs.ComputeOutputConfig*) DEBUG_deviceIndirectDrawBufferPtr;
-        public static unsafe Span<GPUStructs.ComputeOutput> DEBUG_deviceIndirectDrawBufferDATAAsSpan=>new((void*)
+        public static unsafe Span<GPUStructs.ComputeDrawOutput> DEBUG_deviceIndirectDrawBufferDATAAsSpan=>new((void*)
             ((UIntPtr) DEBUG_deviceIndirectDrawBufferPtr+ComputeOutSSBOStartOffset), deviceIndirectDrawBufferSize);
 
         public static Buffer MeshInfoBuffer;

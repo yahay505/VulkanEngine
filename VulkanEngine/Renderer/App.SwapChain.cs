@@ -68,13 +68,13 @@ public static partial class VKRender
     }
     private static PresentModeKHR ChoosePresentMode(IReadOnlyList<PresentModeKHR> availablePresentModes)
     {
-        foreach (var availablePresentMode in availablePresentModes)
-        {
-            if (availablePresentMode == PresentModeKHR.MailboxKhr)
-            {
-                return availablePresentMode;
-            }
-        }
+        // foreach (var availablePresentMode in availablePresentModes)
+        // {
+        //     if (availablePresentMode == PresentModeKHR.MailboxKhr)
+        //     {
+        //         return availablePresentMode;
+        //     }
+        // }
 
         return PresentModeKHR.FifoKhr;
     }

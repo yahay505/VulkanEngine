@@ -171,7 +171,7 @@ public static partial class VKRender
         {
             Buffer = GlobalData.MeshInfoBuffer,
             Offset = 0,
-            Range = Vk.WholeSize, //todo seperate update to another function and allow for dynamic mesh count
+            Range = (ulong) (GlobalData.MeshInfoBufferSize * sizeof(GPUStructs.MeshInfo)) ,
         };
         var OutputBufferForGfx = new DescriptorBufferInfo
         {
@@ -263,7 +263,7 @@ public static partial class VKRender
         {
             var newbufsize = Math.Max(ROtarget, hostCurrentBufferSize * 2);
             var newBufSizeInBytes_RO = newbufsize * sizeof(GPUStructs.ComputeInput) + (int) ComputeInSSBOStartOffset;
-            var newBufSizeInBytes_CmdDII=newbufsize * sizeof(GPUStructs.ComputeOutput) + (int) ComputeOutSSBOStartOffset;
+            var newBufSizeInBytes_CmdDII=newbufsize * sizeof(GPUStructs.ComputeDrawOutput) + (int) ComputeOutSSBOStartOffset;
             
             var currentDeviceRenderObjectsBuffer = GlobalData.deviceRenderObjectsBuffer;
             var currentDeviceRenderObjectsBufferMemory = GlobalData.deviceRenderObjectsMemory;
@@ -367,10 +367,10 @@ public static partial class VKRender
         var oldMeshInfoBuffer = GlobalData.MeshInfoBuffer;
         var oldMeshInfoBufferMemory = GlobalData.MeshInfoBufferMemory;
         var nextSize = Math.Max(GPURenderRegistry.Meshes.Count+1, GlobalData.MeshInfoBufferSize * 2); //exponential growth
-        var newSize = (ulong) nextSize * (ulong) sizeof(MeshInfo);
+        var newSizeByte = (ulong) nextSize * (ulong) sizeof(MeshInfo);
         
-        CreateBuffer(newSize, BufferUsageFlags.StorageBufferBit,
-            MemoryPropertyFlags.HostVisibleBit,
+        CreateBuffer(newSizeByte, BufferUsageFlags.StorageBufferBit,
+            MemoryPropertyFlags.HostVisibleBit|MemoryPropertyFlags.HostCoherentBit,
             out GlobalData.MeshInfoBuffer, out GlobalData.MeshInfoBufferMemory);
 
         
@@ -378,13 +378,17 @@ public static partial class VKRender
         GlobalData.MeshInfoBufferSize = nextSize;
         RegisterBufferForCleanup(oldMeshInfoBuffer, oldMeshInfoBufferMemory); 
         void* oldPtr = GlobalData.MeshInfoBufferPtr;
-        vk.MapMemory(device, GlobalData.MeshInfoBufferMemory, 0, newSize, 0, ref GlobalData.MeshInfoBufferPtr)
+        vk.MapMemory(device, GlobalData.MeshInfoBufferMemory, 0, newSizeByte, 0, ref GlobalData.MeshInfoBufferPtr)
             .Expect("failed to map memory!");
-        Unsafe.InitBlock(GlobalData.MeshInfoBufferPtr, 0, (uint) newSize);
+        Unsafe.InitBlock(GlobalData.MeshInfoBufferPtr, 0, (uint) newSizeByte);
         if (oldMeshInfoBufferMemory.Handle != 0)
         {
             Unsafe.CopyBlock(GlobalData.MeshInfoBufferPtr, oldPtr, oldSize);
             vk.UnmapMemory(device, oldMeshInfoBufferMemory);
+        }
+        else
+        {
+            Unsafe.InitBlock(GlobalData.MeshInfoBufferPtr, 0, (uint) newSizeByte);
         }
     }
     
