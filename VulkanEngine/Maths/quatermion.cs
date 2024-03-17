@@ -28,6 +28,6 @@ public static partial class Maths
         float cosy_cosp = 1 - 2 * (rotation.Y * rotation.Y + rotation.Z * rotation.Z);
         float yaw = MathF.Atan2(siny_cosp, cosy_cosp);
         
-        return new float3(roll, pitch, yaw);
+        return (new float3(roll, pitch, yaw));
     }
 }

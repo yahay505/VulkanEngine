@@ -44,6 +44,8 @@
     <ItemGroup><!--      <Folder Include="Assets\shaders\compiled\" />-->
     
       <Folder Include="Assets\shaders\compiled\" />
+    
+      <Folder Include="JoltPhysics\" />
     </ItemGroup>
 
 </Project>

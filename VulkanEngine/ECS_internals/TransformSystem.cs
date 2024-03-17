@@ -20,8 +20,7 @@ public static class TransformSystem{
         // t.local_to_world_matrix = float4x4.Identity;
         t.local_rotation = Quaternion<float>.Identity;
         t.local_position = float3.Zero;
-        t.local_scale = float3.One;
-        t.parent_id = -1;
+        t.local_scale = float3.One; t.parent_id = -1;
         t.child_id = -1;
         t.sibling_id = -1;
         t.dirty = true;
