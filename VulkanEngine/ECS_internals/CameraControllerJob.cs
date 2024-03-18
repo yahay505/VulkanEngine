@@ -11,7 +11,7 @@ namespace VulkanEngine.Phases.FramePreRenderPhase;
 public static class CameraControllerJob
 {
     
-    public static float CameraRotSpeed = 0.1f;
+    public static float CameraRotSpeed = 0.5f;
     public static bool CameraControlEnabled = true;
     public static void CameraControl()
     {
@@ -38,7 +38,7 @@ public static class CameraControllerJob
             // Quaternion<float> q = Quaternion<float>.Identity;
             if (_shouldControlCamera)
             {
-                const float movespeed = 0.4f;
+                const float movespeed = 1f;
                 if (Input.Input.Key(Key.W))
                 {
                     move += camTransform.forward * movespeed * VKRender.deltaTime;
@@ -86,7 +86,7 @@ public static class CameraControllerJob
                 // ImGui.InputFloat3("loc_rot",ref Unsafe.AsRef<Vector3>((Vector3*)&loc_camRotationDegree),format:"%.3f");
                 ImGui.InputFloat3("scale",ref Unsafe.AsRef<Vector3>((Vector3*)&camScale),format:"%.3f");
             }
-            camRotationDegree = new float3(camRotationDegree.X+delta.Y,0f,camRotationDegree.Z+delta.X);
+            camRotationDegree = new float3(camRotationDegree.X-delta.Y,0f,camRotationDegree.Z-delta.X);
             // camRotationDegree *= Single.Pi / 180f;
             camTransform.world_rotation = (camRotationDegree/180f*MathF.PI).ToQuaternion();
             // camTransform.local_rotation = Quaternion<float>.CreateFromYawPitchRoll(loc_camRotationDegree.Y,loc_camRotationDegree.X,loc_camRotationDegree.Z);
