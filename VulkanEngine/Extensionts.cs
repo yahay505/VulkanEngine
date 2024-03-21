@@ -13,7 +13,7 @@ public static class Extensions
     {
         if (result!= Result.Success)
         {
-            throw new(error_text+"with error: "+result+"\n");
+            throw new(error_text+" with error: "+result+"\n");
         }
     }
     public static IEnumerable<int> Times(this Range range)

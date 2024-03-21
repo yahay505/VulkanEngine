@@ -28,6 +28,7 @@ public static partial class VKRender
                     .Expect("failed to map memory!");
             CleanupStack.Push(()=>CleanupBufferImmediately(GlobalData.ReadBackBuffer, GlobalData.ReadBackMemory));
         }
+        
         var computeShaderCode = File.ReadAllBytes(AssetsPath + "/shaders/compiled/PreRender.comp.spv");
         var computeMOdule = CreateShaderModule(computeShaderCode);
         var computeShaderStageInfo = new PipelineShaderStageCreateInfo
@@ -95,18 +96,7 @@ public static partial class VKRender
         vk.CreateDescriptorSetLayout(device, &descriptorSetLayoutCreateInfo, null, out var computeDescriptorSetLayout);
         ComputeDescriptorSetLayout = computeDescriptorSetLayout;
         CleanupStack.Push(()=>vk.DestroyDescriptorSetLayout(device,ComputeDescriptorSetLayout, null));
-
-        var computePipelineLayoutInfo = new PipelineLayoutCreateInfo
-        {
-            SType = StructureType.PipelineLayoutCreateInfo,
-            SetLayoutCount = 1,
-            PSetLayouts = &computeDescriptorSetLayout,
-            
-        };
-
-        vk.CreatePipelineLayout(device, &computePipelineLayoutInfo, null, out var layout);
-        ComputePipelineLayout = layout;
-        CleanupStack.Push(()=>vk.DestroyPipelineLayout(device,ComputePipelineLayout, null));
+        
 
         var layouts = stackalloc DescriptorSetLayout[] {computeDescriptorSetLayout};
         var allocInfo = new DescriptorSetAllocateInfo
@@ -125,15 +115,11 @@ public static partial class VKRender
         //UpdateComputeSSBODescriptors(0, 0, 0, 0);
 
 
-        var computePipelineInfo = new ComputePipelineCreateInfo
-        {
-            SType = StructureType.ComputePipelineCreateInfo,
-            Stage = computeShaderStageInfo,
-            Layout = layout,
-        };
 
-        vk.CreateComputePipelines(device, default, 1, &computePipelineInfo, null, out var pipeline);
-        ComputePipeline = pipeline;
+        // vk.CreateComputePipelines(device, default, 1, &computePipelineInfo, null, out var pipeline);
+        // ComputePipeline = pipeline;
+        (ComputePipeline,ComputePipelineLayout)=CreateComputePSO(computeShaderStageInfo,new(layouts,1));
+        CleanupStack.Push(()=>vk.DestroyPipelineLayout(device,ComputePipelineLayout, null));
         CleanupStack.Push(()=>vk.DestroyPipeline(device,ComputePipeline, null));
         
         EnsureMeshRelatedBuffersAreSized();
@@ -151,6 +137,10 @@ public static partial class VKRender
         
         SilkMarshal.FreeString((IntPtr) computeShaderStageInfo.PName);
     }
+    
+    
+    
+    
 
     private static unsafe void UpdateComputeSSBODescriptors(ulong inRange, ulong outRange)
     {

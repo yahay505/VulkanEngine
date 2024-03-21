@@ -38,6 +38,11 @@ public static partial class VKRender
     private static Queue computeQueue;
     private static Queue graphicsQueue;
     private static Queue presentQueue;
+
+    private static EngineWindow mainWindow = null!;
+    
+    
+    
     
     private static KhrSurface khrSurface = null!;
     private static SurfaceKHR surface;

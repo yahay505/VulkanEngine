@@ -5,7 +5,7 @@ using Silk.NET.Vulkan;
 
 namespace VulkanEngine.Renderer;
 [StructLayout( LayoutKind.Sequential)]
-public struct Vertex
+public struct Vertex:IVertexFormat
 {
     public Vector3D<float> pos;//12
     public Vector3D<float> color;//12

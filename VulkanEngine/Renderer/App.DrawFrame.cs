@@ -350,7 +350,7 @@ public static partial class VKRender
 
         var clearValues = stackalloc ClearValue[]
         {
-            new(new(0.125f,0.125f,0.125f,1)),
+            new(new(0f,0f,0f,0.0f)),
             new(null,new(1,0))
         };
         var renderPassInfo = new RenderPassBeginInfo

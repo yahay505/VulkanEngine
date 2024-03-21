@@ -13,11 +13,22 @@ public static partial class VKRender
             Size = new Vector2D<int>(Width, Height),
             Title = "🎉🤯🎉",
             VSync = true,
-        };
-
+            TransparentFramebuffer = true,
+            // WindowBorder = WindowBorder.Hidden,
+            
+            
+        } ;
+   
         window = Window.Create(options);
         window.Initialize();
 
+        
+        
+        
+        Console.WriteLine();
+        
+        
+        
         if (window.VkSurface is null)
         {
             throw new Exception("Windowing platform doesn't support Vulkan.");

@@ -908,7 +908,6 @@ public static partial class VKRender
                 LogicOp = LogicOp.Copy,
                 AttachmentCount = 1,
                 PAttachments = &colorBlendAttachment,
-
             };
 
             colorBlending.BlendConstants[0] = 0;

@@ -18,8 +18,6 @@ using VulkanEngine.Renderer;
 
 public static class Game
 {
-    static CameraData camera = new();
-    static FPSCounter fpsCounter = new(100000);
     private static RenderObject monkey1;
     private static RenderObject monkey2;
     public static IInputContext InputCntx;
