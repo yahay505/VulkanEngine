@@ -23,7 +23,7 @@ public static partial class VKRender
         DeviceInfo=DeviceRequirements.PickPhysicalDevice();
         // Analize
         CreateLogicalDevice();
-        CreateSwapChain();
+        CreateSwapChain(true);
         CreateSwapChainImageViews();
         CreateRenderPass();
         CreateDescriptorSetLayout();

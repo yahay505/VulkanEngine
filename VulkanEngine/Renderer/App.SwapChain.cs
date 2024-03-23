@@ -1,3 +1,4 @@
+using Pastel;
 using Silk.NET.Vulkan;
 
 namespace VulkanEngine.Renderer;
@@ -102,7 +103,7 @@ public static partial class VKRender
         }
     }
 
-    private static unsafe void CreateSwapChain()
+    private static unsafe void CreateSwapChain(bool windowTransparent)
     {
         var swapChainSupport = QuerySwapChainSupport(physicalDevice);
 
@@ -146,16 +147,38 @@ public static partial class VKRender
             creatInfo.ImageSharingMode = SharingMode.Exclusive;
         }
 
+        CompositeAlphaFlagsKHR compositeMode;
+        if (windowTransparent)
+        {
+            var alphaSupport = swapChainSupport.Capabilities.SupportedCompositeAlpha;
+            if ((alphaSupport & (CompositeAlphaFlagsKHR.PostMultipliedBitKhr |
+                                                        CompositeAlphaFlagsKHR.PreMultipliedBitKhr)) == 0)
+            {
+                throw new NotSupportedException("CompositeAlphaFlagsKHR.PostMultipliedBitKhr or CompositeAlphaFlagsKHR.PreMultipliedBitKhr not supported. yet transparency is requested");
+            }
+
+            compositeMode = alphaSupport.HasFlag(CompositeAlphaFlagsKHR.PreMultipliedBitKhr) ? CompositeAlphaFlagsKHR.PreMultipliedBitKhr : CompositeAlphaFlagsKHR.PostMultipliedBitKhr;
+        }
+        else
+        {
+            compositeMode = CompositeAlphaFlagsKHR.OpaqueBitKhr;
+        }
+
+        
+        
         creatInfo = creatInfo with
         {
             PreTransform = swapChainSupport.Capabilities.CurrentTransform,
-            CompositeAlpha = CompositeAlphaFlagsKHR.OpaqueBitKhr,
+            // opaque if not needed, premultiplied if supported, else postmultiplied 
+            CompositeAlpha = compositeMode,
             PresentMode = presentMode,
             Clipped = true,
 
-            OldSwapchain = default
+            OldSwapchain = default //todo pass in old swapchain
         };
 
+        Console.WriteLine($"created swapchain with compositeMode: {compositeMode} and presentMode: {presentMode}".Pastel(ConsoleColor.Green));
+        
         if (!vk.TryGetDeviceExtension(instance, device, out khrSwapChain))
         {
             throw new NotSupportedException("VK_KHR_swapchain extension not found.");
@@ -194,7 +217,7 @@ public static partial class VKRender
 
             CleanUpSwapChainStuff();
 
-            CreateSwapChain();
+            CreateSwapChain(true);
             CreateSwapChainImageViews();
             
             CreateRenderPass();

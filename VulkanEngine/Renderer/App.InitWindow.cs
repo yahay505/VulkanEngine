@@ -1,3 +1,4 @@
+using Pastel;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
 
@@ -19,13 +20,19 @@ public static partial class VKRender
             
         } ;
    
+        Window.PrioritizeGlfw();
         window = Window.Create(options);
         window.Initialize();
+
+        if (!window.TransparentFramebuffer)
+        {
+            throw new Exception("Windowing platform doesn't support transparent.");
+        }
 
         
         
         
-        Console.WriteLine();
+        Console.WriteLine($"window initialized with as {window.GetType()}".Pastel(ConsoleColor.Green));
         
         
         
