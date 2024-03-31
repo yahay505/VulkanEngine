@@ -42,9 +42,10 @@ public static partial class VKRender
     private static EngineWindow mainWindow = null!;
     
     
-    
-    
-    private static KhrSurface khrSurface = null!;
+    private static List<EngineWindow> windows = null!;
+    private static EngineWindow activeWindow = null!;
+
+    private static KhrSurface khrSurface ;
     private static SurfaceKHR surface;
     private static KhrSwapchain khrSwapChain = null!;
     private static SwapchainKHR swapChain;

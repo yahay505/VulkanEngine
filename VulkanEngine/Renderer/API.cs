@@ -1,9 +1,11 @@
 using System.Runtime.CompilerServices;
 using ImGuiNET;
+using Silk.NET.GLFW;
 using Silk.NET.Maths;
 using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.KHR;
 using Silk.NET.Windowing;
+using Image = Silk.NET.Vulkan.Image;
 
 namespace VulkanEngine.Renderer;
 
@@ -121,7 +123,8 @@ public partial class VKRender
 
 
 
-        {// Create Vulkan Surface
+        {
+            // Create Vulkan Surface
             if (!vk.TryGetInstanceExtension(instance, out raw.khrSurface))
             {
                 throw new NotSupportedException("KHR_surface extension not found.");
@@ -151,6 +154,7 @@ public partial class VKRender
 public class EngineWindow
 {
     public IWindow window;
+    public nint Handle;
     public KhrSurface khrSurface;
     public SurfaceKHR surface;
     public int2 size;

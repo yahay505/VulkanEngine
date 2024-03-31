@@ -706,6 +706,8 @@ public static partial class VKRender
     private static unsafe void CreateSwapchainFrameBuffers()
     {
         var imageCount = swapChainImageViews!.Length;
+        
+        throw new NotImplementedException();
         swapChainFramebuffers = new Framebuffer[imageCount];
         for (var i = 0; i < imageCount; i++)
         {
@@ -975,6 +977,8 @@ public static partial class VKRender
     }
     private static unsafe void CreateSwapChainImageViews()
     {
+        
+        throw new NotImplementedException();
         swapChainImageViews = new ImageView[swapChainImages!.Length];
         for (int i = 0; i < swapChainImages.Length; i++)
         {
@@ -984,11 +988,13 @@ public static partial class VKRender
 
     private static unsafe void CreateSurface()
     {
+        throw new NotImplementedException();
         if (!vk.TryGetInstanceExtension<KhrSurface>(instance, out khrSurface))
         {
             throw new NotSupportedException("KHR_surface extension not found.");
         }
-
+        
+        throw new NotImplementedException();
         surface = window!.VkSurface!.Create<AllocationCallbacks>(instance.ToHandle(), null).ToSurface();
     }
 

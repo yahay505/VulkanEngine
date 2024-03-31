@@ -178,25 +178,32 @@ public static partial class VKRender
         };
 
         Console.WriteLine($"created swapchain with compositeMode: {compositeMode} and presentMode: {presentMode}".Pastel(ConsoleColor.Green));
-        
+        throw new NotImplementedException();
+
         if (!vk.TryGetDeviceExtension(instance, device, out khrSwapChain))
         {
             throw new NotSupportedException("VK_KHR_swapchain extension not found.");
         }
-
+        
+        throw new NotImplementedException();
         if (khrSwapChain!.CreateSwapchain(device, creatInfo, null, out swapChain) != Result.Success)
         {
             throw new Exception("failed to create swap chain!");
         }
 
         khrSwapChain.GetSwapchainImages(device, swapChain, ref imageCount, null);
+        
+        throw new NotImplementedException();
         swapChainImages = new Silk.NET.Vulkan.Image[imageCount];
         fixed (Silk.NET.Vulkan.Image* swapChainImagesPtr = swapChainImages)
         {
             khrSwapChain.GetSwapchainImages(device, swapChain, ref imageCount, swapChainImagesPtr);
         }
 
+        throw new NotImplementedException();
         swapChainImageFormat = surfaceFormat.Format;
+        
+        throw new NotImplementedException();
         swapChainExtent = extent;
     
     }
