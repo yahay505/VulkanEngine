@@ -17,12 +17,8 @@ public static partial class VKRender
 {
     private static void InitVulkan()
     {
-        CreateInstance();
-        SetupDebugMessenger();
         CreateSurface();
-        DeviceInfo=DeviceRequirements.PickPhysicalDevice();
         // Analize
-        CreateLogicalDevice();
         CreateSwapChain(true);
         CreateSwapChainImageViews();
         CreateRenderPass();
@@ -46,6 +42,16 @@ public static partial class VKRender
         CreateComputeResources();
         
     }
+
+    public static void InitVulkanFirstPhase()
+    {
+        CreateInstance();
+        SetupDebugMessenger();
+        DeviceInfo=DeviceRequirements.PickPhysicalDevice();
+        CreateLogicalDevice();
+
+    }
+
     //todo remove
     static Image textureImage = default;
     static DeviceMemory textureImageMemory = default;
@@ -703,32 +709,33 @@ public static partial class VKRender
         throw new Exception("failed to find suitable memory type!");
     }
 
-    private static unsafe void CreateSwapchainFrameBuffers()
+    private static unsafe void CreateSwapchainFrameBuffers(EngineWindow window)
     {
-        var imageCount = swapChainImageViews!.Length;
+        var imageCount = window.swapChainImageViews!.Length;
         
-        throw new NotImplementedException();
-        swapChainFramebuffers = new Framebuffer[imageCount];
+        window.swapChainFramebuffers = new Framebuffer[imageCount];
         for (var i = 0; i < imageCount; i++)
         {
-            var attachments = stackalloc[] {swapChainImageViews[i], GlobalData.depthImageView};
+            var attachments = stackalloc[] {window.swapChainImageViews[i], GlobalData.depthImageView};
             var framebufferCreateInfo = new FramebufferCreateInfo
             {
                 SType = StructureType.FramebufferCreateInfo,
                 RenderPass = RenderPass,
                 AttachmentCount = 2,
                 PAttachments = attachments,
-                Width = swapChainExtent.Width,
-                Height = swapChainExtent.Height,
+                Width = window.swapChainExtent.Width,
+                Height = window.swapChainExtent.Height,
                 Layers = 1,
             };
-            vk.CreateFramebuffer(device, framebufferCreateInfo, null, out swapChainFramebuffers[i])
+            vk.CreateFramebuffer(device, framebufferCreateInfo, null, out window.swapChainFramebuffers[i])
                 .Expect("failed to create framebuffer!");
         }
     }
 
-    private static unsafe void CreateRenderPass()
+    private static unsafe void CreateRenderPass(/*EngineWindow window*/)
     {
+        //reason this needs recreation on swapchain:
+        // depth format(as target),swapchainİmagheformat(as target) which never change!!!
         var subpassDependency = new SubpassDependency
         {
             SrcSubpass = Vk.SubpassExternal,
@@ -798,6 +805,7 @@ public static partial class VKRender
 
     private static unsafe void CreateGraphicsPipeline()
     {
+        //depends on renderpass
         byte[] vertexShaderCode = File.ReadAllBytes(AssetsPath+"/shaders/compiled/triangle.vert.spv");
         byte[] fragmentShaderCode = File.ReadAllBytes(AssetsPath+"/shaders/compiled/triangle.frag.spv");
         
@@ -975,27 +983,24 @@ public static partial class VKRender
         }
 
     }
-    private static unsafe void CreateSwapChainImageViews()
+    private static unsafe void CreateSwapChainImageViews(EngineWindow window)
     {
         
-        throw new NotImplementedException();
-        swapChainImageViews = new ImageView[swapChainImages!.Length];
-        for (int i = 0; i < swapChainImages.Length; i++)
+        window.swapChainImageViews = new ImageView[window.swapChainImages!.Length];
+        for (int i = 0; i < window.swapChainImages.Length; i++)
         {
-            swapChainImageViews[i] = CreateImageView(swapChainImages[i], swapChainImageFormat,ImageAspectFlags.ColorBit);
+            window.swapChainImageViews[i] = CreateImageView(window.swapChainImages[i], window.swapChainImageFormat,ImageAspectFlags.ColorBit);
         }
     }
 
-    private static unsafe void CreateSurface()
+    private static unsafe void CreateSurface(EngineWindow window)
     {
-        throw new NotImplementedException();
-        if (!vk.TryGetInstanceExtension<KhrSurface>(instance, out khrSurface))
+        if (!vk.TryGetInstanceExtension<KhrSurface>(instance, out window.khrSurface))
         {
             throw new NotSupportedException("KHR_surface extension not found.");
         }
         
-        throw new NotImplementedException();
-        surface = window!.VkSurface!.Create<AllocationCallbacks>(instance.ToHandle(), null).ToSurface();
+        window.surface = window.window!.VkSurface!.Create<AllocationCallbacks>(instance.ToHandle(), null).ToSurface();
     }
 
 

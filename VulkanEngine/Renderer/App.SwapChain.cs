@@ -5,6 +5,8 @@ namespace VulkanEngine.Renderer;
 
 public static partial class VKRender
 {
+    public static SwapChainSupportDetails deviceSwapChainSupport;
+
     private struct SwapChainSupportDetails
     {
         public SurfaceCapabilitiesKHR Capabilities;
@@ -103,29 +105,28 @@ public static partial class VKRender
         }
     }
 
-    private static unsafe void CreateSwapChain(bool windowTransparent)
+    private static unsafe void CreateSwapChain(EngineWindow window)
     {
-        var swapChainSupport = QuerySwapChainSupport(physicalDevice);
+        deviceSwapChainSupport = QuerySwapChainSupport(physicalDevice);
+        window.surfaceFormat = ChooseSwapSurfaceFormat(deviceSwapChainSupport.Formats);
+        window.presentMode = ChoosePresentMode(deviceSwapChainSupport.PresentModes);
+        window.swapChainExtent = ChooseSwapExtent(deviceSwapChainSupport.Capabilities);
 
-        var surfaceFormat = ChooseSwapSurfaceFormat(swapChainSupport.Formats);
-        var presentMode = ChoosePresentMode(swapChainSupport.PresentModes);
-        var extent = ChooseSwapExtent(swapChainSupport.Capabilities);
-
-        var imageCount = swapChainSupport.Capabilities.MinImageCount + 1;
-        if (swapChainSupport.Capabilities.MaxImageCount > 0 && imageCount > swapChainSupport.Capabilities.MaxImageCount)
+        var imageCount = deviceSwapChainSupport.Capabilities.MinImageCount + 1;
+        if (deviceSwapChainSupport.Capabilities.MaxImageCount > 0 && imageCount > deviceSwapChainSupport.Capabilities.MaxImageCount)
         {
-            imageCount = swapChainSupport.Capabilities.MaxImageCount;
+            imageCount = deviceSwapChainSupport.Capabilities.MaxImageCount;
         }
 
         SwapchainCreateInfoKHR creatInfo = new()
         {
             SType = StructureType.SwapchainCreateInfoKhr,
-            Surface = surface,
+            Surface = window.surface,
 
             MinImageCount = imageCount,
-            ImageFormat = surfaceFormat.Format,
-            ImageColorSpace = surfaceFormat.ColorSpace,
-            ImageExtent = extent,
+            ImageFormat = window.surfaceFormat.Format,
+            ImageColorSpace = window.surfaceFormat.ColorSpace,
+            ImageExtent = window.swapChainExtent,
             ImageArrayLayers = 1,
             ImageUsage = ImageUsageFlags.ColorAttachmentBit,
         };
@@ -148,9 +149,9 @@ public static partial class VKRender
         }
 
         CompositeAlphaFlagsKHR compositeMode;
-        if (windowTransparent)
+        if (window.transparency)
         {
-            var alphaSupport = swapChainSupport.Capabilities.SupportedCompositeAlpha;
+            var alphaSupport = deviceSwapChainSupport.Capabilities.SupportedCompositeAlpha;
             if ((alphaSupport & (CompositeAlphaFlagsKHR.PostMultipliedBitKhr |
                                                         CompositeAlphaFlagsKHR.PreMultipliedBitKhr)) == 0)
             {
@@ -168,64 +169,59 @@ public static partial class VKRender
         
         creatInfo = creatInfo with
         {
-            PreTransform = swapChainSupport.Capabilities.CurrentTransform,
+            PreTransform = deviceSwapChainSupport.Capabilities.CurrentTransform,
             // opaque if not needed, premultiplied if supported, else postmultiplied 
             CompositeAlpha = compositeMode,
-            PresentMode = presentMode,
+            PresentMode = window.presentMode,
             Clipped = true,
 
             OldSwapchain = default //todo pass in old swapchain
         };
 
-        Console.WriteLine($"created swapchain with compositeMode: {compositeMode} and presentMode: {presentMode}".Pastel(ConsoleColor.Green));
-        throw new NotImplementedException();
+        Console.WriteLine($"created swapchain with compositeMode: {compositeMode} and presentMode: {window.presentMode}".Pastel(ConsoleColor.Green));
 
-        if (!vk.TryGetDeviceExtension(instance, device, out khrSwapChain))
+        if (!vk.TryGetDeviceExtension(instance, device, out window.khrSwapChain))
         {
             throw new NotSupportedException("VK_KHR_swapchain extension not found.");
         }
         
-        throw new NotImplementedException();
-        if (khrSwapChain!.CreateSwapchain(device, creatInfo, null, out swapChain) != Result.Success)
+        if (khrSwapChain!.CreateSwapchain(device, creatInfo, null, out window.swapChain) != Result.Success)
         {
             throw new Exception("failed to create swap chain!");
         }
 
-        khrSwapChain.GetSwapchainImages(device, swapChain, ref imageCount, null);
+        khrSwapChain.GetSwapchainImages(device, window.swapChain, ref imageCount, null);
         
-        throw new NotImplementedException();
-        swapChainImages = new Silk.NET.Vulkan.Image[imageCount];
-        fixed (Silk.NET.Vulkan.Image* swapChainImagesPtr = swapChainImages)
+        window.swapChainImages = new Silk.NET.Vulkan.Image[imageCount];
+        fixed (Silk.NET.Vulkan.Image* swapChainImagesPtr = window.swapChainImages)
         {
-            khrSwapChain.GetSwapchainImages(device, swapChain, ref imageCount, swapChainImagesPtr);
+            khrSwapChain.GetSwapchainImages(device, window.swapChain, ref imageCount, swapChainImagesPtr);
         }
 
-        throw new NotImplementedException();
-        swapChainImageFormat = surfaceFormat.Format;
+        window.swapChainImageFormat = window.surfaceFormat.Format;
         
-        throw new NotImplementedException();
-        swapChainExtent = extent;
     
     }
 
-    private static void RecreateSwapChain()
+    private static void RecreateSwapChain(EngineWindow window)
     {
+        // swapchain,imageviews,renderpass,depth,pipeline,framebuffer
         unsafe
         {
-            var framebufferSize = window!.FramebufferSize;
+            var framebufferSize = window.window!.FramebufferSize;
 
             while (framebufferSize.X == 0 || framebufferSize.Y == 0)
             {
-                framebufferSize = window.FramebufferSize;
-                window.DoEvents();
+                framebufferSize = window.window.FramebufferSize;
+                window.window.DoEvents();
             }
 
             vk.DeviceWaitIdle(device);
 
-            CleanUpSwapChainStuff();
+            CleanUpSwapChainStuff(window);
 
-            CreateSwapChain(true);
-            CreateSwapChainImageViews();
+            CreateSwapChain(window);
+            CreateSwapChainImageViews(window);
             
             CreateRenderPass();
             CreateDepthResources();

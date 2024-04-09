@@ -40,12 +40,20 @@
       <PackageReference Include="SixLabors.ImageSharp" Version="3.1.3" />
       <PackageReference Include="Hardware.Info" Version="100.0.1.1" />
     </ItemGroup>
-
+<!--    -->
+<!--    <ItemGroup Condition="Platform=='Mac'">-->
+<!--        <ProjectReference Include="..\MacLib\MacLib.csproj" />-->
+<!--    </ItemGroup>-->
+<!--    -->
+    
+    
     <ItemGroup><!--      <Folder Include="Assets\shaders\compiled\" />-->
     
       <Folder Include="Assets\shaders\compiled\" />
     
       <Folder Include="JoltPhysics\" />
     </ItemGroup>
+
+
 
 </Project>

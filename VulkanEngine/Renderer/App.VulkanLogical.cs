@@ -37,8 +37,8 @@ public static partial class VKRender
         var next = new PhysicalDeviceDescriptorIndexingFeatures()
         {
             SType = StructureType.PhysicalDeviceDescriptorIndexingFeatures,
-DescriptorBindingStorageBufferUpdateAfterBind = true,
-DescriptorBindingUpdateUnusedWhilePending = true,
+            DescriptorBindingStorageBufferUpdateAfterBind = true,
+            DescriptorBindingUpdateUnusedWhilePending = true,
         };
         DeviceCreateInfo createInfo = new()
         {

@@ -11,6 +11,6 @@ static class Program
         // Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.High;
         Console.OutputEncoding=Encoding.UTF8;
         Console.WriteLine("Hello, World!");
-        Game.Run();
+        EngineStart.StartEngine();
     }
 }

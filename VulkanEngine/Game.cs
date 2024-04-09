@@ -24,26 +24,9 @@ public static class Game
 
     public static void Run()
     {
-        foreach (var type in System.Reflection.Assembly.GetCallingAssembly().GetTypes())
-        {
-          RuntimeHelpers.RunClassConstructor(type.TypeHandle);
-        }
+   
         
         
-        MIT.Start();
-        
-        RegisterJobs.LoadTest(); //reference to call static constructor
-        // Scheduler.Run(LoadTestLoop());
-
-        
-        
-        CompileShadersTEMP();
-        VKRender.InitializeRenderer(out InputCntx);
-        Input.Input.Init(InputCntx);
-
-
-
-        ECS.RegisterSystem(MeshComponent._data,typeof(MeshComponent));
         var CameraTarget = CreateEntity();
         var CamTargetTransform=TransformSystem.AddItemWithGlobalID(CameraTarget);
         
@@ -87,11 +70,6 @@ public static class Game
         
         Scheduler.Run(Gameloop());
         
-        
-        
-        
-        VKRender.vk.DeviceWaitIdle(VKRender.device);
-        VKRender.CleanUp();
     }
 
     static IEnumerable<string> LoadTestLoop()
@@ -120,42 +98,6 @@ public static class Game
         yield return "LOADTEST";
         // Console.WriteLine($"LoadTestLoop took {stopwatch.ElapsedMilliseconds}ms");
     }
-    private static void CompileShadersTEMP()
-    {
-        //if env has renderdoc return early
-        if (Environment.GetEnvironmentVariable("RENDERDOCeee") != null)
-        {
-            return;
-        }
-        //glslc
-        ///Users/yavuz/VulkanSDK/1.3.261.1/macOS/bin/glslc triangle.vert -o vert.spv
-         //   /Users/yavuz/VulkanSDK/1.3.261.1/macOS/bin/glslc triangle.frag -o frag.spv
-
-         var www=new[]
-             {
-                 "*.vert",
-                 "*.frag",
-                 "*.comp",
-             }.SelectMany(search_string => Directory.GetFiles(VKRender.AssetsPath + "/shaders",
-                 search_string,
-                 SearchOption.AllDirectories))
-             .Select(in_name =>
-             {
-
-                 var out_name = VKRender.AssetsPath + "/shaders/compiled" +
-                                in_name[((VKRender.AssetsPath + "/shaders").Length)..] + ".spv";
-
-                 return Process.Start("glslc", $@"{in_name} -o {out_name}");
-             }).ToArray();
-         // wait for all in parallel
-            foreach (var process in www)
-            {
-                process.WaitForExit();
-            }
-
-    }
-
-   
 
 
     

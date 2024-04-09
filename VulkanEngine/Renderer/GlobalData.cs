@@ -24,7 +24,7 @@ public static partial class VKRender
         public static unsafe GPUStructs.ComputeInputConfig* DEBUG_deviceRenderObjectsBufferCONFIG =>
             (GPUStructs.ComputeInputConfig*) DEBUG_deviceRenderObjectsBufferPtr;
         public static unsafe Span<GPUStructs.ComputeInput> DEBUG_deviceRenderObjectsBufferDATAAsSpan=>new((void*)
-            ((UIntPtr) DEBUG_deviceRenderObjectsBufferPtr+ComputeInSSBOStartOffset), deviceRenderObjectsBufferSize);
+            ((nuint) DEBUG_deviceRenderObjectsBufferPtr+ComputeInSSBOStartOffset), deviceRenderObjectsBufferSize);
 
         public static Buffer deviceIndirectDrawBuffer;
         public static DeviceMemory deviceIndirectDrawBufferMemory;

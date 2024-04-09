@@ -71,7 +71,7 @@ public static partial class VKRender
 
 
     public static int CurrentFrame = 0;
-    static int CurrentFrameIndex = 0;
+    public static int CurrentFrameIndex = 0;
     static bool FramebufferResized = false;
     
     public static FrameData[] FrameData = null!;
@@ -91,6 +91,7 @@ public static partial class VKRender
     public static ImGuiController imGuiController = null!;
     public static void InitializeRenderer(out IInputContext inputContext)
     {
+        InitVulkanFirstPhase();
         InitWindow();
         LoadMesh(AssetsPath+"/models/model.obj");
         InitVulkan();

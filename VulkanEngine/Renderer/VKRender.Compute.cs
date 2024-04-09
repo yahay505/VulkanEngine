@@ -261,8 +261,7 @@ public static partial class VKRender
             var currentDeviceIndirectDrawBuffer = GlobalData.deviceIndirectDrawBuffer;
             var currentDeviceIndirectDrawBufferMemory = GlobalData.deviceIndirectDrawBufferMemory;
 
-            FrameCleanup
-                    [(CurrentFrameIndex + FRAME_OVERLAP - 1) % FRAME_OVERLAP] // to be deleted once the last frame to utilize them is completed
+            FrameCleanup[CurrentFrameIndex] // to be deleted once the last frame to utilize them is completed
                 += () =>
                 {
                     CleanupDeviceRenderObjectMemory(currentDeviceRenderObjectsBuffer,
