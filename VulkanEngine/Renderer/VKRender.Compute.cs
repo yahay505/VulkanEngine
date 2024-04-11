@@ -384,7 +384,7 @@ public static partial class VKRender
 
     private static unsafe void RegisterBufferForCleanup(Buffer buffer, DeviceMemory memory)
     {
-        FrameCleanup[CurrentFrameIndex + FRAME_OVERLAP - 1 % FRAME_OVERLAP] 
+        FrameCleanup[(CurrentFrameIndex + FRAME_OVERLAP - 1) % FRAME_OVERLAP] 
             += () => CleanupBufferImmediately(buffer, memory);
     }
     private static unsafe void CleanupBufferImmediately(Buffer buffer, DeviceMemory memory)

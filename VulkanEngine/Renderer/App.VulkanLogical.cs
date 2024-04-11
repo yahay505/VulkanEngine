@@ -6,7 +6,7 @@ namespace VulkanEngine.Renderer;
 
 public static partial class VKRender
 {
-    private static DeviceInfo.QueueFamilyIndices _familyIndices=>DeviceInfo.indices;
+    public static DeviceInfo.QueueFamilyIndices _familyIndices=>DeviceInfo.indices;
 
     private static unsafe void CreateLogicalDevice()
     {

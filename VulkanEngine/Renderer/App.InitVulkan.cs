@@ -15,13 +15,13 @@ namespace VulkanEngine.Renderer;
 
 public static partial class VKRender
 {
-    private static void InitVulkan()
+    public static void InitVulkan()
     {
-        CreateSurface();
-        // Analize
-        CreateSwapChain(true);
-        CreateSwapChainImageViews();
-        CreateRenderPass();
+        // CreateSurface();
+        // // Analize
+        // CreateSwapChain(true);
+        // CreateSwapChainImageViews();
+        CreateRenderPass(mainWindow);
         CreateDescriptorSetLayout();
         CreateGraphicsPipeline();
 
@@ -30,7 +30,7 @@ public static partial class VKRender
         
         
         CreateDepthResources();
-        CreateSwapchainFrameBuffers();
+        // CreateSwapchainFrameBuffers();
         CreateTextureImage();
         
         CreateTextureImageView();
@@ -43,11 +43,15 @@ public static partial class VKRender
         
     }
 
-    public static void InitVulkanFirstPhase()
+
+    public static unsafe void InitVulkanFirstPhase(byte** ppExt, int extC)
     {
-        CreateInstance();
+        CreateInstance(ppExt,extC);
         SetupDebugMessenger();
-        DeviceInfo=DeviceRequirements.PickPhysicalDevice();
+    }
+    public static void InitVulkanSecondPhase(SurfaceKHR surface)
+    {
+        DeviceInfo=DeviceRequirements.PickPhysicalDevice(surface);
         CreateLogicalDevice();
 
     }
@@ -157,20 +161,20 @@ public static partial class VKRender
 
     private static unsafe void CreateDepthResources()
     {
-        GlobalData.depthFormat = FindDepthFormat();
-        Format depthFormat = GlobalData.depthFormat;
-        fixed(Image* pDepthImage = &GlobalData.depthImage)
-        fixed(DeviceMemory* pDepthImageMemory= &GlobalData.depthImageMemory)
-            CreateImage(swapChainExtent.Width,
-                swapChainExtent.Height,
-                depthFormat,
+        
+        var format = FindDepthFormat();
+  
+        fixed(ScreenSizedImage* pssi = &mainWindow.depthImage)
+            CreateImage(mainWindow.size.Width,
+                mainWindow.size.Height,
+                format,
                 ImageTiling.Optimal,
                 ImageUsageFlags.DepthStencilAttachmentBit,
                 MemoryPropertyFlags.DeviceLocalBit,
-                pDepthImage,
-                pDepthImageMemory);
-        GlobalData.depthImageView = CreateImageView(GlobalData.depthImage, depthFormat, ImageAspectFlags.DepthBit);
-        TransitionImageLayout(GlobalData.depthImage, depthFormat, ImageLayout.Undefined, ImageLayout.DepthStencilAttachmentOptimal);
+                &pssi->Image,
+                &pssi->DeviceMemory);
+        mainWindow.depthImage.ImageView = CreateImageView(mainWindow.depthImage.Image, format, ImageAspectFlags.DepthBit);
+        TransitionImageLayout(mainWindow.depthImage.Image, format, ImageLayout.Undefined, ImageLayout.DepthStencilAttachmentOptimal);
     }
 
     private static Format FindDepthFormat()
@@ -708,31 +712,31 @@ public static partial class VKRender
         }
         throw new Exception("failed to find suitable memory type!");
     }
+    //
+    // private static unsafe void CreateSwapchainFrameBuffers(EngineWindow window)
+    // {
+    //     var imageCount = window.swapChainImageViews!.Length;
+    //     
+    //     window.swapChainFramebuffers = new Framebuffer[imageCount];
+    //     for (var i = 0; i < imageCount; i++)
+    //     {
+    //         var attachments = stackalloc[] {window.swapChainImageViews[i], GlobalData.depthImageView};
+    //         var framebufferCreateInfo = new FramebufferCreateInfo
+    //         {
+    //             SType = StructureType.FramebufferCreateInfo,
+    //             RenderPass = RenderPass,
+    //             AttachmentCount = 2,
+    //             PAttachments = attachments,
+    //             Width = window.swapChainExtent.Width,
+    //             Height = window.swapChainExtent.Height,
+    //             Layers = 1,
+    //         };
+    //         vk.CreateFramebuffer(device, framebufferCreateInfo, null, out window.swapChainFramebuffers[i])
+    //             .Expect("failed to create framebuffer!");
+    //     }
+    // }
 
-    private static unsafe void CreateSwapchainFrameBuffers(EngineWindow window)
-    {
-        var imageCount = window.swapChainImageViews!.Length;
-        
-        window.swapChainFramebuffers = new Framebuffer[imageCount];
-        for (var i = 0; i < imageCount; i++)
-        {
-            var attachments = stackalloc[] {window.swapChainImageViews[i], GlobalData.depthImageView};
-            var framebufferCreateInfo = new FramebufferCreateInfo
-            {
-                SType = StructureType.FramebufferCreateInfo,
-                RenderPass = RenderPass,
-                AttachmentCount = 2,
-                PAttachments = attachments,
-                Width = window.swapChainExtent.Width,
-                Height = window.swapChainExtent.Height,
-                Layers = 1,
-            };
-            vk.CreateFramebuffer(device, framebufferCreateInfo, null, out window.swapChainFramebuffers[i])
-                .Expect("failed to create framebuffer!");
-        }
-    }
-
-    private static unsafe void CreateRenderPass(/*EngineWindow window*/)
+    private static unsafe void CreateRenderPass(EngineWindow window)
     {
         //reason this needs recreation on swapchain:
         // depth format(as target),swapchainİmagheformat(as target) which never change!!!
@@ -767,7 +771,7 @@ public static partial class VKRender
         
         var colorAttachment = new AttachmentDescription
         {
-            Format = swapChainImageFormat,
+            Format = window.swapChainImageFormat,
             Samples = SampleCountFlags.Count1Bit,
             LoadOp = AttachmentLoadOp.Clear,
             StoreOp = AttachmentStoreOp.Store,
@@ -983,30 +987,30 @@ public static partial class VKRender
         }
 
     }
-    private static unsafe void CreateSwapChainImageViews(EngineWindow window)
+    // private static unsafe void CreateSwapChainImageViews(EngineWindow window)
+    // {
+    //     
+    //     window.swapChainImageViews = new ImageView[window.swapChainImages!.Length];
+    //     for (int i = 0; i < window.swapChainImages.Length; i++)
+    //     {
+    //         window.swapChainImageViews[i] = CreateImageView(window.swapChainImages[i], window.swapChainImageFormat,ImageAspectFlags.ColorBit);
+    //     }
+    // }
+
+    // private static unsafe void CreateSurface(EngineWindow window)
+    // {
+    //     if (!vk.TryGetInstanceExtension<KhrSurface>(instance, out khrSurface))
+    //     {
+    //         throw new NotSupportedException("KHR_surface extension not found.");
+    //     }
+    //     
+    //     window.surface = window.window!.VkSurface!.Create<AllocationCallbacks>(instance.ToHandle(), null).ToSurface();
+    // }
+
+
+    private static unsafe void CreateInstance(byte** ppExt, int extC)
     {
         
-        window.swapChainImageViews = new ImageView[window.swapChainImages!.Length];
-        for (int i = 0; i < window.swapChainImages.Length; i++)
-        {
-            window.swapChainImageViews[i] = CreateImageView(window.swapChainImages[i], window.swapChainImageFormat,ImageAspectFlags.ColorBit);
-        }
-    }
-
-    private static unsafe void CreateSurface(EngineWindow window)
-    {
-        if (!vk.TryGetInstanceExtension<KhrSurface>(instance, out window.khrSurface))
-        {
-            throw new NotSupportedException("KHR_surface extension not found.");
-        }
-        
-        window.surface = window.window!.VkSurface!.Create<AllocationCallbacks>(instance.ToHandle(), null).ToSurface();
-    }
-
-
-    private static unsafe void CreateInstance()
-    {
-        vk = Vk.GetApi();
 
         if (EnableValidationLayers && !CheckValidationLayerSupport())
         {
@@ -1028,7 +1032,7 @@ public static partial class VKRender
         createInfo.SType = StructureType.InstanceCreateInfo;
         createInfo.PApplicationInfo = &appInfo;
 
-        var extensions = GetRequiredInstanceExtensions();
+        var extensions = GetRequiredInstanceExtensions(ppExt,extC);
 #if MAC
         extensions = extensions.Append("VK_KHR_portability_enumeration").ToArray();
 #endif
@@ -1060,6 +1064,10 @@ public static partial class VKRender
         {
             throw new Exception("failed to create instance!");
         }
+        
+
+
+            
 
         Marshal.FreeHGlobal((IntPtr)appInfo.PApplicationName);
         Marshal.FreeHGlobal((IntPtr)appInfo.PEngineName);
@@ -1076,12 +1084,12 @@ public static partial class VKRender
         if (!EnableValidationLayers) return;
 
         //TryGetInstanceExtension equivalent to method CreateDebugUtilsMessengerEXT from original tutorial.
-        if (!vk.TryGetInstanceExtension(instance, out debugUtils)) return;
+        if (!vk.TryGetInstanceExtension(instance, out debugUtils!)) return;
 
         DebugUtilsMessengerCreateInfoEXT createInfo = new();
         PopulateDebugMessengerCreateInfo(ref createInfo);
-
-        if (debugUtils!.CreateDebugUtilsMessenger(instance, in createInfo, null, out debugMessenger) != Result.Success)
+        
+        if (debugUtils.CreateDebugUtilsMessenger(instance, & createInfo, null, out debugMessenger) != Result.Success)
         {
             throw new Exception("failed to set up debug messenger!");
         }
@@ -1102,12 +1110,13 @@ public static partial class VKRender
 
     private static readonly string[] requiredInstanceExtensions = {
     };
-    private static unsafe string[] GetRequiredInstanceExtensions()
+    private static unsafe string[] GetRequiredInstanceExtensions(byte** requiredWindowExtensions,int count)
     {
-        var glfwExtensions = window!.VkSurface!.GetRequiredExtensions(out var glfwExtensionCount);
-        var extensions = SilkMarshal.PtrToStringArray((nint)glfwExtensions, (int)glfwExtensionCount)!
+        
+        var glfwExtensions = requiredWindowExtensions;
+        var extensions = SilkMarshal.PtrToStringArray((nint)glfwExtensions, (int)count)!
             .Concat(requiredInstanceExtensions)
-        #if mac
+        #if MAC
         .Append("VK_KHR_portability_enumeration")
         #endif
             .ToArray();

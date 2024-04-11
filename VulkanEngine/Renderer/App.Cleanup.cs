@@ -45,7 +45,7 @@ public static partial class VKRender
             debugUtils!.DestroyDebugUtilsMessenger(instance, debugMessenger, null);
         }
 
-        khrSurface!.DestroySurface(instance, surface, null);
+        khrSurface!.DestroySurface(instance, mainWindow.surface, null);
         vk.DestroyInstance(instance, null);
         vk.Dispose();
 
@@ -54,11 +54,10 @@ public static partial class VKRender
 
     private static unsafe void CleanUpSwapChainStuff()
     {
-        foreach (var framebuffer in swapChainFramebuffers!)
+        foreach (var image in mainWindow.SwapChainImages)
         {
-            vk.DestroyFramebuffer(device, framebuffer, null);
+            image.DestroyImmediate();
         }
-
         // for (int i = 0; i < FRAME_OVERLAP; i++)
         // {
         //     fixed (FrameData* frameData = &FrameData[i])
@@ -71,15 +70,8 @@ public static partial class VKRender
         vk.DestroyPipelineLayout(device, GfxPipelineLayout, null);
         vk.DestroyRenderPass(device, RenderPass, null);
         
-        vk.DestroyImage(device, GlobalData.depthImage,null);
-        vk.FreeMemory(device, GlobalData.depthImageMemory,null);
-        vk.DestroyImageView(device, GlobalData.depthImageView,null);
+        mainWindow.depthImage.DestroyImmediate();
         
-        foreach (var imageView in swapChainImageViews!)
-        {
-            vk.DestroyImageView(device, imageView, null);
-        }
-
-        khrSwapChain!.DestroySwapchain(device, swapChain, null);
+        khrSwapChain!.DestroySwapchain(device, mainWindow.swapChain, null);
     }
 }

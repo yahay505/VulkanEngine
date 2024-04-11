@@ -67,7 +67,7 @@ public static class DeviceRequirements
     }
     
 
-    public static unsafe DeviceInfo PickPhysicalDevice()
+    public static unsafe DeviceInfo PickPhysicalDevice(SurfaceKHR surface)
     {
             
         uint deviceCount = 0;
@@ -84,7 +84,7 @@ public static class DeviceRequirements
         for (int i = 0; i < deviceCount; i++)
         {
             dev_res_list[i] = new DeviceInfo(device: dev_list[i]);
-            GatherPhysicalDeviceData(dev_res_list[i]);
+            GatherPhysicalDeviceData(dev_res_list[i], surface);
         }
         var bestScore = -1;
         var bestDevice = dev_res_list[0];
@@ -115,47 +115,44 @@ public static class DeviceRequirements
         return bestDevice;
     }
                    
-    static unsafe void FindQueueFamilies(DeviceInfo deviceInfo)
+    static unsafe void FindQueueFamilies(DeviceInfo deviceInfo, SurfaceKHR surface)
     {
-        ref var device =ref deviceInfo.device;
-        ref var indices = ref deviceInfo.indices;
-
         uint queueFamilityCount = 0;
-        vk.GetPhysicalDeviceQueueFamilyProperties(device, ref queueFamilityCount, null);
+        vk.GetPhysicalDeviceQueueFamilyProperties(deviceInfo.device, ref queueFamilityCount, null);
 
         var queueFamilies = stackalloc QueueFamilyProperties[(int)queueFamilityCount];
 
-        vk.GetPhysicalDeviceQueueFamilyProperties(device, ref queueFamilityCount, queueFamilies);
+        vk.GetPhysicalDeviceQueueFamilyProperties(deviceInfo.device, ref queueFamilityCount, queueFamilies);
             
         for (uint i=0;i<queueFamilityCount;i++)
         {
             var queueFamily = queueFamilies[i];
             if (queueFamily.QueueFlags.HasFlag(QueueFlags.GraphicsBit))
             {
-                indices.graphicsFamily = i;
+                deviceInfo.indices.graphicsFamily = i;
             }
             Bool32 presentSupport = false;
-            khrSurface!.GetPhysicalDeviceSurfaceSupport(device, i, surface, &presentSupport);
+            khrSurface.GetPhysicalDeviceSurfaceSupport(deviceInfo.device, i, surface, out presentSupport);
             if (presentSupport)
             {
-                indices.presentFamily = i;
+                deviceInfo.indices.presentFamily = i;
             }
             if (queueFamily.QueueFlags.HasFlag(QueueFlags.TransferBit))
-            {
-                indices.transferFamily = i;
+            { 
+                deviceInfo.indices.transferFamily = i;
             }
             if (queueFamily.QueueFlags.HasFlag(QueueFlags.ComputeBit))
             {
-                indices.computeFamily = i;
+                deviceInfo.indices.computeFamily = i;
             }
             // queueFamily.
-            if (indices.IsComplete())
+            if (deviceInfo.indices.IsComplete())
             {
                 break;
             }
         }
         //get device name
-        var properties = vk.GetPhysicalDeviceProperties(device);
+        var properties = vk.GetPhysicalDeviceProperties(deviceInfo.device);
         //write all families
         Console.WriteLine($"all families for device({properties.DeviceType.ToString()}) {SilkMarshal.PtrToString((nint) properties.DeviceName)} id:{properties.DeviceID}");
         Console.WriteLine();
@@ -165,18 +162,18 @@ public static class DeviceRequirements
         }
         Console.WriteLine();
         Console.WriteLine("selceted families:");
-        Console.WriteLine($"graphicsFamily:{indices.graphicsFamily}");
-        Console.WriteLine($"presentFamily:{indices.presentFamily}");
-        Console.WriteLine($"transferFamily:{indices.transferFamily}");
-        Console.WriteLine($"computeFamily:{indices.computeFamily}");
+        Console.WriteLine($"graphicsFamily:{deviceInfo.indices.graphicsFamily}");
+        Console.WriteLine($"presentFamily:{deviceInfo.indices.presentFamily}");
+        Console.WriteLine($"transferFamily:{deviceInfo.indices.transferFamily}");
+        Console.WriteLine($"computeFamily:{deviceInfo.indices.computeFamily}");
         Console.WriteLine();
     }
 
-    static unsafe void GatherPhysicalDeviceData(DeviceInfo deviceInfo)
+    static unsafe void GatherPhysicalDeviceData(DeviceInfo deviceInfo, SurfaceKHR surface)
 {
     
     ref var device = ref deviceInfo.device;
-    FindQueueFamilies(deviceInfo);
+    FindQueueFamilies(deviceInfo,surface);
     var descriptorIndexingFeatures = new PhysicalDeviceDescriptorIndexingFeatures()
     {
         SType = StructureType.PhysicalDeviceDescriptorIndexingFeatures,

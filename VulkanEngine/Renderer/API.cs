@@ -16,7 +16,7 @@ public partial class VKRender
     // {
     //     return new Mesh();
     // }
-    public static void SetCamera(Transform_ref transform, VulkanEngine.CameraData camera)
+    public static void SetCamera(Transform_ref transform, VulkanEngine.CameraData camera, int2 windowSize)
     {
         // Console.WriteLine($"{transform.world_position} {transform.forward} {transform.up} {camera.fov} {camera.nearPlaneDistance} {camera.farPlaneDistance}");
         ImGui.Begin("SetCamera");
@@ -29,7 +29,7 @@ public partial class VKRender
                 // new float3(0,0,0),
                 transform.up),
             proj = Matrix4X4.CreatePerspectiveFieldOfView(Scalar.DegreesToRadians(camera.fov),
-                (float) swapChainExtent.Width / swapChainExtent.Height, camera.nearPlaneDistance, camera.farPlaneDistance),
+                ((float) windowSize.X) / windowSize.Y, camera.nearPlaneDistance, camera.farPlaneDistance),
         };
         currentCamera.proj.M22 *= -1;
         ImGui.Text($"Camera view:\n {currentCamera.view.Row1:F3}\n{currentCamera.view.Row2:F3}\n{currentCamera.view.Row3:F3}\n{currentCamera.view.Row4:F3}");
@@ -112,7 +112,7 @@ public partial class VKRender
         return CreateWindowRaw(options);
     }
     
-    public static EngineWindow CreateWindowRaw(
+    public static unsafe EngineWindow CreateWindowRaw(
         WindowOptions options
     )
     {
@@ -123,16 +123,21 @@ public partial class VKRender
         Console.WriteLine($"window named {options.Title} initialized with as {type} ");
         
         {
+            // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+
             // Create Vulkan Surface
-            if (!vk.TryGetInstanceExtension(instance, out raw.khrSurface))
+            if (!vk!.TryGetInstanceExtension(instance, out khrSurface))
             {
                 throw new NotSupportedException("KHR_surface extension not found.");
             }
-
+    
+            if(device.Handle==default) InitVulkanFirstPhase(raw.window!.VkSurface!.GetRequiredExtensions(out var extC),(int)extC);
             unsafe
             {
                 raw.surface = raw.window!.VkSurface!.Create<AllocationCallbacks>(instance.ToHandle(), null).ToSurface();
             }
+            if(device.Handle==default) InitVulkanSecondPhase(raw.surface);
+
         }
         
         
@@ -147,19 +152,17 @@ public partial class VKRender
     public static void CreateSwapchain(
         EngineWindow window,
         bool preferMailbox
-
-
     )
     {
         unsafe
         {
-
-
-            deviceSwapChainSupport = QuerySwapChainSupport(physicalDevice);
+            
+            deviceSwapChainSupport = QuerySwapChainSupport(physicalDevice,window.surface);
             window.surfaceFormat = ChooseSwapSurfaceFormat(deviceSwapChainSupport.Formats);
             window.presentMode = ChoosePresentMode(deviceSwapChainSupport.PresentModes);
             window.size = ChooseSwapExtent(deviceSwapChainSupport.Capabilities);
 
+            window.swapChainImageFormat = window.surfaceFormat.Format;
 
 
             var imageCount = deviceSwapChainSupport.Capabilities.MinImageCount + 1;
@@ -182,10 +185,10 @@ public partial class VKRender
                 ImageUsage = ImageUsageFlags.ColorAttachmentBit,
             };
 
-            var indices = DeviceInfo.indices;
-            var queueFamilyIndices = stackalloc[] {indices.graphicsFamily!.Value, indices.presentFamily!.Value};
+            var queueFamilyIndices = stackalloc[] {DeviceInfo.indices.graphicsFamily!.Value, DeviceInfo.indices.presentFamily!.Value};
 
-            if (indices.graphicsFamily != indices.presentFamily)
+             window.swapchainImagesShared = DeviceInfo.indices.graphicsFamily != DeviceInfo.indices.presentFamily;
+            if (window.swapchainImagesShared)
             {
                 creatInfo = creatInfo with
                 {
@@ -248,57 +251,131 @@ public partial class VKRender
 
             khrSwapChain.GetSwapchainImages(device, window.swapChain, ref imageCount, null).Expect();
 
-            window.swapChainImages = new Silk.NET.Vulkan.Image[imageCount];
-            fixed (Silk.NET.Vulkan.Image* swapChainImagesPtr = window.swapChainImages)
+            window.SwapChainImages = new ScreenSizedImage[imageCount];
+            
+            var tmp_swapchain = stackalloc Silk.NET.Vulkan.Image[(int)imageCount];
+
+            khrSwapChain.GetSwapchainImages(device, window.swapChain, ref imageCount, tmp_swapchain);
+            
+            
+            for (int i = 0; i < imageCount; i++)
             {
-                khrSwapChain.GetSwapchainImages(device, window.swapChain, ref imageCount, swapChainImagesPtr);
+                var imageview = CreateImageView(tmp_swapchain[i], window.swapChainImageFormat, ImageAspectFlags.ColorBit);
+                
+                window.SwapChainImages[i] = new ScreenSizedImage(
+                    window.size.ToInt2(),
+                    window.swapChainImageFormat,
+                    false,
+                    tmp_swapchain[i], 
+                    default,
+                    default,
+                    default,
+                    imageview,
+                    CurrentFrame);
+                
             }
-
-            window.swapChainImageFormat = window.surfaceFormat.Format;
-
-
         }
     }
 
-    public static void ResizeSwapChain(EngineWindow window, int2 size)
+    public static unsafe void ResizeSwapChain(EngineWindow window, int2 size)
     {
         // we should not be touching in use items
         // vk.DeviceWaitIdle(device);
         
         // queue swap chain image/view/depth/framebuff cleanup
-        CleanUpSwapChainStuff(window);
-
-        CreateSwapChain(window);
-        CreateSwapChainImageViews(window);
-            
-        // CreateRenderPass();
-        CreateDepthResources();
-        
-        // CreateGraphicsPipeline();
-        CreateSwapchainFrameBuffers();
-    }
-
-
-    public static ScreenSizedImage CreateScreenSizedImage(
-    )
-    {
-        
-        
-        
-        return new()
+        window.resizeFrameNo = CurrentFrame;
+        var a = new SwapchainCreateInfoKHR()
         {
+            SType = StructureType.SwapchainCreateInfoKhr,
+            Surface = window.surface,
+
+            MinImageCount = (uint) window.SwapChainImages.Length,
+            ImageFormat = window.surfaceFormat.Format,
+            ImageColorSpace = window.surfaceFormat.ColorSpace,
+            ImageExtent = window.size,
+            ImageArrayLayers = 1,
+            ImageUsage = ImageUsageFlags.ColorAttachmentBit,
             
+            
+            PreTransform = deviceSwapChainSupport.Capabilities.CurrentTransform,
+            // opaque if not needed, premultiplied if supported, else postmultiplied 
+            CompositeAlpha = window.composeAlpha,
+            PresentMode = window.presentMode,
+            Clipped = true,
+
+
+            OldSwapchain = window.swapChain 
+        };
+        
+        var queueFamilyIndices = stackalloc[] {DeviceInfo.indices.graphicsFamily!.Value, DeviceInfo.indices.presentFamily!.Value};
+
+        if (window.swapchainImagesShared)
+        {
+            a = a with
+            {
+                ImageSharingMode = SharingMode.Concurrent,
+                QueueFamilyIndexCount = 2,
+                PQueueFamilyIndices = queueFamilyIndices,
+            };
+        }
+        else
+        {
+            a.ImageSharingMode = SharingMode.Exclusive;
+        }
+        window.khrSwapChain.CreateSwapchain(device, &a,null,out var new_swapChain)
+            .Expect();
+        var imagecount = window.SwapChainImages.Length;
+        var tmp_swapchain = stackalloc Silk.NET.Vulkan.Image[(int)imagecount];
+        khrSwapChain.GetSwapchainImages(device,new_swapChain,(uint*)&imagecount,tmp_swapchain)
+            .Expect();
+
+        for (int i = 0; i < imagecount; i++)
+        {
+            window.SwapChainImages[i].EnqueueDestroy();
+            window.SwapChainImages[i] = new(
+                size,
+                window.swapChainImageFormat,
+                false,
+                tmp_swapchain[i], 
+                default,
+                default,
+                default,
+                CreateImageView(tmp_swapchain[i], window.swapChainImageFormat, ImageAspectFlags.ColorBit),
+                CurrentFrame);
+        }
+        khrSwapChain.DestroySwapchain(device,window.swapChain,null);
+        window.swapChain = new_swapChain;
+        
+    }
+    
+    public static ScreenSizedImage AllocateScreenSizedImage(int2 size, Format format, ImageUsageFlags usage,
+        MemoryPropertyFlags props, bool preserveOnResize)
+    {
+        unsafe
+        {
+            Image image;
+            DeviceMemory mem;
+            CreateImage((uint) size.X, (uint) size.Y,
+                format,
+                ImageTiling.Optimal,
+                usage,
+                props,
+                &image,
+                &mem);
+
+            return new(size,format,preserveOnResize,image,usage,props,mem,CreateImageView(image,format,ImageAspectFlags.ColorBit),CurrentFrame);
         }
     }
+    
 }
 
 public class EngineWindow
 {
     public IWindow window;
     public nint Handle;
-    public KhrSurface khrSurface;
     public SurfaceKHR surface;
     public Extent2D size;
+    public int resizeFrameNo;
     public string title;
     public bool vsync;
     public bool transparency;
@@ -320,41 +397,55 @@ public class EngineWindow
     public ScreenSizedImage depthImage;
 
     public ScreenSizedImage[] extraImages;
+    public bool swapchainImagesShared;
 }
 
 public struct ScreenSizedImage
 {
     public int2 size; 
     public Image Image;
+    public MemoryPropertyFlags MemoryProperties;
+    public ImageUsageFlags ImageUsage;
     public Format ImageFormat;
     public DeviceMemory DeviceMemory;
     public ImageView ImageView;
-
+    public int creationFrame;
+    
     public bool PreserveOnResize;
     
-    public ScreenSizedImage(int2 size, Format imageFormat,  bool preserveOnResize)
+    public ScreenSizedImage(int2 size, Format imageFormat, bool preserveOnResize, Image image,
+        ImageUsageFlags usage,MemoryPropertyFlags memoryProperties, DeviceMemory deviceMemory,
+        ImageView imageView,int CreationFrame)
     {
         this.size = size;
+        creationFrame = CreationFrame;
         Image = image;
+        ImageUsage = usage;
+        this.MemoryProperties = memoryProperties;
         ImageFormat = imageFormat;
         DeviceMemory = deviceMemory;
         ImageView = imageView;
         PreserveOnResize = preserveOnResize;
     }
+
+
     
     public void DestroyImmediate()
     {
         unsafe
         {
-            VKRender.vk.DestroyImage(VKRender.device, Image, null);
-            VKRender.vk.DestroyImageView(VKRender.device, ImageView, null);
-            VKRender.vk.FreeMemory(VKRender.device, DeviceMemory, null);
+            if(Image.Handle!=default) VKRender.vk.DestroyImage(VKRender.device, Image, null);
+            if(DeviceMemory.Handle!=default) VKRender.vk.DestroyImageView(VKRender.device, ImageView, null);
+            if(DeviceMemory.Handle!=default) VKRender.vk.FreeMemory(VKRender.device, DeviceMemory, null);
         }
     }
-
+/// <summary>
+/// destroy on the next acquisition of the same frame <br />
+/// which is frame# frame_no+FrameOverlap 
+/// </summary>
     public void EnqueueDestroy()
     {
-        VKRender.FrameCleanup[VKRender.CurrentFrameIndex]+=(DestroyImmediate);
+        VKRender.FrameCleanup[(VKRender.CurrentFrameIndex + VKRender.FRAME_OVERLAP - 1) % VKRender.FRAME_OVERLAP]+=(DestroyImmediate);
     }
 }
 

@@ -37,7 +37,7 @@ public class FrameRenderSequence
             {
                 throw new NotImplementedException();
             }
-            VKRender.SetCamera(transform, camera.data);
+            VKRender.SetCamera(transform, camera.data,VKRender.mainWindow.size.ToInt2());
         }
 
         Editor.EditorRoot.Render();            

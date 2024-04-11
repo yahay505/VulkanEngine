@@ -8,10 +8,10 @@ public static partial class VKRender
 {
     public static class GlobalData
     {
-        public static Image depthImage;
-        public static Format depthFormat;
-        public static DeviceMemory depthImageMemory;
-        public static ImageView depthImageView;
+        // public static Image depthImage;
+        // public static Format depthFormat;
+        // public static DeviceMemory depthImageMemory;
+        // public static ImageView depthImageView;
 
         public static CommandPool globalCommandPool;
         public static CommandBuffer oneTimeUseCommandBuffer;

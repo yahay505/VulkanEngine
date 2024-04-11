@@ -25,8 +25,11 @@ public static class Extensions
             yield return i;
             i++;
         }
-    
     }
+    
+    public static int2 ToInt2(this Extent2D extent) => new((int)extent.Width,(int)extent.Height);
+    
+    
     public delegate void ActionRef<T>(ref T item);
     public static void ForEachRef<T>(this List<T> list, ActionRef<T> action)
     {

@@ -15,28 +15,29 @@ public static partial class VKRender
     // static Fence[] inFlightFences;
     private static long last_tick;
     public static float deltaTime;
-    private static unsafe void DrawFrame()
+    private static unsafe void DrawFrame(EngineWindow window)
     {
+        start:
         uint imageIndex = 999;
         {
             //start
             var fence = GetCurrentFrame().renderFence;
             vk.WaitForFences(device, 1, fence, true, ulong.MaxValue)
                 .Expect("failed to wait for fence!");
-            var result = khrSwapChain.AcquireNextImage(device, swapChain, ulong.MaxValue,
+            var result = khrSwapChain.AcquireNextImage(device, window.swapChain, ulong.MaxValue,
                 GetCurrentFrame().RenderSemaphore, default, &imageIndex);
 
             switch (result)
             {
                 case Result.Success:
-                case Result.SuboptimalKhr:
                     break;
+                case Result.SuboptimalKhr:
                 case Result.ErrorOutOfDateKhr:
-                    RecreateSwapChain();
-
-                    return;
+                    ResizeSwapChain(window,ChooseSwapExtent(deviceSwapChainSupport.Capabilities).ToInt2());
+                    goto start;
                 default:
-                    throw new Exception("failed to acquire swap chain image!");
+                    result.Expect("failed to acquire swap chain image!");
+                    throw new UnreachableException();
             }
 
             if (fence.Handle != default)
@@ -53,6 +54,7 @@ public static partial class VKRender
         ExecuteCleanupScheduledForCurrentFrame();
         
         EnsureMeshRelatedBuffersAreSized();
+        
 
         // EnsureRenderObjectRelatedBuffersAreSized();
 
@@ -243,7 +245,7 @@ public static partial class VKRender
         
         var gfxCommandBuffer = GetCurrentFrame().GfxCommandBuffer;
         
-        RecordCommandBuffer(gfxCommandBuffer, imageIndex, objectCount);
+        RecordCommandBuffer(window,gfxCommandBuffer, (int)imageIndex, objectCount);
         
         
         vk.EndCommandBuffer(gfxCommandBuffer)
@@ -272,7 +274,7 @@ public static partial class VKRender
         vk.QueueSubmit(graphicsQueue,1, &submitInfo, GetCurrentFrame().renderFence)
             .Expect("failed to submit draw command buffer!");
 
-        var swapChains = stackalloc SwapchainKHR[] { swapChain };
+        var swapChains = stackalloc SwapchainKHR[] { window.swapChain };
 
         var presentinfo = new PresentInfoKHR
         {
@@ -288,7 +290,7 @@ public static partial class VKRender
         // return;
         if (present is Result.ErrorOutOfDateKhr or Result.SuboptimalKhr || FramebufferResized)
         {
-            RecreateSwapChain();
+            ResizeSwapChain(window,ChooseSwapExtent(deviceSwapChainSupport.Capabilities).ToInt2());
         }
         else
         {
@@ -336,8 +338,28 @@ public static partial class VKRender
         Unsafe.CopyBlock(data, &ubo, (uint)size);
     }
 
-
-    private static unsafe void RecordCommandBuffer(CommandBuffer commandBuffer, uint imageIndex, int maxDrawCount)
+    public static Framebuffer CreateFrameBuffer(EngineWindow window, int frameno)
+    {
+        unsafe
+        {
+            Framebuffer fb;
+            var attachments = stackalloc[] { window.SwapChainImages[frameno].ImageView, window.depthImage.ImageView };
+            var framebufferInfo = new FramebufferCreateInfo()
+            {
+                SType = StructureType.FramebufferCreateInfo,
+                RenderPass = RenderPass,
+                AttachmentCount = 2,
+                PAttachments = attachments,
+                Flags = FramebufferCreateFlags.None,
+                Width = window.size.Width,
+                Height = window.size.Height,
+                Layers = 1,
+            };
+            vk.CreateFramebuffer(device, &framebufferInfo, null, out fb);
+            return fb;
+        }
+}
+    private static unsafe void RecordCommandBuffer(EngineWindow window,CommandBuffer commandBuffer, int imageIndex, int maxDrawCount)
     {
         var beginInfo = new CommandBufferBeginInfo
         {
@@ -353,15 +375,17 @@ public static partial class VKRender
             new(new(0f,0f,0f,0.0f)),
             new(null,new(1,0))
         };
+
+        var frameBuffer = CreateFrameBuffer(window, imageIndex);
         var renderPassInfo = new RenderPassBeginInfo
         {
             SType = StructureType.RenderPassBeginInfo,
             RenderPass = RenderPass,
-            Framebuffer = swapChainFramebuffers![imageIndex],
+            Framebuffer = frameBuffer,
             RenderArea = new Rect2D
             {
                 Offset = new Offset2D(0, 0),
-                Extent = swapChainExtent,
+                Extent = window.size,
             },
             ClearValueCount = 2,
             
@@ -372,15 +396,15 @@ public static partial class VKRender
         {
             X = 0,
             Y = 0,
-            Width = swapChainExtent.Width,
-            Height = swapChainExtent.Height,
+            Width = window.size.Width,
+            Height = window.size.Height,
             MinDepth = 0,
             MaxDepth = 1,
         };
         var scissor = new Rect2D
         {
             Offset = new Offset2D(0, 0),
-            Extent = swapChainExtent,
+            Extent = window.size,
         };
         // var memoryBarrier = new MemoryBarrier
         // {
@@ -439,8 +463,7 @@ public static partial class VKRender
         // vk!.CmdDraw(commandBuffer, (uint) vertices.Length, 1, 0, 0);
         
         
-        
-        imGuiController.Render(commandBuffer,swapChainFramebuffers![imageIndex],swapChainExtent);
+        imGuiController.Render(commandBuffer,frameBuffer,window.size);
 
         vk.CmdEndRenderPass(commandBuffer);
     }

@@ -22,12 +22,12 @@ public static partial class VKRender
         ;
     
 
-    private const int Width=800;
-    private const int Height=600;
+    // private const int Width=800;
+    // private const int Height=600;
 
     public static DeviceInfo DeviceInfo = null!;
     public static IWindow window = null!;
-    public static Vk vk=null!;
+    public static Vk vk = Vk.GetApi()!;
 
     private static Instance instance;
 
@@ -39,26 +39,26 @@ public static partial class VKRender
     private static Queue graphicsQueue;
     private static Queue presentQueue;
 
-    private static EngineWindow mainWindow = null!;
+    public static EngineWindow mainWindow = null!;
     
-    
-    private static List<EngineWindow> windows = null!;
-    private static EngineWindow activeWindow = null!;
+    //
+    // private static List<EngineWindow> windows => null!;
+    // private static EngineWindow activeWindow => null!;
 
-    private static KhrSurface khrSurface ;
-    private static SurfaceKHR surface;
-    private static KhrSwapchain khrSwapChain = null!;
-    private static SwapchainKHR swapChain;
-    private static Image[] swapChainImages = null!;
-    private static ImageView[] swapChainImageViews=null!;
-    private static Format swapChainImageFormat;
-    private static Extent2D swapChainExtent;
-    private static Framebuffer[]? swapChainFramebuffers;
+    public static KhrSurface khrSurface =null!;
+    // private static SurfaceKHR surface =>mainWindow.surface;
+    private static KhrSwapchain khrSwapChain =null!;
+    // private static SwapchainKHR swapChain =>mainWindow.swapChain;
+    // private static Image[] swapChainImages =>mainWindow.;
+    // private static ImageView[] swapChainImageViews=null!;
+    // private static Format swapChainImageFormat;
+    // private static Extent2D swapChainExtent;
+    // private static Framebuffer[]? swapChainFramebuffers;
     
     public static RenderPass RenderPass;
-    
 
-    private static PhysicalDevice physicalDevice=>DeviceInfo.device;
+
+    public static PhysicalDevice physicalDevice=>DeviceInfo.device;
     public static Device device;
     private static DescriptorSetLayout DescriptorSetLayout;
     private static PipelineLayout GfxPipelineLayout;
@@ -89,22 +89,11 @@ public static partial class VKRender
         }
     }
     public static ImGuiController imGuiController = null!;
-    public static void InitializeRenderer(out IInputContext inputContext)
-    {
-        InitVulkanFirstPhase();
-        InitWindow();
-        LoadMesh(AssetsPath+"/models/model.obj");
-        InitVulkan();
-        inputContext=VKRender.window.CreateInput();
 
-    imGuiController = new ImGuiController(vk,window,inputContext,new ImGuiFontConfig(AssetsPath+"/fonts/FiraSansCondensed-ExtraLight.otf",12),physicalDevice,_familyIndices.graphicsFamily!.Value,swapChainImages.Length,swapChainImageFormat,GlobalData.depthFormat);
-        ImGui.GetIO().ConfigFlags |= ImGuiConfigFlags.DockingEnable;
-    }
 
- 
     public static void Render()
     {
-        DrawFrame();
+        DrawFrame(mainWindow);
         CurrentFrame++;
         CurrentFrameIndex =CurrentFrame% FRAME_OVERLAP;
     }

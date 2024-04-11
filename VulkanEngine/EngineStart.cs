@@ -1,5 +1,8 @@
 ﻿using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using ImGuiNET;
+using Silk.NET.Input;
+using Silk.NET.Vulkan.Extensions.ImGui;
 using VulkanEngine.ECS_internals;
 using VulkanEngine.Renderer;
 using VulkanEngine.Renderer.ECS;
@@ -20,7 +23,19 @@ public static class EngineStart
         // Scheduler.Run(LoadTestLoop());
         
         CompileShadersTEMP();
-        VKRender.InitializeRenderer(out InputCntx);
+        // VKRender.InitVulkanSecondPhase();
+        // VKRender.InitWindow();1
+        VKRender.mainWindow = VKRender.CreateWindow(new(800, 600),"VulkanEngine");
+
+        VKRender.LoadMesh(VKRender.AssetsPath+"/models/model.obj");
+        
+        VKRender.InitVulkan();
+        
+        var InputCntx = VKRender.window.CreateInput();
+
+        VKRender.imGuiController = new ImGuiController(VKRender.vk,VKRender.window,InputCntx,new ImGuiFontConfig(VKRender.AssetsPath+"/fonts/FiraSansCondensed-ExtraLight.otf",12),VKRender.physicalDevice,VKRender._familyIndices.graphicsFamily!.Value,VKRender.mainWindow.SwapChainImages.Length,VKRender.mainWindow.swapChainImageFormat,VKRender.mainWindow.depthImage.ImageFormat);
+        ImGui.GetIO().ConfigFlags |= ImGuiConfigFlags.DockingEnable;
+        
         Input.Input.Init(InputCntx);
 
         ECS.RegisterSystem(MeshComponent._data,typeof(MeshComponent));
