@@ -26,14 +26,14 @@ public static class EngineStart
         // VKRender.InitVulkanSecondPhase();
         // VKRender.InitWindow();1
         VKRender.mainWindow = VKRender.CreateWindow(new(800, 600),"VulkanEngine");
-
+        VKRender.CreateSwapchain(VKRender.mainWindow,true);
         VKRender.LoadMesh(VKRender.AssetsPath+"/models/model.obj");
         
         VKRender.InitVulkan();
         
-        var InputCntx = VKRender.window.CreateInput();
+        var InputCntx = VKRender.mainWindow.window.CreateInput();
 
-        VKRender.imGuiController = new ImGuiController(VKRender.vk,VKRender.window,InputCntx,new ImGuiFontConfig(VKRender.AssetsPath+"/fonts/FiraSansCondensed-ExtraLight.otf",12),VKRender.physicalDevice,VKRender._familyIndices.graphicsFamily!.Value,VKRender.mainWindow.SwapChainImages.Length,VKRender.mainWindow.swapChainImageFormat,VKRender.mainWindow.depthImage.ImageFormat);
+        VKRender.imGuiController = new ImGuiController(VKRender.vk,VKRender.mainWindow.window,InputCntx,new ImGuiFontConfig(VKRender.AssetsPath+"/fonts/FiraSansCondensed-ExtraLight.otf",12),VKRender.physicalDevice,VKRender._familyIndices.graphicsFamily!.Value,VKRender.mainWindow.SwapChainImages.Length,VKRender.mainWindow.swapChainImageFormat,VKRender.mainWindow.depthImage.ImageFormat);
         ImGui.GetIO().ConfigFlags |= ImGuiConfigFlags.DockingEnable;
         
         Input.Input.Init(InputCntx);

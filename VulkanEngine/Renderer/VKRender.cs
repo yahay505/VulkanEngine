@@ -26,7 +26,7 @@ public static partial class VKRender
     // private const int Height=600;
 
     public static DeviceInfo DeviceInfo = null!;
-    public static IWindow window = null!;
+    // public static IWindow window = null!;
     public static Vk vk = Vk.GetApi()!;
 
     private static Instance instance;
@@ -75,7 +75,7 @@ public static partial class VKRender
     static bool FramebufferResized = false;
     
     public static FrameData[] FrameData = null!;
-    public static  FrameData GetCurrentFrame()=> FrameData[CurrentFrameIndex];
+    public static ref FrameData GetCurrentFrame()=> ref FrameData[CurrentFrameIndex];
     public static FrameData GetLastFrame()=> FrameData[(CurrentFrameIndex+FRAME_OVERLAP-1)%FRAME_OVERLAP];
     public static Action[] FrameCleanup = null!;
     
@@ -93,9 +93,14 @@ public static partial class VKRender
 
     public static void Render()
     {
-        DrawFrame(mainWindow);
-        CurrentFrame++;
-        CurrentFrameIndex =CurrentFrame% FRAME_OVERLAP;
+        bool retry;
+        do
+        {
+            retry = false;
+            DrawFrame(mainWindow, out retry);
+            CurrentFrame++;
+            CurrentFrameIndex =CurrentFrame% FRAME_OVERLAP;
+        } while (false);
     }
 
 

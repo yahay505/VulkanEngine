@@ -25,11 +25,9 @@ public static partial class VKRender
         CreateDescriptorSetLayout();
         CreateGraphicsPipeline();
 
-        AllocateGlobalData();
         AllocatePerFrameData();
         
         
-        CreateDepthResources();
         // CreateSwapchainFrameBuffers();
         CreateTextureImage();
         
@@ -53,6 +51,7 @@ public static partial class VKRender
     {
         DeviceInfo=DeviceRequirements.PickPhysicalDevice(surface);
         CreateLogicalDevice();
+        AllocateGlobalData();
 
     }
 
@@ -159,23 +158,7 @@ public static partial class VKRender
         
     }
 
-    private static unsafe void CreateDepthResources()
-    {
-        
-        var format = FindDepthFormat();
-  
-        fixed(ScreenSizedImage* pssi = &mainWindow.depthImage)
-            CreateImage(mainWindow.size.Width,
-                mainWindow.size.Height,
-                format,
-                ImageTiling.Optimal,
-                ImageUsageFlags.DepthStencilAttachmentBit,
-                MemoryPropertyFlags.DeviceLocalBit,
-                &pssi->Image,
-                &pssi->DeviceMemory);
-        mainWindow.depthImage.ImageView = CreateImageView(mainWindow.depthImage.Image, format, ImageAspectFlags.DepthBit);
-        TransitionImageLayout(mainWindow.depthImage.Image, format, ImageLayout.Undefined, ImageLayout.DepthStencilAttachmentOptimal);
-    }
+
 
     private static Format FindDepthFormat()
     {

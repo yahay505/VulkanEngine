@@ -90,7 +90,7 @@ public static class Input
         lastMousePosition = mousePosition;
         lastMouseScroll = mouseScroll;
 
-        VKRender.window.DoEvents();
+        VKRender.mainWindow.window.DoEvents();
     }
 
     private static void ClearFrameState()

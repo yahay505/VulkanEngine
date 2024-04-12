@@ -49,7 +49,7 @@ public static partial class VKRender
         vk.DestroyInstance(instance, null);
         vk.Dispose();
 
-        window?.Dispose();
+        VKRender.mainWindow.window.Dispose();
     }
 
     private static unsafe void CleanUpSwapChainStuff()

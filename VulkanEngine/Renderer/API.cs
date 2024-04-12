@@ -124,6 +124,7 @@ public partial class VKRender
         
         {
             // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+            if(device.Handle==default) InitVulkanFirstPhase(raw.window!.VkSurface!.GetRequiredExtensions(out var extC),(int)extC);
 
             // Create Vulkan Surface
             if (!vk!.TryGetInstanceExtension(instance, out khrSurface))
@@ -131,7 +132,6 @@ public partial class VKRender
                 throw new NotSupportedException("KHR_surface extension not found.");
             }
     
-            if(device.Handle==default) InitVulkanFirstPhase(raw.window!.VkSurface!.GetRequiredExtensions(out var extC),(int)extC);
             unsafe
             {
                 raw.surface = raw.window!.VkSurface!.Create<AllocationCallbacks>(instance.ToHandle(), null).ToSurface();
@@ -158,9 +158,9 @@ public partial class VKRender
         {
             
             deviceSwapChainSupport = QuerySwapChainSupport(physicalDevice,window.surface);
-            window.surfaceFormat = ChooseSwapSurfaceFormat(deviceSwapChainSupport.Formats);
+            window.surfaceFormat = ChooseSwapSurfaceFormat(deviceSwapChainSupport.Formats); //this can dynamicly change
             window.presentMode = ChoosePresentMode(deviceSwapChainSupport.PresentModes);
-            window.size = ChooseSwapExtent(deviceSwapChainSupport.Capabilities);
+            window.size = ChooseSwapExtent(window);
 
             window.swapChainImageFormat = window.surfaceFormat.Format;
 
@@ -240,12 +240,12 @@ public partial class VKRender
                 $"created swapchain with compositeMode: {compositeMode} and presentMode: {window.presentMode}".Pastel(
                     ConsoleColor.Green));
 
-            if (!vk.TryGetDeviceExtension(instance, device, out window.khrSwapChain))
+            if (!vk.TryGetDeviceExtension(instance, device, out khrSwapChain!))
             {
                 throw new NotSupportedException("VK_KHR_swapchain extension not found.");
             }
 
-            window.khrSwapChain.CreateSwapchain(device, creatInfo, null, out window.swapChain)
+            khrSwapChain.CreateSwapchain(device, creatInfo, null, out window.swapChain)
                 .Expect("failed to create swap chain!");
 
 
@@ -272,18 +272,21 @@ public partial class VKRender
                     default,
                     imageview,
                     CurrentFrame);
-                
             }
+            window.depthImage = AllocateScreenSizedImage(window.size.ToInt2(),FindDepthFormat(),ImageUsageFlags.DepthStencilAttachmentBit,MemoryPropertyFlags.DeviceLocalBit,ImageAspectFlags.DepthBit ,false);
+            TransitionImageLayout(window.depthImage.Image, window.depthImage.ImageFormat, ImageLayout.Undefined, ImageLayout.DepthStencilAttachmentOptimal);
+
         }
     }
 
-    public static unsafe void ResizeSwapChain(EngineWindow window, int2 size)
+    public static unsafe void ResizeSwapChain(EngineWindow window, int2 newsize)
     {
         // we should not be touching in use items
         // vk.DeviceWaitIdle(device);
         
         // queue swap chain image/view/depth/framebuff cleanup
         window.resizeFrameNo = CurrentFrame;
+
         var a = new SwapchainCreateInfoKHR()
         {
             SType = StructureType.SwapchainCreateInfoKhr,
@@ -292,7 +295,7 @@ public partial class VKRender
             MinImageCount = (uint) window.SwapChainImages.Length,
             ImageFormat = window.surfaceFormat.Format,
             ImageColorSpace = window.surfaceFormat.ColorSpace,
-            ImageExtent = window.size,
+            ImageExtent = new((uint)newsize.X, (uint)newsize.Y),
             ImageArrayLayers = 1,
             ImageUsage = ImageUsageFlags.ColorAttachmentBit,
             
@@ -322,7 +325,7 @@ public partial class VKRender
         {
             a.ImageSharingMode = SharingMode.Exclusive;
         }
-        window.khrSwapChain.CreateSwapchain(device, &a,null,out var new_swapChain)
+        khrSwapChain.CreateSwapchain(device, &a,null,out var new_swapChain)
             .Expect();
         var imagecount = window.SwapChainImages.Length;
         var tmp_swapchain = stackalloc Silk.NET.Vulkan.Image[(int)imagecount];
@@ -333,7 +336,7 @@ public partial class VKRender
         {
             window.SwapChainImages[i].EnqueueDestroy();
             window.SwapChainImages[i] = new(
-                size,
+                newsize,
                 window.swapChainImageFormat,
                 false,
                 tmp_swapchain[i], 
@@ -343,13 +346,20 @@ public partial class VKRender
                 CreateImageView(tmp_swapchain[i], window.swapChainImageFormat, ImageAspectFlags.ColorBit),
                 CurrentFrame);
         }
+        window.depthImage.EnqueueDestroy();
+        window.depthImage = AllocateScreenSizedImage(newsize,window.depthImage.ImageFormat,window.depthImage.ImageUsage,window.depthImage.MemoryProperties, ImageAspectFlags.DepthBit, false );
+        TransitionImageLayout(window.depthImage.Image, window.depthImage.ImageFormat, ImageLayout.Undefined, ImageLayout.DepthStencilAttachmentOptimal);
+
         khrSwapChain.DestroySwapchain(device,window.swapChain,null);
         window.swapChain = new_swapChain;
+        window.size = new((uint)newsize.X, (uint)newsize.Y);
+        return;
+       
         
     }
     
     public static ScreenSizedImage AllocateScreenSizedImage(int2 size, Format format, ImageUsageFlags usage,
-        MemoryPropertyFlags props, bool preserveOnResize)
+        MemoryPropertyFlags props, ImageAspectFlags aspect, bool preserveOnResize)
     {
         unsafe
         {
@@ -363,7 +373,7 @@ public partial class VKRender
                 &image,
                 &mem);
 
-            return new(size,format,preserveOnResize,image,usage,props,mem,CreateImageView(image,format,ImageAspectFlags.ColorBit),CurrentFrame);
+            return new(size,format,preserveOnResize,image,usage,props,mem,CreateImageView(image,format,aspect),CurrentFrame);
         }
     }
     
@@ -372,16 +382,16 @@ public partial class VKRender
 public class EngineWindow
 {
     public IWindow window;
-    public nint Handle;
+    // public nint Handle;
     public SurfaceKHR surface;
     public Extent2D size;
     public int resizeFrameNo;
-    public string title;
-    public bool vsync;
+    // public string title;
+    // public bool vsync;
     public bool transparency;
-    public WindowBorder windowBorder;
-    public int2 position;
-    public KhrSwapchain khrSwapChain;
+    // public WindowBorder windowBorder;
+    // public int2 position;
+    // public KhrSwapchain khrSwapChain;
     public SwapchainKHR swapChain;
     public CompositeAlphaFlagsKHR composeAlpha;
 
@@ -434,8 +444,8 @@ public struct ScreenSizedImage
     {
         unsafe
         {
-            if(Image.Handle!=default) VKRender.vk.DestroyImage(VKRender.device, Image, null);
-            if(DeviceMemory.Handle!=default) VKRender.vk.DestroyImageView(VKRender.device, ImageView, null);
+            if(DeviceMemory.Handle!=default) VKRender.vk.DestroyImage(VKRender.device, Image, null);
+            if(true) VKRender.vk.DestroyImageView(VKRender.device, ImageView, null);
             if(DeviceMemory.Handle!=default) VKRender.vk.FreeMemory(VKRender.device, DeviceMemory, null);
         }
     }

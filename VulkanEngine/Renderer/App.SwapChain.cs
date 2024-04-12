@@ -84,8 +84,10 @@ public static partial class VKRender
         return PresentModeKHR.FifoKhr;
     }
     
-    private static Extent2D ChooseSwapExtent(SurfaceCapabilitiesKHR capabilities)
+    private static Extent2D ChooseSwapExtent(EngineWindow window)
     {
+        SurfaceCapabilitiesKHR capabilities;
+        khrSurface!.GetPhysicalDeviceSurfaceCapabilities(physicalDevice, window.surface, out capabilities);
         if (capabilities.CurrentExtent.Width != uint.MaxValue)
         {
             return capabilities.CurrentExtent;
@@ -93,7 +95,7 @@ public static partial class VKRender
         else
         {
             Console.WriteLine("swapextent WTF???".Pastel(ConsoleColor.Magenta));
-            var framebufferSize = window!.FramebufferSize;
+            var framebufferSize = window.window!.FramebufferSize;
 
             Extent2D actualExtent = new()
             {

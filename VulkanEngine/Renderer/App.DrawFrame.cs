@@ -15,9 +15,11 @@ public static partial class VKRender
     // static Fence[] inFlightFences;
     private static long last_tick;
     public static float deltaTime;
-    private static unsafe void DrawFrame(EngineWindow window)
+    private static unsafe void DrawFrame(EngineWindow window, out bool retry)
     {
         start:
+        retry = false;
+        
         uint imageIndex = 999;
         {
             //start
@@ -33,8 +35,46 @@ public static partial class VKRender
                     break;
                 case Result.SuboptimalKhr:
                 case Result.ErrorOutOfDateKhr:
-                    ResizeSwapChain(window,ChooseSwapExtent(deviceSwapChainSupport.Capabilities).ToInt2());
+                    ResizeSwapChain(window,ChooseSwapExtent(window).ToInt2());
+                    // var buf=BeginSingleTimeCommands();
+                    // vk.EndCommandBuffer(buf).Expect();
+                    var renderSemaphore = GetCurrentFrame().RenderSemaphore;
+                    var pipelineStageFlags = PipelineStageFlags.BottomOfPipeBit;
+                    var psub = new SubmitInfo()
+                    {
+                        SType = StructureType.SubmitInfo,
+                        CommandBufferCount = 0,
+                        PCommandBuffers = default,
+                        WaitSemaphoreCount = 1,
+                        PWaitSemaphores = &renderSemaphore,
+                        SignalSemaphoreCount = 0,
+                        PSignalSemaphores = default,
+                        PWaitDstStageMask = &pipelineStageFlags,
+                        PNext = default
+                    };
+                    var psub2 = new SubmitInfo()
+                    {
+                        SType = StructureType.SubmitInfo,
+                        CommandBufferCount = 0,
+                        PCommandBuffers = default,
+                        WaitSemaphoreCount = 1,
+                        PWaitSemaphores = &renderSemaphore,
+                    };
+                    vk.ResetFences(device, 1, fence).Expect(); //reset since were gonna re-set it immidiatly
+                    vk.QueueSubmit(graphicsQueue,1, &psub,fence).Expect();
+                    
+                    
+                    // vk.DestroySemaphore(device,GetCurrentFrame().RenderSemaphore,null);
+                    // var sci = new SemaphoreCreateInfo()
+                    // {
+                    //     SType = StructureType.SemaphoreCreateInfo,
+                    //     Flags = SemaphoreCreateFlags.None,
+                    //     PNext = default,
+                    // };
+                    // vk.CreateSemaphore(device,&sci,null,out GetCurrentFrame().RenderSemaphore);
+                    retry = true;
                     goto start;
+                    return;
                 default:
                     result.Expect("failed to acquire swap chain image!");
                     throw new UnreachableException();
@@ -65,181 +105,11 @@ public static partial class VKRender
         
         
         var computeCommandBuffer = GetCurrentFrame().ComputeCommandBuffer;
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         
-        //vk wait last fr ame compute
-        var commandBufferBeginInfo = new CommandBufferBeginInfo()
-        {
-            SType = StructureType.CommandBufferBeginInfo,
-            Flags = CommandBufferUsageFlags.OneTimeSubmitBit
-        };
-        vk.BeginCommandBuffer(computeCommandBuffer, &commandBufferBeginInfo)
-            .Expect("failed to begin recording command buffer!");
-        
-        vk.CmdCopyBuffer(computeCommandBuffer, GetCurrentFrame().hostRenderObjectsBuffer, GlobalData.deviceRenderObjectsBuffer, 1, new BufferCopy(0, 0, (uint)GetCurrentFrame().hostRenderObjectsBufferSizeInBytes));
-        vk.CmdBindPipeline(computeCommandBuffer, PipelineBindPoint.Compute, ComputePipeline);
-        
-        var pDescriptorSet = stackalloc DescriptorSet[] { GetCurrentFrame().descriptorSets.Compute };
-        vk.CmdBindDescriptorSets(computeCommandBuffer, PipelineBindPoint.Compute, ComputePipelineLayout, 0, 1, pDescriptorSet, 0, null);
-        int ComputeWorkGroupSize=16;
-        var dispatchSize = (uint) (objectCount / ComputeWorkGroupSize)+1;
-        BufferMemoryBarrier to0first4bytes = new()
-        {
-            SType = StructureType.BufferMemoryBarrier,
-            Buffer = GlobalData.deviceIndirectDrawBuffer,
-            SrcAccessMask = AccessFlags.ShaderReadBit,
-            DstAccessMask = AccessFlags.TransferWriteBit,
-            Offset = 0,
-            Size = (nuint)64,
-        };
-        vk.CmdPipelineBarrier(computeCommandBuffer,
-            PipelineStageFlags.ComputeShaderBit,
-            PipelineStageFlags.TransferBit,
-            DependencyFlags.None,
-            0,
-            null,
-            1,
-            &to0first4bytes,
-            0,
-            null);
-        
-        //zero out atomic counter from last frame
-        vk.CmdFillBuffer(computeCommandBuffer, GlobalData.deviceIndirectDrawBuffer, 0, 64, 0);
-        var transfertocomputebarrier = stackalloc BufferMemoryBarrier[]{
-                new()
-                {
-                    SType = StructureType.BufferMemoryBarrier,
-                    Buffer = GlobalData.deviceRenderObjectsBuffer,
-                    SrcAccessMask = AccessFlags.TransferWriteBit,
-                    DstAccessMask = AccessFlags.ShaderReadBit,
-                    Offset = 0,
-                    Size = (nuint) GlobalData.deviceRenderObjectsBufferSizeInBytes,
-                },
-                new ()
-                {
-                    SType = StructureType.BufferMemoryBarrier,
-                    Buffer = GlobalData.deviceIndirectDrawBuffer,
-                    SrcAccessMask = AccessFlags.TransferWriteBit,
-                    DstAccessMask = AccessFlags.ShaderWriteBit|AccessFlags.ShaderReadBit,
-                    Offset = 0,
-                    Size = (nuint) GlobalData.deviceIndirectDrawBufferSizeInBytes,
-                }
-            };
-        vk.CmdPipelineBarrier(computeCommandBuffer,
-            PipelineStageFlags.TransferBit|PipelineStageFlags.VertexShaderBit,
-            PipelineStageFlags.ComputeShaderBit,
-            DependencyFlags.None,
-            0,
-            null,
-            2,
-            transfertocomputebarrier,
-            0,
-            null);
-        
-        vk.CmdDispatch(computeCommandBuffer, dispatchSize, 1, 1);
-        var computeToRenderBarrier = stackalloc BufferMemoryBarrier[]{
-            new()
-            {
-                SType = StructureType.BufferMemoryBarrier,
-                Buffer = GlobalData.deviceIndirectDrawBuffer,
-                SrcAccessMask = AccessFlags.ShaderWriteBit,
-                DstAccessMask = AccessFlags.ShaderReadBit,
-                Offset = 0,
-                Size = (nuint) GlobalData.deviceIndirectDrawBufferSizeInBytes,
-            },
-            new()
-            {
-                SType = StructureType.BufferMemoryBarrier,
-                Buffer = GlobalData.deviceRenderObjectsBuffer,
-                SrcAccessMask = AccessFlags.ShaderReadBit,
-                DstAccessMask = AccessFlags.TransferWriteBit,
-                Offset = 0,
-                Size = (nuint) GlobalData.deviceRenderObjectsBufferSizeInBytes,
-            }
-            
-        };
-        vk.CmdPipelineBarrier(computeCommandBuffer,
-            PipelineStageFlags.ComputeShaderBit,
-            PipelineStageFlags.ComputeShaderBit|PipelineStageFlags.TransferBit,
-            DependencyFlags.None,
-            0,
-            null,
-            2,
-            computeToRenderBarrier,
-            0,
-            null);
-        if (!DrawIndirectCountAvaliable)
-        {
-            var ComputeOutputBarrier = new BufferMemoryBarrier()
-            {
-                SType = StructureType.BufferMemoryBarrier,
-                Buffer = GlobalData.deviceIndirectDrawBuffer,
-                SrcAccessMask = AccessFlags.MemoryWriteBit,
-                DstAccessMask = AccessFlags.TransferReadBit,
-                Offset = 0,
-                Size = 4,
-            };
-            vk.CmdPipelineBarrier(computeCommandBuffer,
-                PipelineStageFlags.ComputeShaderBit,
-                PipelineStageFlags.TransferBit,
-                DependencyFlags.None,
-                0,
-                null,
-                1,
-                &ComputeOutputBarrier,
-                0,
-                null);
-            var first4bytes = new BufferCopy(0, 0, 4);
-            //copy max draw count to device
-            vk.CmdCopyBuffer(computeCommandBuffer, GlobalData.deviceIndirectDrawBuffer, GlobalData.ReadBackBuffer,1,first4bytes);
-
-
-            var transferToReadBackBarrier = new BufferMemoryBarrier()
-            {
-                SType = StructureType.BufferMemoryBarrier,
-                Buffer = GlobalData.ReadBackBuffer,
-                SrcAccessMask = AccessFlags.TransferWriteBit,
-                DstAccessMask = AccessFlags.HostReadBit,
-                Offset = 0,
-                Size = 4,
-            };
-            vk.CmdPipelineBarrier(computeCommandBuffer,
-                PipelineStageFlags.TransferBit,
-                PipelineStageFlags.HostBit,
-                DependencyFlags.None,
-                0,
-                null,
-                1,
-                &transferToReadBackBarrier,
-                0,
-                null);
-        }
-        
-        vk.EndCommandBuffer(computeCommandBuffer)
-            .Expect("failed to record command buffer!");
-        var pWaitDstStageMask = stackalloc PipelineStageFlags[]{ PipelineStageFlags.ComputeShaderBit};
-        var pWaitSemaphores = stackalloc Semaphore[]{GetLastFrame().ComputeSemaphore};
-        var pSignalSemaphores = stackalloc Semaphore[]{GetCurrentFrame().ComputeSemaphore,default};
-        if (DrawIndirectCountAvaliable)
-        {
-            pSignalSemaphores[1] = GetCurrentFrame().ComputeSemaphore2;
-        }
-        var computeSubmitInfo = new SubmitInfo()
-        {
-            SType = StructureType.SubmitInfo,
-            CommandBufferCount = 1,
-            PCommandBuffers = &computeCommandBuffer,
-            SignalSemaphoreCount = (uint) (DrawIndirectCountAvaliable?2:1),
-            PSignalSemaphores = pSignalSemaphores,
-            WaitSemaphoreCount = (uint) (CurrentFrame==0?0:1),
-            PWaitSemaphores = pWaitSemaphores,
-            PWaitDstStageMask = pWaitDstStageMask,
-        };
+        DrawFrame_ComputePart(computeCommandBuffer, objectCount);
         
         
-        vk.QueueSubmit(computeQueue, 1, &computeSubmitInfo, DrawIndirectCountAvaliable?default:GetCurrentFrame().computeFence)
-            .Expect("failed to submit compute command buffer!");
-
-
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         
         
@@ -288,14 +158,200 @@ public static partial class VKRender
         };
         var present = khrSwapChain.QueuePresent(presentQueue, &presentinfo);
         // return;
-        if (present is Result.ErrorOutOfDateKhr or Result.SuboptimalKhr || FramebufferResized)
+        if (present is Result.ErrorOutOfDateKhr /*or Result.SuboptimalKhr*/ || FramebufferResized)
         {
-            ResizeSwapChain(window,ChooseSwapExtent(deviceSwapChainSupport.Capabilities).ToInt2());
+            ResizeSwapChain(window,ChooseSwapExtent(window).ToInt2());
+            retry = true;
+            return;
         }
-        else
+        else if(present!=Result.SuboptimalKhr)
         {
             present.Expect("failed to present swap chain image!");
         }
+        
+    }
+
+    private static unsafe void DrawFrame_ComputePart(CommandBuffer computeCommandBuffer, int objectCount)
+    {
+        //vk wait last fr ame compute
+        var commandBufferBeginInfo = new CommandBufferBeginInfo()
+        {
+            SType = StructureType.CommandBufferBeginInfo,
+            Flags = CommandBufferUsageFlags.OneTimeSubmitBit
+        };
+        vk.BeginCommandBuffer(computeCommandBuffer, &commandBufferBeginInfo)
+            .Expect("failed to begin recording command buffer!");
+
+        vk.CmdCopyBuffer(computeCommandBuffer, GetCurrentFrame().hostRenderObjectsBuffer,
+            GlobalData.deviceRenderObjectsBuffer, 1,
+            new BufferCopy(0, 0, (uint) GetCurrentFrame().hostRenderObjectsBufferSizeInBytes));
+        vk.CmdBindPipeline(computeCommandBuffer, PipelineBindPoint.Compute, ComputePipeline);
+
+        var pDescriptorSet = stackalloc DescriptorSet[] {GetCurrentFrame().descriptorSets.Compute};
+        vk.CmdBindDescriptorSets(computeCommandBuffer, PipelineBindPoint.Compute, ComputePipelineLayout, 0, 1,
+            pDescriptorSet, 0, null);
+        int ComputeWorkGroupSize = 16;
+        var dispatchSize = (uint) (objectCount / ComputeWorkGroupSize) + 1;
+        BufferMemoryBarrier to0first4bytes = new()
+        {
+            SType = StructureType.BufferMemoryBarrier,
+            Buffer = GlobalData.deviceIndirectDrawBuffer,
+            SrcAccessMask = AccessFlags.ShaderReadBit,
+            DstAccessMask = AccessFlags.TransferWriteBit,
+            Offset = 0,
+            Size = (nuint) 64,
+        };
+        vk.CmdPipelineBarrier(computeCommandBuffer,
+            PipelineStageFlags.ComputeShaderBit,
+            PipelineStageFlags.TransferBit,
+            DependencyFlags.None,
+            0,
+            null,
+            1,
+            &to0first4bytes,
+            0,
+            null);
+
+        //zero out atomic counter from last frame
+        vk.CmdFillBuffer(computeCommandBuffer, GlobalData.deviceIndirectDrawBuffer, 0, 64, 0);
+        var transfertocomputebarrier = stackalloc BufferMemoryBarrier[]
+        {
+            new()
+            {
+                SType = StructureType.BufferMemoryBarrier,
+                Buffer = GlobalData.deviceRenderObjectsBuffer,
+                SrcAccessMask = AccessFlags.TransferWriteBit,
+                DstAccessMask = AccessFlags.ShaderReadBit,
+                Offset = 0,
+                Size = (nuint) GlobalData.deviceRenderObjectsBufferSizeInBytes,
+            },
+            new()
+            {
+                SType = StructureType.BufferMemoryBarrier,
+                Buffer = GlobalData.deviceIndirectDrawBuffer,
+                SrcAccessMask = AccessFlags.TransferWriteBit,
+                DstAccessMask = AccessFlags.ShaderWriteBit | AccessFlags.ShaderReadBit,
+                Offset = 0,
+                Size = (nuint) GlobalData.deviceIndirectDrawBufferSizeInBytes,
+            }
+        };
+        vk.CmdPipelineBarrier(computeCommandBuffer,
+            PipelineStageFlags.TransferBit | PipelineStageFlags.VertexShaderBit,
+            PipelineStageFlags.ComputeShaderBit,
+            DependencyFlags.None,
+            0,
+            null,
+            2,
+            transfertocomputebarrier,
+            0,
+            null);
+
+        vk.CmdDispatch(computeCommandBuffer, dispatchSize, 1, 1);
+        var computeToRenderBarrier = stackalloc BufferMemoryBarrier[]
+        {
+            new()
+            {
+                SType = StructureType.BufferMemoryBarrier,
+                Buffer = GlobalData.deviceIndirectDrawBuffer,
+                SrcAccessMask = AccessFlags.ShaderWriteBit,
+                DstAccessMask = AccessFlags.ShaderReadBit,
+                Offset = 0,
+                Size = (nuint) GlobalData.deviceIndirectDrawBufferSizeInBytes,
+            },
+            new()
+            {
+                SType = StructureType.BufferMemoryBarrier,
+                Buffer = GlobalData.deviceRenderObjectsBuffer,
+                SrcAccessMask = AccessFlags.ShaderReadBit,
+                DstAccessMask = AccessFlags.TransferWriteBit,
+                Offset = 0,
+                Size = (nuint) GlobalData.deviceRenderObjectsBufferSizeInBytes,
+            }
+        };
+        vk.CmdPipelineBarrier(computeCommandBuffer,
+            PipelineStageFlags.ComputeShaderBit,
+            PipelineStageFlags.ComputeShaderBit | PipelineStageFlags.TransferBit,
+            DependencyFlags.None,
+            0,
+            null,
+            2,
+            computeToRenderBarrier,
+            0,
+            null);
+        if (!DrawIndirectCountAvaliable)
+        {
+            var ComputeOutputBarrier = new BufferMemoryBarrier()
+            {
+                SType = StructureType.BufferMemoryBarrier,
+                Buffer = GlobalData.deviceIndirectDrawBuffer,
+                SrcAccessMask = AccessFlags.MemoryWriteBit,
+                DstAccessMask = AccessFlags.TransferReadBit,
+                Offset = 0,
+                Size = 4,
+            };
+            vk.CmdPipelineBarrier(computeCommandBuffer,
+                PipelineStageFlags.ComputeShaderBit,
+                PipelineStageFlags.TransferBit,
+                DependencyFlags.None,
+                0,
+                null,
+                1,
+                &ComputeOutputBarrier,
+                0,
+                null);
+            var first4bytes = new BufferCopy(0, 0, 4);
+            //copy max draw count to device
+            vk.CmdCopyBuffer(computeCommandBuffer, GlobalData.deviceIndirectDrawBuffer, GlobalData.ReadBackBuffer, 1,
+                first4bytes);
+
+
+            var transferToReadBackBarrier = new BufferMemoryBarrier()
+            {
+                SType = StructureType.BufferMemoryBarrier,
+                Buffer = GlobalData.ReadBackBuffer,
+                SrcAccessMask = AccessFlags.TransferWriteBit,
+                DstAccessMask = AccessFlags.HostReadBit,
+                Offset = 0,
+                Size = 4,
+            };
+            vk.CmdPipelineBarrier(computeCommandBuffer,
+                PipelineStageFlags.TransferBit,
+                PipelineStageFlags.HostBit,
+                DependencyFlags.None,
+                0,
+                null,
+                1,
+                &transferToReadBackBarrier,
+                0,
+                null);
+        }
+
+        vk.EndCommandBuffer(computeCommandBuffer)
+            .Expect("failed to record command buffer!");
+        var pWaitDstStageMask = stackalloc PipelineStageFlags[] {PipelineStageFlags.ComputeShaderBit};
+        var pWaitSemaphores = stackalloc Semaphore[] {GetLastFrame().ComputeSemaphore};
+        var pSignalSemaphores = stackalloc Semaphore[] {GetCurrentFrame().ComputeSemaphore, default};
+        if (DrawIndirectCountAvaliable)
+        {
+            pSignalSemaphores[1] = GetCurrentFrame().ComputeSemaphore2;
+        }
+
+        var computeSubmitInfo = new SubmitInfo()
+        {
+            SType = StructureType.SubmitInfo,
+            CommandBufferCount = 1,
+            PCommandBuffers = &computeCommandBuffer,
+            SignalSemaphoreCount = (uint) (DrawIndirectCountAvaliable ? 2 : 1),
+            PSignalSemaphores = pSignalSemaphores,
+            WaitSemaphoreCount = (uint) (CurrentFrame == 0 ? 0 : 1),
+            PWaitSemaphores = pWaitSemaphores,
+            PWaitDstStageMask = pWaitDstStageMask,
+        };
+
+
+        vk.QueueSubmit(computeQueue, 1, &computeSubmitInfo,
+                DrawIndirectCountAvaliable ? default : GetCurrentFrame().computeFence)
+            .Expect("failed to submit compute command buffer!");
     }
 
     public static void UpdateTime()
@@ -310,7 +366,7 @@ public static partial class VKRender
     {
         
         
-        var time = (float)window!.Time;
+        var time = (float)VKRender.mainWindow.window!.Time;
 
         var translate = Matrix4X4<float>.Identity;
         var scale = Matrix4X4<float>.Identity;
@@ -356,6 +412,7 @@ public static partial class VKRender
                 Layers = 1,
             };
             vk.CreateFramebuffer(device, &framebufferInfo, null, out fb);
+            FrameCleanup[CurrentFrameIndex]+=()=>vk.DestroyFramebuffer(device,fb,null);
             return fb;
         }
 }

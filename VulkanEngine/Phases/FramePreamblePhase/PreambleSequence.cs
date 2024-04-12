@@ -15,7 +15,7 @@ public static class PreambleSequence
     }
     private static void HandleInputAndWindow()
     {
-        if (VKRender.window!.IsClosing&&!Volatile.Read(ref Scheduler.Stopping))
+        if (VKRender.mainWindow.window!.IsClosing&&!Volatile.Read(ref Scheduler.Stopping))
         {
             Scheduler.Stop();
         }
