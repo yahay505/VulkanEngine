@@ -1,7 +1,4 @@
 using System.Diagnostics;
-using System.Numerics;
-using System.Runtime.CompilerServices;
-using ImGuiNET;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using VulkanEngine.ECS_internals;
@@ -11,7 +8,6 @@ using VulkanEngine.Phases.FramePreTickPhase;
 using VulkanEngine.Phases.FrameRender;
 using VulkanEngine.Phases.Tick;
 using VulkanEngine.Renderer.ECS;
-using VulkanEngine.Renderer.Internal;
 
 namespace VulkanEngine;
 using VulkanEngine.Renderer;

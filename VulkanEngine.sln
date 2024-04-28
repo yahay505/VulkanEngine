@@ -5,7 +5,7 @@ VisualStudioVersion = 17.2.32630.192
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VulkanEngine", "VulkanEngine\VulkanEngine.csproj", "{86FD812E-5E34-484E-9CB8-DE56A79BBA88}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MacBindings", "MacBindings\MacBindings.csproj", "{C20C7B41-E4BA-46E8-A80F-FEDE4231C23A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OSBindingTMP", "OSBindingTMP\OSBindingTMP.csproj", "{A89C1A43-78AE-402E-9F77-BF00EF33557E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -29,18 +29,18 @@ Global
 		{86FD812E-5E34-484E-9CB8-DE56A79BBA88}.Release|Mac.Build.0 = Release|Mac
 		{86FD812E-5E34-484E-9CB8-DE56A79BBA88}.Release|Windows.ActiveCfg = Release|Windows
 		{86FD812E-5E34-484E-9CB8-DE56A79BBA88}.Release|Windows.Build.0 = Release|Windows
-		{C20C7B41-E4BA-46E8-A80F-FEDE4231C23A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C20C7B41-E4BA-46E8-A80F-FEDE4231C23A}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C20C7B41-E4BA-46E8-A80F-FEDE4231C23A}.Debug|Mac.ActiveCfg = Debug|Any CPU
-		{C20C7B41-E4BA-46E8-A80F-FEDE4231C23A}.Debug|Mac.Build.0 = Debug|Any CPU
-		{C20C7B41-E4BA-46E8-A80F-FEDE4231C23A}.Debug|Windows.ActiveCfg = Debug|Any CPU
-		{C20C7B41-E4BA-46E8-A80F-FEDE4231C23A}.Debug|Windows.Build.0 = Debug|Any CPU
-		{C20C7B41-E4BA-46E8-A80F-FEDE4231C23A}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C20C7B41-E4BA-46E8-A80F-FEDE4231C23A}.Release|Any CPU.Build.0 = Release|Any CPU
-		{C20C7B41-E4BA-46E8-A80F-FEDE4231C23A}.Release|Mac.ActiveCfg = Release|Any CPU
-		{C20C7B41-E4BA-46E8-A80F-FEDE4231C23A}.Release|Mac.Build.0 = Release|Any CPU
-		{C20C7B41-E4BA-46E8-A80F-FEDE4231C23A}.Release|Windows.ActiveCfg = Release|Any CPU
-		{C20C7B41-E4BA-46E8-A80F-FEDE4231C23A}.Release|Windows.Build.0 = Release|Any CPU
+		{A89C1A43-78AE-402E-9F77-BF00EF33557E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A89C1A43-78AE-402E-9F77-BF00EF33557E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A89C1A43-78AE-402E-9F77-BF00EF33557E}.Debug|Mac.ActiveCfg = Debug|Any CPU
+		{A89C1A43-78AE-402E-9F77-BF00EF33557E}.Debug|Mac.Build.0 = Debug|Any CPU
+		{A89C1A43-78AE-402E-9F77-BF00EF33557E}.Debug|Windows.ActiveCfg = Debug|Any CPU
+		{A89C1A43-78AE-402E-9F77-BF00EF33557E}.Debug|Windows.Build.0 = Debug|Any CPU
+		{A89C1A43-78AE-402E-9F77-BF00EF33557E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A89C1A43-78AE-402E-9F77-BF00EF33557E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A89C1A43-78AE-402E-9F77-BF00EF33557E}.Release|Mac.ActiveCfg = Release|Any CPU
+		{A89C1A43-78AE-402E-9F77-BF00EF33557E}.Release|Mac.Build.0 = Release|Any CPU
+		{A89C1A43-78AE-402E-9F77-BF00EF33557E}.Release|Windows.ActiveCfg = Release|Any CPU
+		{A89C1A43-78AE-402E-9F77-BF00EF33557E}.Release|Windows.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

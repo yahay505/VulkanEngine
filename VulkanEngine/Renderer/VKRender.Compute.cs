@@ -1,10 +1,9 @@
 ﻿
 using System.Runtime.CompilerServices;
 using Silk.NET.Core.Native;
-using Silk.NET.Vulkan;
+using Vortice.Vulkan;
 using VulkanEngine.Renderer.GPUStructs;
-using Buffer = Silk.NET.Vulkan.Buffer;
-
+using static Vortice.Vulkan.Vulkan;
 namespace VulkanEngine.Renderer;
 
 public static partial class VKRender
@@ -20,95 +19,92 @@ public static partial class VKRender
         {
             // create readback
             var readbackSize = 64;
-            CreateBuffer((ulong) readbackSize, BufferUsageFlags.TransferDstBit,
-                MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit,
+            CreateBuffer((ulong) readbackSize, VkBufferUsageFlags.TransferDst,
+                VkMemoryPropertyFlags.HostVisible | VkMemoryPropertyFlags.HostCoherent,
                 out GlobalData.ReadBackBuffer, out GlobalData.ReadBackMemory);
             fixed(void** ptr = &GlobalData.ReadBackBufferPtr)
-                vk.MapMemory(device, GlobalData.ReadBackMemory, 0, (ulong) readbackSize,0, ptr)
+                vkMapMemory(device, GlobalData.ReadBackMemory, 0, (ulong) readbackSize,0, ptr)
                     .Expect("failed to map memory!");
             CleanupStack.Push(()=>CleanupBufferImmediately(GlobalData.ReadBackBuffer, GlobalData.ReadBackMemory));
         }
         
         var computeShaderCode = File.ReadAllBytes(AssetsPath + "/shaders/compiled/PreRender.comp.spv");
         var computeMOdule = CreateShaderModule(computeShaderCode);
-        var computeShaderStageInfo = new PipelineShaderStageCreateInfo
+        var computeShaderStageInfo = new VkPipelineShaderStageCreateInfo()
         {
-            SType = StructureType.PipelineShaderStageCreateInfo,
-            Stage = ShaderStageFlags.ComputeBit,
-            Module = computeMOdule,
-            PName = (byte*) SilkMarshal.StringToPtr("main")
+            stage = VkShaderStageFlags.Compute,
+            module = computeMOdule,
+            pName = (sbyte*) SilkMarshal.StringToPtr("main")
         };
 
-        var descriptorSetLayoutBinding = stackalloc DescriptorSetLayoutBinding[]
+        var descriptorSetLayoutBinding = stackalloc VkDescriptorSetLayoutBinding[]
         {
-            new DescriptorSetLayoutBinding
+            new VkDescriptorSetLayoutBinding
             {
                 //in data
-                Binding = BindingPoints.GPU_Compute_Input_Data,
-                DescriptorType = DescriptorType.StorageBuffer,
-                DescriptorCount = 1,
-                StageFlags = ShaderStageFlags.ComputeBit
+                binding = BindingPoints.GPU_Compute_Input_Data,
+                descriptorType = VkDescriptorType.StorageBuffer,
+                descriptorCount = 1,
+                stageFlags = VkShaderStageFlags.Compute
             },
-            new DescriptorSetLayoutBinding
+            new VkDescriptorSetLayoutBinding
             {
                 //out renderindirect
-                Binding = BindingPoints.GPU_Compute_Output_Data,
-                DescriptorType = DescriptorType.StorageBuffer,
-                DescriptorCount = 1,
-                StageFlags = ShaderStageFlags.ComputeBit | ShaderStageFlags.VertexBit
+                binding = BindingPoints.GPU_Compute_Output_Data,
+                descriptorType = VkDescriptorType.StorageBuffer,
+                descriptorCount = 1,
+                stageFlags = VkShaderStageFlags.Compute | VkShaderStageFlags.Vertex
             },
-            new DescriptorSetLayoutBinding
+            new VkDescriptorSetLayoutBinding
             {
                 // meshDB
-                Binding = BindingPoints.GPU_Compute_Input_Mesh,
-                DescriptorType = DescriptorType.StorageBuffer,
-                DescriptorCount = 1,
-                StageFlags = ShaderStageFlags.ComputeBit
+                binding = BindingPoints.GPU_Compute_Input_Mesh,
+                descriptorType = VkDescriptorType.StorageBuffer,
+                descriptorCount = 1,
+                stageFlags = VkShaderStageFlags.Compute
             },
             // new DescriptorSetLayoutBinding()
             // {
-            //     Binding = BindingPoints.GPU_Compute_Output_Secondary,
+            //     binding = BindingPoints.GPU_Compute_Output_Secondary,
             //     DescriptorType = DescriptorType.StorageBuffer,
             //     DescriptorCount = 1,
-            //     StageFlags = ShaderStageFlags.ComputeBit,
+            //     StageFlags = ShaderStageFlags.Compute,
             // }
         };
-        var pBindingFlags= stackalloc DescriptorBindingFlags[]
+        var pBindingFlags= stackalloc VkDescriptorBindingFlags[]
         {
-            DescriptorBindingFlags.UpdateUnusedWhilePendingBit,
-            DescriptorBindingFlags.UpdateUnusedWhilePendingBit,
-            DescriptorBindingFlags.UpdateUnusedWhilePendingBit,
+            VkDescriptorBindingFlags.UpdateUnusedWhilePending,
+            VkDescriptorBindingFlags.UpdateUnusedWhilePending,
+            VkDescriptorBindingFlags.UpdateUnusedWhilePending,
             // DescriptorBindingFlags.None
         };
-        var descriptorSetLayoutBindingFlagsCreateInfo = new DescriptorSetLayoutBindingFlagsCreateInfo()
+        var descriptorSetLayoutBindingFlagsCreateInfo = new VkDescriptorSetLayoutBindingFlagsCreateInfo()
         {
-            SType = StructureType.DescriptorSetLayoutBindingFlagsCreateInfo,
-            BindingCount = 3,
-            PBindingFlags = pBindingFlags
+            bindingCount = 3,
+            pBindingFlags = pBindingFlags
         };
-        var descriptorSetLayoutCreateInfo = new DescriptorSetLayoutCreateInfo
+        var descriptorSetLayoutCreateInfo = new VkDescriptorSetLayoutCreateInfo()
         {
-            SType = StructureType.DescriptorSetLayoutCreateInfo,
-            BindingCount = 3,
-            PBindings = descriptorSetLayoutBinding,
-            PNext =&descriptorSetLayoutBindingFlagsCreateInfo 
+            bindingCount = 3,
+            pBindings = descriptorSetLayoutBinding,
+            pNext =&descriptorSetLayoutBindingFlagsCreateInfo 
         };
-        vk.CreateDescriptorSetLayout(device, &descriptorSetLayoutCreateInfo, null, out var computeDescriptorSetLayout);
+        vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCreateInfo, null, out var computeDescriptorSetLayout);
         ComputeDescriptorSetLayout = computeDescriptorSetLayout;
-        CleanupStack.Push(()=>vk.DestroyDescriptorSetLayout(device,ComputeDescriptorSetLayout, null));
+        CleanupStack.Push(()=>vkDestroyDescriptorSetLayout(device,ComputeDescriptorSetLayout, null));
         
 
-        var layouts = stackalloc DescriptorSetLayout[] {computeDescriptorSetLayout};
-        var allocInfo = new DescriptorSetAllocateInfo
+        var layouts = stackalloc VkDescriptorSetLayout[] {computeDescriptorSetLayout};
+        var allocInfo = new VkDescriptorSetAllocateInfo
         {
-            SType = StructureType.DescriptorSetAllocateInfo,
-            DescriptorPool = DescriptorPool,
-            DescriptorSetCount = 1,
-            PSetLayouts = layouts,
+            descriptorPool = DescriptorPool,
+            descriptorSetCount = 1,
+            pSetLayouts = layouts,
         };
         for (int i = 0; i < FRAME_OVERLAP; i++)
         {
-            vk.AllocateDescriptorSets(device, &allocInfo, out var computeDescriptorSet)
+            VkDescriptorSet computeDescriptorSet = default;
+            vkAllocateDescriptorSets(device, &allocInfo,  &computeDescriptorSet)
                 .Expect("failed to allocate descriptor sets!");
             FrameData[i].descriptorSets.Compute = computeDescriptorSet;
         }
@@ -116,15 +112,15 @@ public static partial class VKRender
 
 
 
-        // vk.CreateComputePipelines(device, default, 1, &computePipelineInfo, null, out var pipeline);
+        // vkCreateComputePipelines(device, default, 1, &computePipelineInfo, null, out var pipeline);
         // ComputePipeline = pipeline;
         (ComputePipeline,ComputePipelineLayout)=CreateComputePSO(computeShaderStageInfo,new(layouts,1));
-        CleanupStack.Push(()=>vk.DestroyPipelineLayout(device,ComputePipelineLayout, null));
-        CleanupStack.Push(()=>vk.DestroyPipeline(device,ComputePipeline, null));
+        CleanupStack.Push(()=>vkDestroyPipelineLayout(device,ComputePipelineLayout, null));
+        CleanupStack.Push(()=>vkDestroyPipeline(device,ComputePipeline, null));
         
         EnsureMeshRelatedBuffersAreSized();
         EnsureRenderObjectRelatedBuffersAreSized(5);
-        vk.DestroyShaderModule(device, computeMOdule, null);
+        vkDestroyShaderModule(device, computeMOdule, null);
         CleanupStack.Push(()=>
         {
             for (int i = 0; i < FRAME_OVERLAP; i++) CleanupHostRenderObjectMemory(i);
@@ -135,7 +131,7 @@ public static partial class VKRender
             GlobalData.deviceIndirectDrawBuffer,
             GlobalData.deviceIndirectDrawBufferMemory));
         
-        SilkMarshal.FreeString((IntPtr) computeShaderStageInfo.PName);
+        SilkMarshal.FreeString((IntPtr) computeShaderStageInfo.pName);
     }
     
     
@@ -144,81 +140,77 @@ public static partial class VKRender
 
     private static unsafe void UpdateComputeSSBODescriptors(ulong inRange, ulong outRange)
     {
-        var inputBuffer = new DescriptorBufferInfo
+        var inputBuffer = new VkDescriptorBufferInfo
         {
-            Buffer = GlobalData.deviceRenderObjectsBuffer,
-            Offset = 0,
-            Range = inRange, //todo update live
+            buffer = GlobalData.deviceRenderObjectsBuffer,
+            offset = 0,
+            range = inRange, //todo update live
         };
-        var OutputBuffer = new DescriptorBufferInfo
+        var OutputBuffer = new VkDescriptorBufferInfo
         {
-            Buffer = GlobalData.deviceIndirectDrawBuffer,
-            Offset = 0,
-            Range = outRange, //todo update live
-        };
-
-        var MeshInfoBuffer = new DescriptorBufferInfo
-        {
-            Buffer = GlobalData.MeshInfoBuffer,
-            Offset = 0,
-            Range = (ulong) (GlobalData.MeshInfoBufferSize * sizeof(GPUStructs.MeshInfo)) ,
-        };
-        var OutputBufferForGfx = new DescriptorBufferInfo
-        {
-            Buffer = GlobalData.deviceIndirectDrawBuffer,
-            Offset = 0,
-            Range = outRange,
+            buffer = GlobalData.deviceIndirectDrawBuffer,
+            offset = 0,
+            range = outRange, //todo update live
         };
 
+        var MeshInfoBuffer = new VkDescriptorBufferInfo
+        {
+            buffer = GlobalData.MeshInfoBuffer,
+            offset = 0,
+            range = (ulong) (GlobalData.MeshInfoBufferSize * sizeof(GPUStructs.MeshInfo)) ,
+        };
+        var OutputBufferForGfx = new VkDescriptorBufferInfo
+        {
+            buffer = GlobalData.deviceIndirectDrawBuffer,
+            offset = 0,
+            range = outRange,
+        };
 
-        var descriptorWrites = stackalloc WriteDescriptorSet[]
+
+        var descriptorWrites = stackalloc VkWriteDescriptorSet[]
         {
             new()
             {
-                SType = StructureType.WriteDescriptorSet,
-                DstSet = GetCurrentFrame().descriptorSets.Compute,
-                DstBinding = BindingPoints.GPU_Compute_Input_Data,
-                DstArrayElement = 0,
-                DescriptorType = DescriptorType.StorageBuffer,
-                DescriptorCount = 1,
-                PBufferInfo = &inputBuffer,
+                dstSet = GetCurrentFrame().descriptorSets.Compute,
+                dstBinding = BindingPoints.GPU_Compute_Input_Data,
+                dstArrayElement = 0,
+                descriptorType = VkDescriptorType.StorageBuffer,
+                descriptorCount = 1,
+                pBufferInfo = &inputBuffer,
             },
             new()
             {
-                SType = StructureType.WriteDescriptorSet,
-                DstSet = GetCurrentFrame().descriptorSets.Compute,
-                DstBinding = BindingPoints.GPU_Compute_Output_Data,
-                DstArrayElement = 0,
-                DescriptorType = DescriptorType.StorageBuffer,
-                DescriptorCount = 1,
-                PBufferInfo = &OutputBuffer,
+                dstSet = GetCurrentFrame().descriptorSets.Compute,
+                dstBinding = BindingPoints.GPU_Compute_Output_Data,
+                dstArrayElement = 0,
+                descriptorType = VkDescriptorType.StorageBuffer,
+                descriptorCount = 1,
+                pBufferInfo = &OutputBuffer,
             },
             new()
             {
-                SType = StructureType.WriteDescriptorSet,
-                DstSet = GetCurrentFrame().descriptorSets.Compute,
-                DstBinding = BindingPoints.GPU_Compute_Input_Mesh,
-                DstArrayElement = 0,
-                DescriptorType = DescriptorType.StorageBuffer,
-                DescriptorCount = 1,
-                PBufferInfo = &MeshInfoBuffer,
+                dstSet = GetCurrentFrame().descriptorSets.Compute,
+                dstBinding = BindingPoints.GPU_Compute_Input_Mesh,
+                dstArrayElement = 0,
+                descriptorType = VkDescriptorType.StorageBuffer,
+                descriptorCount = 1,
+                pBufferInfo = &MeshInfoBuffer,
             },
             new() //gfx 
             {
-                SType = StructureType.WriteDescriptorSet,
-                DstSet = GetCurrentFrame().descriptorSets.GFX,
-                DstBinding = BindingPoints.GPU_Gfx_Input_Indirect,
-                DstArrayElement = 0,
-                DescriptorType = DescriptorType.StorageBuffer,
-                DescriptorCount = 1,
-                PBufferInfo = &OutputBufferForGfx,
+                dstSet = GetCurrentFrame().descriptorSets.GFX,
+                dstBinding = BindingPoints.GPU_Gfx_Input_Indirect,
+                dstArrayElement = 0,
+                descriptorType = VkDescriptorType.StorageBuffer,
+                descriptorCount = 1,
+                pBufferInfo = &OutputBufferForGfx,
             },
         };
-        vk.UpdateDescriptorSets(device, 4, descriptorWrites, 0, null);
-        // vk.UpdateDescriptorSets(device, 1, descriptorWrites[0], 0, null);
-        // vk.UpdateDescriptorSets(device,1, descriptorWrites[1], 0, null);
-        // vk.UpdateDescriptorSets(device,1, descriptorWrites[2], 0, null);
-        // vk.UpdateDescriptorSets(device,1, descriptorWrites[3], 0, null);
+        vkUpdateDescriptorSets(device, 4, descriptorWrites, 0, null);
+        // vkUpdateDescriptorSets(device, 1, descriptorWrites[0], 0, null);
+        // vkUpdateDescriptorSets(device,1, descriptorWrites[1], 0, null);
+        // vkUpdateDescriptorSets(device,1, descriptorWrites[2], 0, null);
+        // vkUpdateDescriptorSets(device,1, descriptorWrites[3], 0, null);
         
         
     }
@@ -236,13 +228,13 @@ public static partial class VKRender
             fixed (FrameData* frameData = &FrameData[CurrentFrameIndex])
             {
                 CreateBuffer((ulong) newBufSizeInBytes,
-                    BufferUsageFlags.TransferSrcBit |
-                    BufferUsageFlags.TransferDstBit |
-                    BufferUsageFlags.StorageBufferBit,
-                    MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit,
+                    VkBufferUsageFlags.TransferSrc |
+                    VkBufferUsageFlags.TransferDst |
+                    VkBufferUsageFlags.StorageBuffer,
+                    VkMemoryPropertyFlags.HostVisible | VkMemoryPropertyFlags.HostCoherent,
                     &frameData->hostRenderObjectsBuffer, &frameData->hostRenderObjectsMemory);
-                vk.MapMemory(device, frameData->hostRenderObjectsMemory, 0, (ulong) newBufSizeInBytes, 0,
-                        ref frameData->hostRenderObjectsBufferPtr)
+                vkMapMemory(device, frameData->hostRenderObjectsMemory, 0, (ulong) newBufSizeInBytes, 0,
+                        &frameData->hostRenderObjectsBufferPtr)
                     .Expect("failed to map memory!");
                 frameData->hostRenderObjectsBufferSize = newbufsize;
                 frameData->hostRenderObjectsBufferSizeInBytes=newBufSizeInBytes;
@@ -271,23 +263,23 @@ public static partial class VKRender
 
             CreateBuffer( //device renderobject buffer
                 (ulong) newBufSizeInBytes_RO,
-                BufferUsageFlags.TransferSrcBit |
-                BufferUsageFlags.TransferDstBit |
-                BufferUsageFlags.StorageBufferBit,
-                MemoryPropertyFlags.DeviceLocalBit,
-                // MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit,
-                out var newDeviceRenderObjectsBuffer,
+                VkBufferUsageFlags.TransferSrc |
+                VkBufferUsageFlags.TransferDst |
+                VkBufferUsageFlags.StorageBuffer,
+                VkMemoryPropertyFlags.DeviceLocal,
+                // VkMemoryPropertyFlags.HostVisible | VkMemoryPropertyFlags.HostCoherent,
+                out VkBuffer newDeviceRenderObjectsBuffer,
                 out var newDeviceRenderObjectsBufferMemory);
 
             CreateBuffer( //device indirect draw buffer
                 (ulong) newBufSizeInBytes_CmdDII,
-                BufferUsageFlags.TransferSrcBit |
-                BufferUsageFlags.TransferDstBit |
-                BufferUsageFlags.StorageBufferBit |
-                BufferUsageFlags.IndirectBufferBit,
-                MemoryPropertyFlags.DeviceLocalBit, 
-                // MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit,
-                out var newDeviceIndirectDrawBuffer,
+                VkBufferUsageFlags.TransferSrc |
+                VkBufferUsageFlags.TransferDst |
+                VkBufferUsageFlags.StorageBuffer |
+                VkBufferUsageFlags.IndirectBuffer,
+                VkMemoryPropertyFlags.DeviceLocal, 
+                // VkMemoryPropertyFlags.HostVisible | VkMemoryPropertyFlags.HostCoherent,
+                out VkBuffer newDeviceIndirectDrawBuffer,
                 out var newDeviceIndirectDrawBufferMemory);
 
             GlobalData.deviceRenderObjectsBuffer = newDeviceRenderObjectsBuffer;
@@ -302,12 +294,12 @@ public static partial class VKRender
             if (BufferDEBUG)
             {
                 void* tmp;
-                vk.MapMemory(device, newDeviceRenderObjectsBufferMemory, 0, (ulong) newBufSizeInBytes_RO, 0, &tmp)
+                vkMapMemory(device, newDeviceRenderObjectsBufferMemory, 0, (ulong) newBufSizeInBytes_RO, 0, &tmp)
                     .Expect("failed to map memory!");
                 Unsafe.InitBlock(tmp,0,(uint) newBufSizeInBytes_RO);
                 GlobalData.DEBUG_deviceRenderObjectsBufferPtr = tmp;
                 
-                vk.MapMemory(device, newDeviceIndirectDrawBufferMemory, 0, (ulong) newBufSizeInBytes_CmdDII, 0, &tmp)
+                vkMapMemory(device, newDeviceIndirectDrawBufferMemory, 0, (ulong) newBufSizeInBytes_CmdDII, 0, &tmp)
                     .Expect("failed to map memory!");
                 Unsafe.InitBlock(tmp,0,(uint) newBufSizeInBytes_RO);
                 GlobalData.DEBUG_deviceIndirectDrawBufferPtr = tmp;
@@ -320,26 +312,25 @@ public static partial class VKRender
         }
     }
 
-    private static unsafe void CleanupDeviceRenderObjectMemory(Buffer currentDeviceRenderObjectsBuffer,
-        DeviceMemory currentDeviceRenderObjectsBufferMemory, Buffer currentDeviceIndirectDrawBuffer,
-        DeviceMemory currentDeviceIndirectDrawBufferMemory)
+    private static unsafe void CleanupDeviceRenderObjectMemory(VkBuffer currentDeviceRenderObjectsBuffer,
+        VkDeviceMemory currentDeviceRenderObjectsBufferMemory, VkBuffer currentDeviceIndirectDrawBuffer,
+        VkDeviceMemory currentDeviceIndirectDrawBufferMemory)
     {
-        vk.DestroyBuffer(device, currentDeviceRenderObjectsBuffer, default);
-        vk.FreeMemory(device, currentDeviceRenderObjectsBufferMemory, default);
+        vkDestroyBuffer(device, currentDeviceRenderObjectsBuffer, default);
+        vkFreeMemory(device, currentDeviceRenderObjectsBufferMemory, default);
 
-        vk.DestroyBuffer(device, currentDeviceIndirectDrawBuffer, default);
-        vk.FreeMemory(device, currentDeviceIndirectDrawBufferMemory, default);
+        vkDestroyBuffer(device, currentDeviceIndirectDrawBuffer, default);
+        vkFreeMemory(device, currentDeviceIndirectDrawBufferMemory, default);
     }
 
     private static unsafe void CleanupHostRenderObjectMemory(int i)
-    {
-
+   {
             if (FrameData[i].hostRenderObjectsMemory.Handle != 0)
-                vk.UnmapMemory(device, FrameData[i].hostRenderObjectsMemory);
+                vkUnmapMemory(device, FrameData[i].hostRenderObjectsMemory);
             if (FrameData[i].hostRenderObjectsBuffer.Handle != 0)
-                vk.DestroyBuffer(device, FrameData[i].hostRenderObjectsBuffer, default);
+                vkDestroyBuffer(device, FrameData[i].hostRenderObjectsBuffer, default);
             if (FrameData[i].hostRenderObjectsMemory.Handle != 0)
-                vk.FreeMemory(device, FrameData[i].hostRenderObjectsMemory, default);
+                vkFreeMemory(device, FrameData[i].hostRenderObjectsMemory, default);
         
     }
 
@@ -358,8 +349,8 @@ public static partial class VKRender
         var nextSize = Math.Max(GPURenderRegistry.Meshes.Count+1, GlobalData.MeshInfoBufferSize * 2); //exponential growth
         var newSizeByte = (ulong) nextSize * (ulong) sizeof(MeshInfo);
         
-        CreateBuffer(newSizeByte, BufferUsageFlags.StorageBufferBit,
-            MemoryPropertyFlags.HostVisibleBit|MemoryPropertyFlags.HostCoherentBit,
+        CreateBuffer(newSizeByte, VkBufferUsageFlags.StorageBuffer,
+            VkMemoryPropertyFlags.HostVisible|VkMemoryPropertyFlags.HostCoherent,
             out GlobalData.MeshInfoBuffer, out GlobalData.MeshInfoBufferMemory);
 
         
@@ -367,13 +358,16 @@ public static partial class VKRender
         GlobalData.MeshInfoBufferSize = nextSize;
         RegisterBufferForCleanup(oldMeshInfoBuffer, oldMeshInfoBufferMemory); 
         void* oldPtr = GlobalData.MeshInfoBufferPtr;
-        vk.MapMemory(device, GlobalData.MeshInfoBufferMemory, 0, newSizeByte, 0, ref GlobalData.MeshInfoBufferPtr)
+        void* t;
+        vkMapMemory(device, GlobalData.MeshInfoBufferMemory, 0, newSizeByte, 0, &t)
             .Expect("failed to map memory!");
+        GlobalData.MeshInfoBufferPtr = t;
+        
         Unsafe.InitBlock(GlobalData.MeshInfoBufferPtr, 0, (uint) newSizeByte);
         if (oldMeshInfoBufferMemory.Handle != 0)
         {
             Unsafe.CopyBlock(GlobalData.MeshInfoBufferPtr, oldPtr, oldSize);
-            vk.UnmapMemory(device, oldMeshInfoBufferMemory);
+            vkUnmapMemory(device, oldMeshInfoBufferMemory);
         }
         else
         {
@@ -382,14 +376,14 @@ public static partial class VKRender
     }
     
 
-    private static unsafe void RegisterBufferForCleanup(Buffer buffer, DeviceMemory memory)
+    private static unsafe void RegisterBufferForCleanup(VkBuffer buffer, VkDeviceMemory memory)
     {
         FrameCleanup[(CurrentFrameIndex + FRAME_OVERLAP - 1) % FRAME_OVERLAP] 
             += () => CleanupBufferImmediately(buffer, memory);
     }
-    private static unsafe void CleanupBufferImmediately(Buffer buffer, DeviceMemory memory)
+    private static unsafe void CleanupBufferImmediately(VkBuffer buffer, VkDeviceMemory memory)
     {
-        vk.DestroyBuffer(device, buffer, default);
-        vk.FreeMemory(device, memory, default);
+        vkDestroyBuffer(device, buffer, default);
+        vkFreeMemory(device, memory, default);
     }
 }

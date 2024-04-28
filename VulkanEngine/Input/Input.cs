@@ -1,5 +1,4 @@
 using System.Numerics;
-using System.Runtime.CompilerServices;
 using Silk.NET.Input;
 using VulkanEngine.ECS_internals.Resources;
 using VulkanEngine.Renderer;

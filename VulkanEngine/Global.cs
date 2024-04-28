@@ -9,9 +9,6 @@ global using int3= Silk.NET.Maths.Vector3D<int>;
 global using int4= Silk.NET.Maths.Vector4D<int>;
 global using int4x4= Silk.NET.Maths.Matrix4X4<int>;
 global using int3x3= Silk.NET.Maths.Matrix3X3<int>;
-
-
-
 global using static VulkanEngine.ECS_internals.ECS;
 // todo 
 // IMGUI crashes if this is enabled

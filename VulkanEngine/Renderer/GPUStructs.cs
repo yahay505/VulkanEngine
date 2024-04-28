@@ -16,7 +16,7 @@ public static class BindingPoints
 }
 
 
-[StructLayout(LayoutKind.Explicit, Size = 128, Pack = 1)]
+[StructLayout(LayoutKind.Explicit,Size = 128, Pack = 1)]
 public struct ComputeInput{
     [FieldOffset(0)]
     public float4x4 transform;

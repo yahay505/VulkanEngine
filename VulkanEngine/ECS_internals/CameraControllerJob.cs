@@ -2,8 +2,6 @@
 using System.Runtime.CompilerServices;
 using ImGuiNET;
 using Silk.NET.Input;
-using Silk.NET.Maths;
-using VulkanEngine.ECS_internals;
 using VulkanEngine.Renderer;
 
 namespace VulkanEngine.Phases.FramePreRenderPhase;

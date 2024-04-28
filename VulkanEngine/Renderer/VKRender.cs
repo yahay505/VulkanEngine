@@ -1,14 +1,8 @@
 using System.Reflection;
-using ImGuiNET;
 using Silk.NET.Assimp;
-using Silk.NET.Input;
 using Silk.NET.Maths;
-using Silk.NET.Vulkan;
-using Silk.NET.Vulkan.Extensions.EXT;
 using Silk.NET.Vulkan.Extensions.ImGui;
-using Silk.NET.Vulkan.Extensions.KHR;
-using Silk.NET.Windowing;
-using Image = Silk.NET.Vulkan.Image;
+using Vortice.Vulkan;
 
 
 namespace VulkanEngine.Renderer;
@@ -27,17 +21,16 @@ public static partial class VKRender
 
     public static DeviceInfo DeviceInfo = null!;
     // public static IWindow window = null!;
-    public static Vk vk = Vk.GetApi()!;
+    // public static Vk vk = Vk.GetApi()!;
 
-    private static Instance instance;
+    private static VkInstance instance;
 
-    private static ExtDebugUtils? debugUtils;
-    private static DebugUtilsMessengerEXT debugMessenger;
+    private static VkDebugUtilsMessengerEXT debugMessenger;
 
-    private static Queue transferQueue;
-    private static Queue computeQueue;
-    private static Queue graphicsQueue;
-    private static Queue presentQueue;
+    private static VkQueue transferQueue;
+    private static VkQueue computeQueue;
+    private static VkQueue graphicsQueue;
+    private static VkQueue presentQueue;
 
     public static EngineWindow mainWindow = null!;
     
@@ -45,29 +38,27 @@ public static partial class VKRender
     // private static List<EngineWindow> windows => null!;
     // private static EngineWindow activeWindow => null!;
 
-    public static KhrSurface khrSurface =null!;
     // private static SurfaceKHR surface =>mainWindow.surface;
-    private static KhrSwapchain khrSwapChain =null!;
     // private static SwapchainKHR swapChain =>mainWindow.swapChain;
     // private static Image[] swapChainImages =>mainWindow.;
     // private static ImageView[] swapChainImageViews=null!;
     // private static Format swapChainImageFormat;
-    // private static Extent2D swapChainExtent;
+    // private static VkExtent2D swapChainExtent;
     // private static Framebuffer[]? swapChainFramebuffers;
     
-    public static RenderPass RenderPass;
+    public static VkRenderPass RenderPass;
 
 
-    public static PhysicalDevice physicalDevice=>DeviceInfo.device;
-    public static Device device;
-    private static DescriptorSetLayout DescriptorSetLayout;
-    private static PipelineLayout GfxPipelineLayout;
-    private static Pipeline GraphicsPipeline;
+    public static VkPhysicalDevice physicalDevice=>DeviceInfo.device;
+    public static VkDevice device;
+    private static VkDescriptorSetLayout DescriptorSetLayout;
+    private static VkPipelineLayout GfxPipelineLayout;
+    private static VkPipeline GraphicsPipeline;
 
-    private static Pipeline ComputePipeline;
-    public static PipelineLayout ComputePipelineLayout;
-    private static DescriptorSetLayout ComputeDescriptorSetLayout;
-    static DescriptorPool DescriptorPool;
+    private static VkPipeline ComputePipeline;
+    public static VkPipelineLayout ComputePipelineLayout;
+    private static VkDescriptorSetLayout ComputeDescriptorSetLayout;
+    static VkDescriptorPool DescriptorPool;
 
 
     public static int CurrentFrame = 0;

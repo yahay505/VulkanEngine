@@ -1,7 +1,3 @@
-using Pastel;
-using Silk.NET.Maths;
-using Silk.NET.Windowing;
-
 namespace VulkanEngine.Renderer;
 
 public static partial class VKRender
@@ -11,7 +7,7 @@ public static partial class VKRender
     //     //Create a window.
     //     var options = WindowOptions.DefaultVulkan with
     //     {
-    //         Size = new Vector2D<int>(Width, Height),
+    //         size = new Vector2D<int>(Width, Height),
     //         Title = "🎉🤯🎉",
     //         VSync = true,
     //         TransparentFramebuffer = true,

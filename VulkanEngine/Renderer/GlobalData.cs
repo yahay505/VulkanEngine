@@ -1,7 +1,5 @@
-﻿using Silk.NET.Vulkan;
-using Buffer = Silk.NET.Vulkan.Buffer;
-using Image = Silk.NET.Vulkan.Image;
-
+﻿using Vortice.Vulkan;
+using static Vortice.Vulkan.Vulkan;
 namespace VulkanEngine.Renderer;
 
 public static partial class VKRender
@@ -10,14 +8,14 @@ public static partial class VKRender
     {
         // public static Image depthImage;
         // public static Format depthFormat;
-        // public static DeviceMemory depthImageMemory;
+        // public static VkDeviceMemory depthImageMemory;
         // public static ImageView depthImageView;
 
-        public static CommandPool globalCommandPool;
-        public static CommandBuffer oneTimeUseCommandBuffer;
+        public static VkCommandPool globalCommandPool;
+        public static VkCommandBuffer oneTimeUseCommandBuffer;
         
-        public static Buffer deviceRenderObjectsBuffer;
-        public static DeviceMemory deviceRenderObjectsMemory;
+        public static VkBuffer deviceRenderObjectsBuffer;
+        public static VkDeviceMemory deviceRenderObjectsMemory;
         public static int deviceRenderObjectsBufferSize;
         public static int deviceRenderObjectsBufferSizeInBytes;
         public static unsafe void* DEBUG_deviceRenderObjectsBufferPtr;
@@ -26,8 +24,8 @@ public static partial class VKRender
         public static unsafe Span<GPUStructs.ComputeInput> DEBUG_deviceRenderObjectsBufferDATAAsSpan=>new((void*)
             ((nuint) DEBUG_deviceRenderObjectsBufferPtr+ComputeInSSBOStartOffset), deviceRenderObjectsBufferSize);
 
-        public static Buffer deviceIndirectDrawBuffer;
-        public static DeviceMemory deviceIndirectDrawBufferMemory;
+        public static VkBuffer deviceIndirectDrawBuffer;
+        public static VkDeviceMemory deviceIndirectDrawBufferMemory;
         public static int deviceIndirectDrawBufferSize;
         public static int deviceIndirectDrawBufferSizeInBytes;
         public static unsafe void* DEBUG_deviceIndirectDrawBufferPtr;
@@ -37,14 +35,14 @@ public static partial class VKRender
         public static unsafe Span<GPUStructs.ComputeDrawOutput> DEBUG_deviceIndirectDrawBufferDATAAsSpan=>new((void*)
             ((UIntPtr) DEBUG_deviceIndirectDrawBufferPtr+ComputeOutSSBOStartOffset), deviceIndirectDrawBufferSize);
 
-        public static Buffer MeshInfoBuffer;
-        public static DeviceMemory MeshInfoBufferMemory;
+        public static VkBuffer MeshInfoBuffer;
+        public static VkDeviceMemory MeshInfoBufferMemory;
         public static int MeshInfoBufferSize;
         public static unsafe void* MeshInfoBufferPtr;
         public static unsafe Span<GPUStructs.MeshInfo> DEBUG_MeshInfoBufferDATAAsSpan=>new((void*)MeshInfoBufferPtr, MeshInfoBufferSize);
         
-        public static DeviceMemory ReadBackMemory;
-        public static Buffer ReadBackBuffer;
+        public static VkDeviceMemory ReadBackMemory;
+        public static VkBuffer ReadBackBuffer;
         public static unsafe void* ReadBackBufferPtr;
         
         internal static VertexBuffer vertexBuffer;
@@ -53,29 +51,27 @@ public static partial class VKRender
 
     private static unsafe void AllocateGlobalData()
     {
-        CommandPoolCreateInfo poolInfo = new()
-        {
-            SType = StructureType.CommandPoolCreateInfo,
-            QueueFamilyIndex = _familyIndices.graphicsFamily!.Value,
-            Flags = CommandPoolCreateFlags.ResetCommandBufferBit
+        VkCommandPoolCreateInfo poolInfo = new()
+       {
+            queueFamilyIndex = _familyIndices.graphicsFamily!.Value,
+            flags = VkCommandPoolCreateFlags.ResetCommandBuffer
         };
-        vk.CreateCommandPool(device, &poolInfo, null, out GlobalData.globalCommandPool)
+        vkCreateCommandPool(device, &poolInfo, null, out GlobalData.globalCommandPool)
             .Expect("failed to create command pool!");
-        CommandBufferAllocateInfo allocInfo = new()
-        {
-            SType = StructureType.CommandBufferAllocateInfo,
-            Level = CommandBufferLevel.Primary,
-            CommandPool = GlobalData.globalCommandPool,
-            CommandBufferCount = 1
+        VkCommandBufferAllocateInfo allocInfo = new()
+       {
+            level = VkCommandBufferLevel.Primary,
+            commandPool = GlobalData.globalCommandPool,
+            commandBufferCount = 1
         };
-        fixed(CommandBuffer* cmd = &GlobalData.oneTimeUseCommandBuffer)
-            vk.AllocateCommandBuffers(device, &allocInfo, cmd)
+        fixed(VkCommandBuffer* cmd = &GlobalData.oneTimeUseCommandBuffer)
+            vkAllocateCommandBuffers(device, &allocInfo, cmd)
                 .Expect("failed to allocate command buffer!");
         GlobalData.indexBuffer = new IndexBuffer(1);
         GlobalData.vertexBuffer = new VertexBuffer(1);
     }
     private static unsafe void FreeGlobalData()
     {
-        vk.DestroyCommandPool(device, GlobalData.globalCommandPool, null);
+        vkDestroyCommandPool(device, GlobalData.globalCommandPool, null);
     }
 }

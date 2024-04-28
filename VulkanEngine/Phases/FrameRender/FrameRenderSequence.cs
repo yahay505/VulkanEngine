@@ -1,7 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
 using ImGuiNET;
-using Silk.NET.Vulkan.Extensions.ImGui;
 using VulkanEngine.ECS_internals;
 using VulkanEngine.Renderer;
 using VulkanEngine.Renderer.ECS;

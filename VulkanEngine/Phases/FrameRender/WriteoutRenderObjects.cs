@@ -1,7 +1,5 @@
-﻿using VulkanEngine.ECS_internals;
-using VulkanEngine.Renderer;
+﻿using VulkanEngine.Renderer;
 using VulkanEngine.Renderer.ECS;
-using VulkanEngine.Renderer.GPUStructs;
 
 namespace VulkanEngine.Phases.FrameRender;
 

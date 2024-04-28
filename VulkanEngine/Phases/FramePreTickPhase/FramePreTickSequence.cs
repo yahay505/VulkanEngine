@@ -1,6 +1,4 @@
-﻿using VulkanEngine.ECS_internals;
-
-namespace VulkanEngine.Phases.FramePreTickPhase;
+﻿namespace VulkanEngine.Phases.FramePreTickPhase;
 
 public static class FramePreTickSequence
 {

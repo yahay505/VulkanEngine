@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-using VulkanEngine.ECS_internals;
-using VulkanEngine.Renderer;
+﻿using VulkanEngine.ECS_internals;
 
 namespace VulkanEngine;
 

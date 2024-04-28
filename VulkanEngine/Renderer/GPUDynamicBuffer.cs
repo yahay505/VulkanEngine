@@ -1,36 +1,35 @@
 // #define GPUDEBG
 using System.Runtime.CompilerServices;
-using Silk.NET.Vulkan;
-using Buffer = Silk.NET.Vulkan.Buffer;
-
+using Vortice.Vulkan;
+using static Vortice.Vulkan.Vulkan;
 namespace VulkanEngine.Renderer;
 public static partial class VKRender{
 static class GPUDynamicBuffer
 {
-    public static Buffer stagingBuffer;
-    public static DeviceMemory stagingMemory;
+    public static VkBuffer stagingBuffer;
+    public static VkDeviceMemory stagingMemory;
     public static unsafe void* stagingMemoryPtr;
     public static int sizeOfStagingMemory=0;
     
 }
 public class GPUDynamicBuffer<T> where T:unmanaged
 {
-    private readonly BufferUsageFlags _usage;
-    private readonly MemoryPropertyFlags _properties;
-    public Buffer buffer;
-    public DeviceMemory memory;
+    private readonly VkBufferUsageFlags _usage;
+    private readonly VkMemoryPropertyFlags _properties;
+    public VkBuffer buffer;
+    public VkDeviceMemory memory;
     private int currentSize=0;
     private ulong currentSizeInBytes=>(ulong) (currentSize*Unsafe.SizeOf<T>());
     private uint currentbyteOffset=0;
 
     public unsafe void* DebugPtr;
-    public GPUDynamicBuffer(ulong initialSizeInItems, BufferUsageFlags usage, MemoryPropertyFlags properties)
+    public GPUDynamicBuffer(ulong initialSizeInItems, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties)
     {
-        _usage = usage|BufferUsageFlags.TransferDstBit|BufferUsageFlags.TransferSrcBit;
+        _usage = usage|VkBufferUsageFlags.TransferDst|VkBufferUsageFlags.TransferSrc;
         _properties = properties;
 #if GPUDEBG
-        _properties &= ~MemoryPropertyFlags.DeviceLocalBit;
-        _properties |= MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit;
+        _properties &= ~VkMemoryPropertyFlags.DeviceLocal;
+        _properties |= VkMemoryPropertyFlags.HostVisible | VkMemoryPropertyFlags.HostCoherent;
 #endif
         
         
@@ -42,14 +41,14 @@ public class GPUDynamicBuffer<T> where T:unmanaged
         unsafe
         {
             fixed (void** debugPtr = &DebugPtr)
-                vk.MapMemory(device, memory, 0, currentSizeInBytes, 0,
+                vkMapMemory(device, memory, 0, currentSizeInBytes, 0,
                     debugPtr);
         }
 #endif
 
     }
 
-    public unsafe uint Upload(Span<T> data, PipelineStageFlags dstStageMask)
+    public unsafe uint Upload(Span<T> data, VkPipelineStageFlags dstStageMask)
     {
         var cmdBuf=BeginSingleTimeCommands();
 
@@ -65,28 +64,28 @@ public class GPUDynamicBuffer<T> where T:unmanaged
             CreateBuffer(currentSizeInBytes,_usage,_properties,out buffer,out memory);
 #if GPUDEBG
             fixed (void** debugPtr = &DebugPtr)
-                vk.MapMemory(device, memory, 0, currentSizeInBytes, 0,
+                vkMapMemory(device, memory, 0, currentSizeInBytes, 0,
                     debugPtr);
 #endif
             if (currentbyteOffset!=0)// if not empty
             {
-                vk.CmdCopyBuffer(cmdBuf, oldbuf, buffer, 1, new BufferCopy()
+                var vkBufferCopy = new VkBufferCopy()
                 {
-                    Size = currentbyteOffset
-                });
-                var BufferMemoryBarriers = new BufferMemoryBarrier()
-                {
-                    SType = StructureType.BufferMemoryBarrier,
-                    Buffer = buffer,
-                    Size = currentSizeInBytes,
-                    SrcAccessMask = AccessFlags.TransferWriteBit,
-                    DstAccessMask = AccessFlags.TransferWriteBit,
-                    SrcQueueFamilyIndex = (uint) VKRender._familyIndices.graphicsFamily,
-                    DstQueueFamilyIndex = (uint) VKRender._familyIndices.graphicsFamily
+                    size = currentbyteOffset
                 };
-                vk.CmdPipelineBarrier(cmdBuf,
-                    PipelineStageFlags.TransferBit,
-                    PipelineStageFlags.TransferBit,
+                vkCmdCopyBuffer(cmdBuf, oldbuf, buffer, 1, &vkBufferCopy);
+                var BufferMemoryBarriers = new VkBufferMemoryBarrier()
+                {
+                    buffer = buffer,
+                    size = currentSizeInBytes,
+                    srcAccessMask = VkAccessFlags.TransferWrite,
+                    dstAccessMask = VkAccessFlags.TransferWrite,
+                    srcQueueFamilyIndex = (uint) VKRender._familyIndices.graphicsFamily,
+                    dstQueueFamilyIndex = (uint) VKRender._familyIndices.graphicsFamily
+                };
+                vkCmdPipelineBarrier(cmdBuf,
+                    VkPipelineStageFlags.Transfer,
+                    VkPipelineStageFlags.Transfer,
                     0,
                     0,
                     null,
@@ -103,32 +102,30 @@ public class GPUDynamicBuffer<T> where T:unmanaged
         {
             CleanupBufferImmediately(GPUDynamicBuffer.stagingBuffer, GPUDynamicBuffer.stagingMemory);
             CreateBuffer((ulong) dataLength,
-                BufferUsageFlags.TransferSrcBit,
-                MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit,
+                VkBufferUsageFlags.TransferSrc,
+                VkMemoryPropertyFlags.HostVisible | VkMemoryPropertyFlags.HostCoherent,
                 out GPUDynamicBuffer.stagingBuffer,
                 out GPUDynamicBuffer.stagingMemory);
             fixed (void** pstagingMemoryPtr = &GPUDynamicBuffer.stagingMemoryPtr)
-                vk.MapMemory(device, GPUDynamicBuffer.stagingMemory, 0, (ulong) dataLength, 0,
+                vkMapMemory(device, GPUDynamicBuffer.stagingMemory, 0, (ulong) dataLength, 0,
                 pstagingMemoryPtr);
         }
 
         {
             data.CopyTo(new Span<T>(GPUDynamicBuffer.stagingMemoryPtr, data.Length));
             //memory barrier
-            var BufferMemoryBarriers2 = new BufferMemoryBarrier()
+            var BufferMemoryBarriers2 = new VkBufferMemoryBarrier()
             {
-                SType = StructureType.BufferMemoryBarrier,
-
-                Buffer = GPUDynamicBuffer.stagingBuffer,
-                Size = (ulong) dataLength,
-                SrcAccessMask = AccessFlags.HostWriteBit,
-                DstAccessMask = AccessFlags.TransferReadBit,
-                SrcQueueFamilyIndex = (uint) VKRender._familyIndices.graphicsFamily,
-                DstQueueFamilyIndex = (uint) VKRender._familyIndices.graphicsFamily
+                buffer = GPUDynamicBuffer.stagingBuffer,
+                size = (ulong) dataLength,
+                srcAccessMask = VkAccessFlags.HostWrite,
+                dstAccessMask = VkAccessFlags.TransferRead,
+                srcQueueFamilyIndex = (uint) VKRender._familyIndices.graphicsFamily,
+                dstQueueFamilyIndex = (uint) VKRender._familyIndices.graphicsFamily
             };
-            vk.CmdPipelineBarrier(cmdBuf,
-                PipelineStageFlags.HostBit,
-                PipelineStageFlags.TransferBit,
+            vkCmdPipelineBarrier(cmdBuf,
+                VkPipelineStageFlags.Host,
+                VkPipelineStageFlags.Transfer,
                 0,
                 0,
                 null,
@@ -136,25 +133,25 @@ public class GPUDynamicBuffer<T> where T:unmanaged
                 &BufferMemoryBarriers2,
                 0u,
                 null);
-            vk.CmdCopyBuffer(cmdBuf, GPUDynamicBuffer.stagingBuffer, buffer, 1, new BufferCopy()
+            var vkBufferCopy = new VkBufferCopy()
             {
-                Size = (ulong) dataLength,
-                SrcOffset = 0,
-                DstOffset = (ulong) currentbyteOffset
-            });
-            //memory barrier
-            var BufferMemoryBarriers3 = new BufferMemoryBarrier()
-            {
-                SType = StructureType.BufferMemoryBarrier,
-                Buffer = buffer,
-                Size = (ulong) dataLength,
-                SrcAccessMask = AccessFlags.TransferWriteBit,
-                DstAccessMask = AccessFlags.MemoryReadBit,
-                SrcQueueFamilyIndex = (uint) VKRender._familyIndices.graphicsFamily,
-                DstQueueFamilyIndex = (uint) VKRender._familyIndices.graphicsFamily
+                size = (ulong) dataLength,
+                srcOffset = 0,
+                dstOffset = (ulong) currentbyteOffset
             };
-            vk.CmdPipelineBarrier(cmdBuf,
-                PipelineStageFlags.TransferBit,
+            vkCmdCopyBuffer(cmdBuf, GPUDynamicBuffer.stagingBuffer, buffer, 1, &vkBufferCopy);
+            //memory barrier
+            var BufferMemoryBarriers3 = new VkBufferMemoryBarrier()
+           {
+                buffer = buffer,
+                size = (ulong) dataLength,
+                srcAccessMask = VkAccessFlags.TransferWrite,
+                dstAccessMask = VkAccessFlags.MemoryRead,
+                srcQueueFamilyIndex = (uint) VKRender._familyIndices.graphicsFamily,
+                dstQueueFamilyIndex = (uint) VKRender._familyIndices.graphicsFamily
+            };
+            vkCmdPipelineBarrier(cmdBuf,
+                VkPipelineStageFlags.Transfer,
                 dstStageMask,
                 0,
                 0,

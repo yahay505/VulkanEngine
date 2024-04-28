@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-
-namespace VulkanEngine.ECS_internals;
+﻿namespace VulkanEngine.ECS_internals;
 
 public class WorkerThread
 {

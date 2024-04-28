@@ -1,5 +1,4 @@
-using Silk.NET.Vulkan;
-using Buffer = Silk.NET.Vulkan.Buffer;
+using Vortice.Vulkan;
 
 namespace VulkanEngine.Renderer;
 public static partial class VKRender{
@@ -9,17 +8,17 @@ public class IndexBuffer
     public unsafe IndexBuffer(ulong initialSize)
     {
         buffer = new(initialSize,
-            BufferUsageFlags.IndexBufferBit,
-            MemoryPropertyFlags.DeviceLocalBit);
+            VkBufferUsageFlags.IndexBuffer,
+            VkMemoryPropertyFlags.DeviceLocal);
         
     }
     public uint Upload(Span<uint> data)
     {
-        return buffer.Upload(data, PipelineStageFlags.VertexInputBit);
+        return buffer.Upload(data, VkPipelineStageFlags.VertexInput);
     }
     //implicit cast
-    public static implicit operator Buffer(IndexBuffer indexBuffer) => indexBuffer.buffer.buffer;
-    public static implicit operator DeviceMemory(IndexBuffer indexBuffer) => indexBuffer.buffer.memory;
+    public static implicit operator VkBuffer(IndexBuffer indexBuffer) => indexBuffer.buffer.buffer;
+    public static implicit operator VkDeviceMemory(IndexBuffer indexBuffer) => indexBuffer.buffer.memory;
     
 }
 }

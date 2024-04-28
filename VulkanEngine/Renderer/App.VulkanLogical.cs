@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using Silk.NET.Core.Native;
-using Silk.NET.Vulkan;
-
+using Vortice.Vulkan;
+using static Vortice.Vulkan.Vulkan;
 namespace VulkanEngine.Renderer;
 
 public static partial class VKRender
@@ -9,71 +9,67 @@ public static partial class VKRender
     public static DeviceInfo.QueueFamilyIndices _familyIndices=>DeviceInfo.indices;
 
     private static unsafe void CreateLogicalDevice()
-    {
-
+   {
         var uniqueQueueFamilies = new[] { _familyIndices.graphicsFamily!.Value, _familyIndices.presentFamily!.Value };
         uniqueQueueFamilies = uniqueQueueFamilies.Distinct().ToArray();
 
-        using var mem = GlobalMemory.Allocate(uniqueQueueFamilies.Length * sizeof(DeviceQueueCreateInfo));
-        var queueCreateInfos = (DeviceQueueCreateInfo*)Unsafe.AsPointer(ref mem.GetPinnableReference());
+        using var mem = GlobalMemory.Allocate(uniqueQueueFamilies.Length * sizeof(VkDeviceQueueCreateInfo))!;
+        var queueCreateInfos = (VkDeviceQueueCreateInfo*)Unsafe.AsPointer(ref mem.GetPinnableReference());
 
         float queuePriority = 1.0f;
         for (int i = 0; i < uniqueQueueFamilies.Length; i++)
         {
             queueCreateInfos[i] = new()
-            {
-                SType = StructureType.DeviceQueueCreateInfo,
-                QueueFamilyIndex = uniqueQueueFamilies[i],
-                QueueCount = 1,
-                PQueuePriorities = &queuePriority
+           {
+                queueFamilyIndex = uniqueQueueFamilies[i],
+                queueCount = 1,
+                pQueuePriorities = &queuePriority
             };
         }
 
-        PhysicalDeviceFeatures deviceFeatures = new PhysicalDeviceFeatures
+        VkPhysicalDeviceFeatures deviceFeatures = new VkPhysicalDeviceFeatures
         {
-            SamplerAnisotropy = true,
-            MultiDrawIndirect = true
+            samplerAnisotropy = true,
+            multiDrawIndirect = true
         };
-        var next = new PhysicalDeviceDescriptorIndexingFeatures()
-        {
-            SType = StructureType.PhysicalDeviceDescriptorIndexingFeatures,
-            DescriptorBindingStorageBufferUpdateAfterBind = true,
-            DescriptorBindingUpdateUnusedWhilePending = true,
+        var next = new VkPhysicalDeviceDescriptorIndexingFeatures()
+       {
+            descriptorBindingStorageBufferUpdateAfterBind = true,
+            descriptorBindingUpdateUnusedWhilePending = true,
         };
-        DeviceCreateInfo createInfo = new()
-        {
-            SType = StructureType.DeviceCreateInfo,
-            QueueCreateInfoCount = (uint)uniqueQueueFamilies.Length,
-            PQueueCreateInfos = queueCreateInfos,
+        VkDeviceCreateInfo createInfo = new()
+       {
+            queueCreateInfoCount = (uint)uniqueQueueFamilies.Length,
+            pQueueCreateInfos = queueCreateInfos,
 
-            PEnabledFeatures = &deviceFeatures,
-            PpEnabledExtensionNames = (byte**) SilkMarshal.StringArrayToPtr( DeviceInfo.selectedExtensionNames),
-            EnabledExtensionCount = (uint) DeviceInfo.selectedExtensionNames.Count,
-            PNext = &next,
+            pEnabledFeatures = &deviceFeatures,
+            ppEnabledExtensionNames = (sbyte**) SilkMarshal.StringArrayToPtr( DeviceInfo.selectedExtensionNames),
+            enabledExtensionCount = (uint) DeviceInfo.selectedExtensionNames.Count,
+            pNext = &next,
         };
 
         if (EnableValidationLayers)
         {
-            createInfo.EnabledLayerCount = (uint)validationLayers.Length;
-            createInfo.PpEnabledLayerNames = (byte**)SilkMarshal.StringArrayToPtr(validationLayers);
+            createInfo.enabledLayerCount = (uint)validationLayers.Length;
+            createInfo.ppEnabledLayerNames = (sbyte**)SilkMarshal.StringArrayToPtr(validationLayers);
         }
         else
         {
-            createInfo.EnabledLayerCount = 0;
+            createInfo.enabledLayerCount = 0;
         }
 
-        vk.CreateDevice(physicalDevice, in createInfo, null, out device)
+        vkCreateDevice(physicalDevice, &createInfo, null, out device)
             .Expect("failed to create logical device!");
 
-        vk.GetDeviceQueue(device, _familyIndices.graphicsFamily!.Value, 0, out graphicsQueue);
-        vk.GetDeviceQueue(device, _familyIndices.presentFamily!.Value, 0, out presentQueue);
-        vk.GetDeviceQueue(device, _familyIndices.transferFamily!.Value, 0, out transferQueue);
-        vk.GetDeviceQueue(device, _familyIndices.computeFamily!.Value, 0, out computeQueue);
+        vkGetDeviceQueue(device, _familyIndices.graphicsFamily!.Value, 0, out graphicsQueue);
+        vkGetDeviceQueue(device, _familyIndices.presentFamily!.Value, 0, out presentQueue);
+        vkGetDeviceQueue(device, _familyIndices.transferFamily!.Value, 0, out transferQueue);
+        vkGetDeviceQueue(device, _familyIndices.computeFamily!.Value, 0, out computeQueue);
         
         
         if (EnableValidationLayers)
         {
-            SilkMarshal.Free((nint)createInfo.PpEnabledLayerNames);
+            SilkMarshal.Free((nint)createInfo.ppEnabledLayerNames);
         }
     }
 }

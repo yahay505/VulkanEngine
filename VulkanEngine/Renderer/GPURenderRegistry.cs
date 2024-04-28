@@ -1,8 +1,4 @@
-using Silk.NET.Vulkan;
-using Silk.NET.Vulkan.Extensions.EXT;
-using VulkanEngine.Renderer.ECS;
 using VulkanEngine.Renderer.GPUStructs;
-using VulkanEngine.Renderer.Internal;
 
 namespace VulkanEngine.Renderer;
 

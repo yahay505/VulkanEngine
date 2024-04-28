@@ -1,5 +1,4 @@
 ﻿using VulkanEngine.ECS_internals;
-using VulkanEngine.Renderer;
 
 namespace VulkanEngine.Phases.Tick;
 

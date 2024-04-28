@@ -1,9 +1,8 @@
 using System.Runtime.InteropServices;
 using Silk.NET.Core;
 using Silk.NET.Core.Native;
-using Silk.NET.Vulkan;
-using Silk.NET.Vulkan.Extensions.EXT;
-using Silk.NET.Vulkan.Extensions.KHR;
+using Vortice.Vulkan;
+using static Vortice.Vulkan.Vulkan;
 
 namespace VulkanEngine.Renderer;
 public static partial class VKRender{
@@ -14,7 +13,7 @@ public static class DeviceRequirements
 
     
     private static readonly string[] requiredDeviceExtensions = {
-        KhrSwapchain.ExtensionName,
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
         "VK_EXT_descriptor_indexing",
 #if MAC
         "VK_KHR_portability_subset"
@@ -29,8 +28,8 @@ public static class DeviceRequirements
         var score = 0;
         
         
-        score += deviceInfo.properties.DeviceType==PhysicalDeviceType.DiscreteGpu?2:0;
-        score += deviceInfo.properties.DeviceType == PhysicalDeviceType.IntegratedGpu ? 1 : 0;
+        score += deviceInfo.properties.deviceType==VkPhysicalDeviceType.DiscreteGpu?2:0;
+        score += deviceInfo.properties.deviceType == VkPhysicalDeviceType.IntegratedGpu ? 1 : 0;
         // score += deviceInfo.features.Features.SamplerAnisotropy?1:0;
         // score += deviceInfo.DescriptorIndexingFeatures.DescriptorBindingStorageBufferUpdateAfterBind?1:0;
         // score += deviceInfo.DescriptorIndexingFeatures.DescriptorBindingUpdateUnusedWhilePending?1:0;
@@ -39,16 +38,16 @@ public static class DeviceRequirements
         //     deviceInfo.supportsMultiDraw = true;
         //     score += 1;
         // }
-        if (deviceInfo.availableExtensionNames.Contains(ExtMultiDraw.ExtensionName))
+        if (deviceInfo.availableExtensionNames.Contains(VK_EXT_MULTI_DRAW_EXTENSION_NAME))
         {
             deviceInfo.supportsMultiDraw = true;
-            deviceInfo.selectedExtensionNames.Add(ExtMultiDraw.ExtensionName);
+            deviceInfo.selectedExtensionNames.Add(VK_EXT_MULTI_DRAW_EXTENSION_NAME);
             score += 1;
         }
-        if (deviceInfo.availableExtensionNames.Contains(KhrDrawIndirectCount.ExtensionName))
+        if (deviceInfo.availableExtensionNames.Contains(VK_KHR_DRAW_INDIRECT_COUNT_EXTENSION_NAME))
         {
             deviceInfo.supportsCmdDrawIndexedIndirectCount = true;
-            deviceInfo.selectedExtensionNames.Add(KhrDrawIndirectCount.ExtensionName);
+            deviceInfo.selectedExtensionNames.Add(VK_KHR_DRAW_INDIRECT_COUNT_EXTENSION_NAME);
             score += 2;
         }
         return score;
@@ -67,19 +66,19 @@ public static class DeviceRequirements
     }
     
 
-    public static unsafe DeviceInfo PickPhysicalDevice(SurfaceKHR surface)
+    public static unsafe DeviceInfo PickPhysicalDevice(VkSurfaceKHR surface)
     {
             
         uint deviceCount = 0;
-        vk.EnumeratePhysicalDevices(instance, &deviceCount, null);
+        vkEnumeratePhysicalDevices(instance, &deviceCount, null);
         if (deviceCount==0)
         {
             throw new("failed to find GPUs with Vulkan support!");
         }
         var dev_res_list = new DeviceInfo[(int)deviceCount];
         
-        var dev_list = stackalloc PhysicalDevice[(int) deviceCount];
-        vk.EnumeratePhysicalDevices(instance, &deviceCount, dev_list);
+        var dev_list = stackalloc VkPhysicalDevice[(int) deviceCount];
+        vkEnumeratePhysicalDevices(instance, &deviceCount, dev_list);
         
         for (int i = 0; i < deviceCount; i++)
         {
@@ -115,33 +114,33 @@ public static class DeviceRequirements
         return bestDevice;
     }
                    
-    static unsafe void FindQueueFamilies(DeviceInfo deviceInfo, SurfaceKHR surface)
+    static unsafe void FindQueueFamilies(DeviceInfo deviceInfo, VkSurfaceKHR surface)
     {
         uint queueFamilityCount = 0;
-        vk.GetPhysicalDeviceQueueFamilyProperties(deviceInfo.device, ref queueFamilityCount, null);
+        vkGetPhysicalDeviceQueueFamilyProperties(deviceInfo.device, & queueFamilityCount, null);
 
-        var queueFamilies = stackalloc QueueFamilyProperties[(int)queueFamilityCount];
+        var queueFamilies = stackalloc VkQueueFamilyProperties[(int)queueFamilityCount];
 
-        vk.GetPhysicalDeviceQueueFamilyProperties(deviceInfo.device, ref queueFamilityCount, queueFamilies);
+        vkGetPhysicalDeviceQueueFamilyProperties(deviceInfo.device, & queueFamilityCount, queueFamilies);
             
         for (uint i=0;i<queueFamilityCount;i++)
         {
             var queueFamily = queueFamilies[i];
-            if (queueFamily.QueueFlags.HasFlag(QueueFlags.GraphicsBit))
+            if (queueFamily.queueFlags.HasFlag(VkQueueFlags.Graphics))
             {
                 deviceInfo.indices.graphicsFamily = i;
             }
-            Bool32 presentSupport = false;
-            khrSurface.GetPhysicalDeviceSurfaceSupport(deviceInfo.device, i, surface, out presentSupport);
+            VkBool32 presentSupport = false;
+            vkGetPhysicalDeviceSurfaceSupportKHR(deviceInfo.device, i, surface, &presentSupport);
             if (presentSupport)
             {
                 deviceInfo.indices.presentFamily = i;
             }
-            if (queueFamily.QueueFlags.HasFlag(QueueFlags.TransferBit))
+            if (queueFamily.queueFlags.HasFlag(VkQueueFlags.Transfer))
             { 
                 deviceInfo.indices.transferFamily = i;
             }
-            if (queueFamily.QueueFlags.HasFlag(QueueFlags.ComputeBit))
+            if (queueFamily.queueFlags.HasFlag(VkQueueFlags.Compute))
             {
                 deviceInfo.indices.computeFamily = i;
             }
@@ -152,13 +151,14 @@ public static class DeviceRequirements
             }
         }
         //get device name
-        var properties = vk.GetPhysicalDeviceProperties(deviceInfo.device);
+        VkPhysicalDeviceProperties properties;
+        vkGetPhysicalDeviceProperties(deviceInfo.device, &properties);
         //write all families
-        Console.WriteLine($"all families for device({properties.DeviceType.ToString()}) {SilkMarshal.PtrToString((nint) properties.DeviceName)} id:{properties.DeviceID}");
+        Console.WriteLine($"all families for device({properties.deviceType.ToString()}) {SilkMarshal.PtrToString((nint) properties.deviceName)} id:{properties.deviceID}");
         Console.WriteLine();
         for (int i = 0; i < queueFamilityCount; i++)
         {
-            Console.WriteLine($"queueFamily{i}: {queueFamilies[i].QueueFlags}");
+            Console.WriteLine($"queueFamily{i}: {queueFamilies[i].queueFlags}");
         }
         Console.WriteLine();
         Console.WriteLine("selceted families:");
@@ -169,26 +169,24 @@ public static class DeviceRequirements
         Console.WriteLine();
     }
 
-    static unsafe void GatherPhysicalDeviceData(DeviceInfo deviceInfo, SurfaceKHR surface)
+    static unsafe void GatherPhysicalDeviceData(DeviceInfo deviceInfo, VkSurfaceKHR surface)
 {
     
     ref var device = ref deviceInfo.device;
     FindQueueFamilies(deviceInfo,surface);
-    var descriptorIndexingFeatures = new PhysicalDeviceDescriptorIndexingFeatures()
-    {
-        SType = StructureType.PhysicalDeviceDescriptorIndexingFeatures,
+    var descriptorIndexingFeatures = new VkPhysicalDeviceDescriptorIndexingFeatures()
+   {
     };
-    var features = new PhysicalDeviceFeatures2()
-    {
-        SType = StructureType.PhysicalDeviceFeatures2,
-        PNext = &descriptorIndexingFeatures,
+    var features = new VkPhysicalDeviceFeatures2()
+   {
+        pNext = &descriptorIndexingFeatures,
     };
     
-    vk.GetPhysicalDeviceFeatures2(device,&features);
-    deviceInfo.properties = vk.GetPhysicalDeviceProperties(device);
+    vkGetPhysicalDeviceFeatures2(device,&features); 
+    vkGetPhysicalDeviceProperties(device,out deviceInfo.properties);
 
     CheckDeviceExtensionSupport(ref deviceInfo);
-    deviceInfo.features = features with {PNext = null};
+    deviceInfo.features = features with {pNext = null};
     deviceInfo.DescriptorIndexingFeatures = descriptorIndexingFeatures;
 
 
@@ -204,11 +202,11 @@ public static class DeviceRequirements
     {
         ref var device = ref deviceInfo.device;
         uint extensionCount = 0;
-        vk.EnumerateDeviceExtensionProperties(device, ((byte*)null)!, &extensionCount, null);
-        var avaliableExtension = new ExtensionProperties[extensionCount];
-        fixed (ExtensionProperties* avaliableExtensionPtr = avaliableExtension)
-            vk.EnumerateDeviceExtensionProperties(device, ((byte*) null)!, ref extensionCount, avaliableExtensionPtr);
-        deviceInfo.availableExtensionNames = avaliableExtension.Select(extension => Marshal.PtrToStringAnsi((IntPtr)extension.ExtensionName)).ToHashSet();
+        vkEnumerateDeviceExtensionProperties(device, ((sbyte*)null)!, &extensionCount, null);
+        var avaliableExtension = new VkExtensionProperties[extensionCount];
+        fixed (VkExtensionProperties* avaliableExtensionPtr = avaliableExtension)
+            vkEnumerateDeviceExtensionProperties(device, ((sbyte*) null)!, & extensionCount, avaliableExtensionPtr);
+        deviceInfo.availableExtensionNames = avaliableExtension.Select(extension => Marshal.PtrToStringAnsi((IntPtr)extension.extensionName)).ToHashSet();
     }
 
 }

@@ -1,9 +1,9 @@
-﻿using Silk.NET.Vulkan;
+﻿using Vortice.Vulkan;
 
 namespace VulkanEngine.Renderer;
 
 public interface IVertexFormat
 {
-    public static abstract VertexInputAttributeDescription[] GetAttributeDescriptions();
+    public static abstract VkVertexInputAttributeDescription[] GetAttributeDescriptions();
 
 }

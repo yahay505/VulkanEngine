@@ -1,15 +1,15 @@
-using Silk.NET.Vulkan;
+using Vortice.Vulkan;
 
 namespace VulkanEngine.Renderer;
 
 public class DeviceInfo
 {
-    public PhysicalDevice device;
-    public PhysicalDeviceProperties properties;
+    public VkPhysicalDevice device;
+    public VkPhysicalDeviceProperties properties;
     public bool supportsCmdDrawIndexedIndirectCount;
     public bool supportsMultiDraw;
-    public PhysicalDeviceDescriptorIndexingFeatures DescriptorIndexingFeatures;
-    public PhysicalDeviceFeatures2 features;
+    public VkPhysicalDeviceDescriptorIndexingFeatures DescriptorIndexingFeatures;
+    public VkPhysicalDeviceFeatures2 features;
     public QueueFamilyIndices indices;
     public HashSet<string?> availableExtensionNames;
     public List<string> selectedExtensionNames=new();
@@ -20,7 +20,7 @@ public class DeviceInfo
     {
     }
 
-    public DeviceInfo(PhysicalDevice device)
+    public DeviceInfo(VkPhysicalDevice device)
     {
         this.device = device;
     }

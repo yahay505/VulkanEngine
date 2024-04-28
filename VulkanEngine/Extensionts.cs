@@ -1,8 +1,10 @@
 #define ASSERTS
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Silk.NET.Vulkan;
+using Vortice.Vulkan;
 using Range = System.Range;
+using Result=Vortice.Vulkan.VkResult;
 
 namespace VulkanEngine;
 
@@ -26,8 +28,18 @@ public static class Extensions
             i++;
         }
     }
-    
-    public static int2 ToInt2(this Extent2D extent) => new((int)extent.Width,(int)extent.Height);
+
+    public static unsafe T* ptr<T>(this ref T a) where T : unmanaged
+    {
+        return (T*)Unsafe.AsPointer(ref a);
+    }
+    public static unsafe T* ptr<T>(this Span<T> a) where T : unmanaged
+    {
+        return (T*) Unsafe.AsPointer(ref a.GetPinnableReference());
+    }
+
+
+    public static int2 ToInt2(this VkExtent2D extent) => new((int)extent.width,(int)extent.height);
     
     
     public delegate void ActionRef<T>(ref T item);

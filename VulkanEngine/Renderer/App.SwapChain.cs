@@ -1,6 +1,6 @@
 using Pastel;
-using Silk.NET.Vulkan;
-
+using Vortice.Vulkan;
+using static Vortice.Vulkan.Vulkan;
 namespace VulkanEngine.Renderer;
 
 public static partial class VKRender
@@ -9,61 +9,61 @@ public static partial class VKRender
 
     public struct SwapChainSupportDetails
     {
-        public SurfaceCapabilitiesKHR Capabilities;
-        public SurfaceFormatKHR[] Formats;
-        public PresentModeKHR[] PresentModes;
+        public VkSurfaceCapabilitiesKHR Capabilities;
+        public VkSurfaceFormatKHR[] Formats;
+        public VkPresentModeKHR[] PresentModes;
     }
 
-    private static unsafe SwapChainSupportDetails QuerySwapChainSupport(PhysicalDevice physicalDevice,
-        SurfaceKHR surface)
+    private static unsafe SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice physicalDevice,
+        VkSurfaceKHR surface)
     {
         deviceSwapChainSupport = new();
         
         
-        khrSurface!.GetPhysicalDeviceSurfaceCapabilities(physicalDevice, surface, out deviceSwapChainSupport.Capabilities);
+        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, out deviceSwapChainSupport.Capabilities);
 
         uint formatCount = 0;
-        khrSurface.GetPhysicalDeviceSurfaceFormats(physicalDevice, surface, ref formatCount, null);
+        vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, & formatCount, null);
 
         if (formatCount != 0)
         {
-            deviceSwapChainSupport.Formats = new SurfaceFormatKHR[formatCount];
-            fixed (SurfaceFormatKHR* formatsPtr = deviceSwapChainSupport.Formats)
+            deviceSwapChainSupport.Formats = new VkSurfaceFormatKHR[formatCount];
+            fixed (VkSurfaceFormatKHR* formatsPtr = deviceSwapChainSupport.Formats)
             {
-                khrSurface.GetPhysicalDeviceSurfaceFormats(physicalDevice, surface, ref formatCount, formatsPtr);
+                vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, & formatCount, formatsPtr);
             }
         }
         else
         {
-            deviceSwapChainSupport.Formats = Array.Empty<SurfaceFormatKHR>();
+            deviceSwapChainSupport.Formats = Array.Empty<VkSurfaceFormatKHR>();
         }
 
         uint presentModeCount = 0;
-        khrSurface.GetPhysicalDeviceSurfacePresentModes(physicalDevice, surface, ref presentModeCount, null);
+        vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, & presentModeCount, null);
 
         if (presentModeCount != 0)
         {
-            deviceSwapChainSupport.PresentModes = new PresentModeKHR[presentModeCount];
-            fixed (PresentModeKHR* formatsPtr = deviceSwapChainSupport.PresentModes)
+            deviceSwapChainSupport.PresentModes = new VkPresentModeKHR[presentModeCount];
+            fixed (VkPresentModeKHR* formatsPtr = deviceSwapChainSupport.PresentModes)
             {
-                khrSurface.GetPhysicalDeviceSurfacePresentModes(physicalDevice, surface, ref presentModeCount,
+                vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, & presentModeCount,
                     formatsPtr);
             }
         }
         else
         {
-            deviceSwapChainSupport.PresentModes = Array.Empty<PresentModeKHR>();
+            deviceSwapChainSupport.PresentModes = Array.Empty<VkPresentModeKHR>();
         }
 
         return deviceSwapChainSupport;
     }
 
-    private static SurfaceFormatKHR ChooseSwapSurfaceFormat(IReadOnlyList<SurfaceFormatKHR> availableFormats)
+    private static VkSurfaceFormatKHR ChooseSwapSurfaceFormat(IReadOnlyList<VkSurfaceFormatKHR> availableFormats)
     {
         foreach (var availableFormat in availableFormats)
         {
-            if (availableFormat.Format == Format.B8G8R8A8Srgb &&
-                availableFormat.ColorSpace == ColorSpaceKHR.SpaceSrgbNonlinearKhr)
+            if (availableFormat.format == VkFormat.B8G8R8A8Srgb &&
+                availableFormat.colorSpace == VkColorSpaceKHR.SrgbNonLinear)
             {
                 return availableFormat;
             }
@@ -71,42 +71,44 @@ public static partial class VKRender
 
         return availableFormats[0];
     }
-    private static PresentModeKHR ChoosePresentMode(IReadOnlyList<PresentModeKHR> availablePresentModes)
+    private static VkPresentModeKHR ChoosePresentMode(IReadOnlyList<VkPresentModeKHR> availablePresentModes)
     {
         foreach (var availablePresentMode in availablePresentModes)
         {
-            if (availablePresentMode == PresentModeKHR.MailboxKhr)
+            if (availablePresentMode == VkPresentModeKHR.Mailbox)
             {
                 return availablePresentMode;
             }
         }
 
-        return PresentModeKHR.FifoKhr;
+        return VkPresentModeKHR.Fifo;
     }
     
-    private static Extent2D ChooseSwapExtent(EngineWindow window)
+    private static VkExtent2D ChooseSwapExtent(EngineWindow window)
     {
-        SurfaceCapabilitiesKHR capabilities;
-        khrSurface!.GetPhysicalDeviceSurfaceCapabilities(physicalDevice, window.surface, out capabilities);
-        if (capabilities.CurrentExtent.Width != uint.MaxValue)
+        VkSurfaceCapabilitiesKHR capabilities;
+        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, window.surface, out capabilities);
+        if (capabilities.currentExtent.width != uint.MaxValue)
         {
-            return capabilities.CurrentExtent;
+            return capabilities.currentExtent;
         }
         else
         {
             Console.WriteLine("swapextent WTF???".Pastel(ConsoleColor.Magenta));
-            var framebufferSize = window.window!.FramebufferSize;
+            
+            throw new Exception("swapextent WTF???");
+            // var framebufferSize = window.window!.FramebufferSize;
 
-            Extent2D actualExtent = new()
-            {
-                Width = (uint)framebufferSize.X,
-                Height = (uint)framebufferSize.Y
-            };
-
-            actualExtent.Width = Math.Clamp(actualExtent.Width, capabilities.MinImageExtent.Width, capabilities.MaxImageExtent.Width);
-            actualExtent.Height = Math.Clamp(actualExtent.Height, capabilities.MinImageExtent.Height, capabilities.MaxImageExtent.Height);
-
-            return actualExtent;
+            // VkExtent2D actualExtent = new()
+            // {
+                // width = (uint)framebufferSize.X,
+                // height = (uint)framebufferSize.Y
+            // };
+            //
+            // actualExtent.width = Math.Clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+            // actualExtent.height = Math.Clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+            //
+            // return actualExtent;
         }
     }
     //
@@ -124,8 +126,7 @@ public static partial class VKRender
     //     }
     //
     //     SwapchainCreateInfoKHR creatInfo = new()
-    //     {
-    //         SType = StructureType.SwapchainCreateInfoKhr,
+    //    {
     //         Surface = window.surface,
     //
     //         MinImageCount = imageCount,
@@ -133,7 +134,7 @@ public static partial class VKRender
     //         ImageColorSpace = window.surfaceFormat.ColorSpace,
     //         ImageExtent = window.swapChainExtent,
     //         ImageArrayLayers = 1,
-    //         ImageUsage = ImageUsageFlags.ColorAttachmentBit,
+    //         ImageUsage = ImageUsageFlags.ColorAttachment,
     //     };
     //
     //     var indices = DeviceInfo.indices;
@@ -185,7 +186,7 @@ public static partial class VKRender
     //
     //     Console.WriteLine($"created swapchain with compositeMode: {compositeMode} and presentMode: {window.presentMode}".Pastel(ConsoleColor.Green));
     //
-    //     if (!vk.TryGetDeviceExtension(instance, device, out window.khrSwapChain))
+    //     if (!vkTryGetDeviceExtension(instance, device, out window.khrSwapChain))
     //     {
     //         throw new NotSupportedException("VK_KHR_swapchain extension not found.");
     //     }
@@ -221,7 +222,7 @@ public static partial class VKRender
     //             window.window.DoEvents();
     //         }
     //
-    //         vk.DeviceWaitIdle(device);
+    //         vkDeviceWaitIdle(device);
     //
     //         CleanUpSwapChainStuff(window);
     //
@@ -234,15 +235,14 @@ public static partial class VKRender
     //         CreateGraphicsPipeline();
     //         CreateSwapchainFrameBuffers();
     //         // var allocInfo = new CommandBufferAllocateInfo
-    //         // {
-    //         //     SType = StructureType.CommandBufferAllocateInfo,
+    //         //{
     //         //     // CommandPool = GetCurrentFrame().commandPool,
     //         //     Level = CommandBufferLevel.Primary,
     //         //     CommandBufferCount = 1,
     //         // };
     //         // for (var i = 0; i < FRAME_OVERLAP; i++)
     //         //     fixed(FrameData* frameData = &FrameData[i])
-    //         //         vk.AllocateCommandBuffers(device, allocInfo with{CommandPool = frameData->commandPool},out frameData->mainCommandBuffer)
+    //         //         vkAllocateCommandBuffers(device, allocInfo with{CommandPool = frameData->commandPool},out frameData->mainCommandBuffer)
     //         //             .Expect("failed to allocate command buffers!");
     //         //
     //

@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using Silk.NET.Maths;
 
 namespace VulkanEngine.Renderer;
 [StructLayout(LayoutKind.Sequential, Size = 64, Pack = 1)]

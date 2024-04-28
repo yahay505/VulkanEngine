@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Silk.NET.Maths;
-using Silk.NET.Vulkan;
+using Vortice.Vulkan;
 
 namespace VulkanEngine.Renderer;
 [StructLayout( LayoutKind.Sequential)]
@@ -31,42 +31,42 @@ public struct Vertex:IVertexFormat
         this.texCoord = texCoord;
     }
 
-    public static VertexInputBindingDescription GetBindingDescription()
+    public static VkVertexInputBindingDescription GetBindingDescription()
     {
-        VertexInputBindingDescription bindingDescription = new()
+        VkVertexInputBindingDescription bindingDescription = new()
         {
-            Binding = 0,
-            Stride = (uint)Unsafe.SizeOf<Vertex>(),
-            InputRate = VertexInputRate.Vertex,
+            binding = 0,
+            stride = (uint)Unsafe.SizeOf<Vertex>(),
+            inputRate = VkVertexInputRate.Vertex,
         };
 
         return bindingDescription;
     }
 
-    public static VertexInputAttributeDescription[] GetAttributeDescriptions()
+    public static VkVertexInputAttributeDescription[] GetAttributeDescriptions()
     {
         var attributeDescriptions = new[]
         {
-            new VertexInputAttributeDescription()
+            new VkVertexInputAttributeDescription()
             {
-                Binding = 0,
-                Location = 0,
-                Format = Format.R32G32B32Sfloat,
-                Offset = (uint)Marshal.OffsetOf<Vertex>(nameof(pos)),
+                binding = 0,
+                location = 0,
+                format = VkFormat.R32G32B32Sfloat,
+                offset = (uint)Marshal.OffsetOf<Vertex>(nameof(pos)),
             },
-            new VertexInputAttributeDescription()
+            new VkVertexInputAttributeDescription()
             {
-                Binding = 0,
-                Location = 1,
-                Format = Format.R32G32B32Sfloat,
-                Offset = (uint)Marshal.OffsetOf<Vertex>(nameof(color)),
+                binding = 0,
+                location = 1,
+                format = VkFormat.R32G32B32Sfloat,
+                offset = (uint)Marshal.OffsetOf<Vertex>(nameof(color)),
             },
-            new VertexInputAttributeDescription()
+            new VkVertexInputAttributeDescription()
             {
-                Binding = 0,
-                Location = 2,
-                Format = Format.R32G32Sfloat,
-                Offset = (uint)Marshal.OffsetOf<Vertex>(nameof(texCoord)),
+                binding = 0,
+                location = 2,
+                format = VkFormat.R32G32Sfloat,
+                offset = (uint)Marshal.OffsetOf<Vertex>(nameof(texCoord)),
             },
         };
 

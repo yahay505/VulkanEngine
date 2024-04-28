@@ -1,3 +1,6 @@
+using Vortice.Vulkan;
+using static Vortice.Vulkan.Vulkan;
+
 namespace VulkanEngine.Renderer;
 
 public static partial class VKRender
@@ -12,42 +15,41 @@ public static partial class VKRender
         CleanupBufferImmediately(GPUDynamicBuffer.stagingBuffer, GPUDynamicBuffer.stagingMemory);
         imGuiController.Dispose();
         FreeGlobalData();
-        vk.DestroyBuffer(device, GlobalData.vertexBuffer, null);
-        vk.FreeMemory(device, GlobalData.vertexBuffer, null);
+        vkDestroyBuffer(device, GlobalData.vertexBuffer, null);
+        vkFreeMemory(device, GlobalData.vertexBuffer, null);
         CleanUpSwapChainStuff();
         
-        vk.DestroySampler(device, textureSampler, null);
-        vk.DestroyImageView(device, textureImageView, null);
-        vk.DestroyImage(device, textureImage, null);
-        vk.FreeMemory(device, textureImageMemory, null);
+        vkDestroySampler(device, textureSampler, null);
+        vkDestroyImageView(device, textureImageView, null);
+        vkDestroyImage(device, textureImage, null);
+        vkFreeMemory(device, textureImageMemory, null);
         
         for (var i = 0; i < FRAME_OVERLAP; i++)
         {
             FrameCleanup[i]();
         }
 
-        vk.DestroyDescriptorPool(device, DescriptorPool, null);
-        vk.DestroyDescriptorSetLayout(device, DescriptorSetLayout, null);
+        vkDestroyDescriptorPool(device, DescriptorPool, null);
+        vkDestroyDescriptorSetLayout(device, DescriptorSetLayout, null);
         
-        vk.DestroyBuffer(device, GlobalData.indexBuffer, null);
-        vk.FreeMemory(device, GlobalData.indexBuffer, null);
+        vkDestroyBuffer(device, GlobalData.indexBuffer, null);
+        vkFreeMemory(device, GlobalData.indexBuffer, null);
 
 
 
       
 
 
-        vk.DestroyDevice(device, null);
+        vkDestroyDevice(device, null);
 
         if (EnableValidationLayers)
         {
             //DestroyDebugUtilsMessenger equivilant to method DestroyDebugUtilsMessengerEXT from original tutorial.
-            debugUtils!.DestroyDebugUtilsMessenger(instance, debugMessenger, null);
+            vkDestroyDebugUtilsMessengerEXT(instance, debugMessenger, null);
         }
 
-        khrSurface!.DestroySurface(instance, mainWindow.surface, null);
-        vk.DestroyInstance(instance, null);
-        vk.Dispose();
+        vkDestroySurfaceKHR(instance, mainWindow.surface, null);
+        vkDestroyInstance(instance, null);
 
         VKRender.mainWindow.window.Dispose();
     }
@@ -62,16 +64,16 @@ public static partial class VKRender
         // {
         //     fixed (FrameData* frameData = &FrameData[i])
         //     {
-        //         vk.ResetCommandPool(device,frameData->commandPool,0);
+        //         vkResetCommandPool(device,frameData->commandPool,0);
         //     }
         // }
 
-        vk.DestroyPipeline(device, GraphicsPipeline, null);
-        vk.DestroyPipelineLayout(device, GfxPipelineLayout, null);
-        vk.DestroyRenderPass(device, RenderPass, null);
+        vkDestroyPipeline(device, GraphicsPipeline, null);
+        vkDestroyPipelineLayout(device, GfxPipelineLayout, null);
+        vkDestroyRenderPass(device, RenderPass, null);
         
         mainWindow.depthImage.DestroyImmediate();
         
-        khrSwapChain!.DestroySwapchain(device, mainWindow.swapChain, null);
+        vkDestroySwapchainKHR(device, mainWindow.swapChain, null);
     }
 }

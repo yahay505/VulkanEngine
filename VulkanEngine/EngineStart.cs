@@ -6,6 +6,7 @@ using Silk.NET.Vulkan.Extensions.ImGui;
 using VulkanEngine.ECS_internals;
 using VulkanEngine.Renderer;
 using VulkanEngine.Renderer.ECS;
+using static Vortice.Vulkan.Vulkan;
 
 namespace VulkanEngine;
 
@@ -33,7 +34,7 @@ public static class EngineStart
         
         var InputCntx = VKRender.mainWindow.window.CreateInput();
 
-        VKRender.imGuiController = new ImGuiController(VKRender.vk,VKRender.mainWindow.window,InputCntx,new ImGuiFontConfig(VKRender.AssetsPath+"/fonts/FiraSansCondensed-ExtraLight.otf",12),VKRender.physicalDevice,VKRender._familyIndices.graphicsFamily!.Value,VKRender.mainWindow.SwapChainImages.Length,VKRender.mainWindow.swapChainImageFormat,VKRender.mainWindow.depthImage.ImageFormat);
+        VKRender.imGuiController = new ImGuiController(VKRender.mainWindow.window,InputCntx,new ImGuiFontConfig(VKRender.AssetsPath+"/fonts/FiraSansCondensed-ExtraLight.otf",12),VKRender.physicalDevice,VKRender._familyIndices.graphicsFamily!.Value,VKRender.mainWindow.SwapChainImages.Length,VKRender.mainWindow.swapChainImageFormat,VKRender.mainWindow.depthImage.ImageFormat,VKRender.device);
         ImGui.GetIO().ConfigFlags |= ImGuiConfigFlags.DockingEnable;
         
         Input.Input.Init(InputCntx);
@@ -42,13 +43,13 @@ public static class EngineStart
 
         Game.Run();
            
-        VKRender.vk.DeviceWaitIdle(VKRender.device);
+        vkDeviceWaitIdle(VKRender.device);
         VKRender.CleanUp();
     }
     private static void CompileShadersTEMP()
     {
         //if env has renderdoc return early
-        if (Environment.GetEnvironmentVariable("RENDERDOCeee") != null)
+        if (Program.args.Any(a=>a=="skip_shader_compilation")||Environment.GetEnvironmentVariable("skip_shader_compilation") != null)
         {
             return;
         }
@@ -65,8 +66,7 @@ public static class EngineStart
                 search_string,
                 SearchOption.AllDirectories))
             .Select(in_name =>
-            {
-
+           {
                 var out_name = VKRender.AssetsPath + "/shaders/compiled" +
                                in_name[((VKRender.AssetsPath + "/shaders").Length)..] + ".spv";
 
