@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using System.Runtime.CompilerServices;
+using Silk.NET.Maths;
 // using ImGuiNET;
 using VulkanEngine.Renderer;
 
@@ -28,11 +29,11 @@ public static class CameraControllerJob
         
         //bool _shouldControlCamera = CameraControlEnabled&&!ImGui.GetIO().WantCaptureMouse&&!ImGui.GetIO().WantCaptureKeyboard;
 
-        // var query = MakeQuery<Transform_ref, Camera_ref>();
-        // while (HasResults(ref query, out _, out var camTransform, out _))
-        // {
-        //     var move = float3.Zero;
-        //     // // Quaternion<float> q = Quaternion<float>.Identity;
+        var query = MakeQuery<Transform_ref, Camera_ref>();
+        while (HasResults(ref query, out _, out var camTransform, out _))
+        {
+        //     // var move = float3.Zero;
+        //     // Quaternion<float> q = Quaternion<float>.Identity;
         //     // if (_shouldControlCamera)
         //     // {
         //     //     const float movespeed = 1f;
@@ -65,8 +66,8 @@ public static class CameraControllerJob
         //     //     {
         //     //         move -= camTransform.up * movespeed * VKRender.deltaTime;
         //     //     }
-        //     //     // q = Quaternion<float>.CreateFromYawPitchRoll(0, -delta.Y,-delta.X );
-        //     //
+        //     //     q = Quaternion<float>.CreateFromYawPitchRoll(0, -delta.Y,-delta.X );
+        //
         //     // }
         //     var delta = _shouldControlCamera?Input.Input.mouseDelta*CameraRotSpeed:new();
         //
@@ -98,6 +99,7 @@ public static class CameraControllerJob
         //     // Thread.Sleep(100);
         //     break;
         //
-        // }
+        camTransform.local_rotation = Quaternion<float>.CreateFromYawPitchRoll(float.Sin(((float)VKRender.CurrentFrame)/60f), 0,float.Pi/2f);
+        }
     }
 }

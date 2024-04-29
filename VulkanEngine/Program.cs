@@ -9,21 +9,16 @@ static class Program
     public static string[] args=null!;
     static unsafe void Main(string[] args)
     {
-        AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
+        //AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
         Program.args = args;
         uint a;
         Vulkan.vkInitialize().Expect();
         // Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.High;
         Console.OutputEncoding=Encoding.UTF8;
         Console.WriteLine("Hello, World!");
-        try
-        {
-            EngineStart.StartEngine();
-        }
-        catch
-        {
-            throw;
-        }
+       
+        EngineStart.StartEngine();
+        
         throw new NotImplementedException();
     }
 

@@ -87,10 +87,6 @@ public static partial class VKRender
         var semCreateInfo = new VkSemaphoreCreateInfo
        {
         };
-        var fenceCreateInfo = new VkFenceCreateInfo
-       {
-            flags = VkFenceCreateFlags.Signaled,
-        };
 
 
 
@@ -98,6 +94,12 @@ public static partial class VKRender
         {
             for (int i = 0; i < FRAME_OVERLAP; i++)
             {
+                var fenceCreateInfo = new VkFenceCreateInfo
+                {
+                    flags = VkFenceCreateFlags.Signaled,
+                    pNext = null,
+                };
+
                 var z = &frameDatas[i];
             
                 vkCreateCommandPool(device, &poolInfo, null,  out z->commandPool)
