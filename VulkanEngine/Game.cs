@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using Silk.NET.Input;
 using Silk.NET.Maths;
 using VulkanEngine.ECS_internals;
 using VulkanEngine.Phases.FramePreamblePhase;
@@ -16,7 +15,7 @@ public static class Game
 {
     private static RenderObject monkey1;
     private static RenderObject monkey2;
-    public static IInputContext InputCntx;
+    //public static IInputContext InputCntx;
 
     public static void Run()
     {

@@ -206,7 +206,10 @@ public static class DeviceRequirements
         var avaliableExtension = new VkExtensionProperties[extensionCount];
         fixed (VkExtensionProperties* avaliableExtensionPtr = avaliableExtension)
             vkEnumerateDeviceExtensionProperties(device, ((sbyte*) null)!, & extensionCount, avaliableExtensionPtr);
-        deviceInfo.availableExtensionNames = avaliableExtension.Select(extension => Marshal.PtrToStringAnsi((IntPtr)extension.extensionName)).ToHashSet();
+        deviceInfo.availableExtensionNames = avaliableExtension.Select(extension =>
+        {
+            return Marshal.PtrToStringAnsi((IntPtr) extension.extensionName);
+        }).ToHashSet();
     }
 
 }

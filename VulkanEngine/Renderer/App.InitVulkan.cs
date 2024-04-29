@@ -40,8 +40,7 @@ public static partial class VKRender
 
     public static unsafe void InitVulkanFirstPhase()
     {
-        CreateInstance();
-        SetupDebugMessenger();
+        CreateVkInstance();
     }
     public static void InitVulkanSecondPhase(VkSurfaceKHR surface)
     {
@@ -964,106 +963,164 @@ public static partial class VKRender
     // }
 
 
-    private static unsafe void CreateInstance()
+    private static unsafe void CreateVkInstance()
     {
-        
+        var applicationInfo = new VkApplicationInfo()
+            {
+                //sType = VkStructureType.ApplicationInfo,
+                apiVersion = new VkVersion(1, 2, 0),
+                pEngineName = (sbyte*)Marshal.StringToHGlobalAnsi("Vengine"),
+                //engineVersion = new VkVersion()
+            };
 
-        if (EnableValidationLayers && !CheckValidationLayerSupport())
-        {
-            throw new Exception("validation layers requested, but not available!");
-        }
+            var validationLayerNames = new[]
+            {
+                "VK_LAYER_KHRONOS_validation",
+            };
 
-        VkApplicationInfo appInfo = new()
-        {
+            IntPtr[] enabledLayerNames = new IntPtr[0];
 
-            pApplicationName = (sbyte*)Marshal.StringToHGlobalAnsi("Hello Triangle"),
-            applicationVersion = new VkVersion(1, 0, 0),
-            pEngineName = (sbyte*)Marshal.StringToHGlobalAnsi("No Engine"),
-            engineVersion = new VkVersion(1, 0, 0),
-            apiVersion = VkVersion.Version_1_2,
-        };
+            if (EnableValidationLayers)
+            {
+                var layers = vkEnumerateInstanceLayerProperties();
+                var availableLayerNames = new HashSet<string>();
 
-        VkInstanceCreateInfo createInfo = new();
-        
-        createInfo.pApplicationInfo = &appInfo;
-        
-        var extensions = GetRequiredInstanceExtensions();
-#if MAC
-        extensions = extensions.Append("VK_KHR_portability_enumeration").ToArray();
-#endif
-        
-        createInfo.enabledExtensionCount = (uint)extensions.Length;
-        createInfo.ppEnabledExtensionNames = (sbyte**)SilkMarshal.StringArrayToPtr(extensions);
+                for (int index = 0; index < layers.Length; index++)
+                {
+                    var properties = layers[index];
+                    var namePointer = properties.layerName;
+                    var name = Marshal.PtrToStringAnsi((IntPtr)namePointer);
 
-        createInfo.flags = VkInstanceCreateFlags.None;
-#if MAC
-        createInfo.flags |= VkInstanceCreateFlags.EnumeratePortabilityKHR;
-#endif
+                    availableLayerNames.Add(name);
+                }
 
-        if (EnableValidationLayers)
-        {
-            createInfo.enabledLayerCount = (uint)validationLayers.Length;
-            createInfo.ppEnabledLayerNames = (sbyte**)SilkMarshal.StringArrayToPtr(validationLayers);
+                enabledLayerNames = validationLayerNames
+                    .Where(x => availableLayerNames.Contains(x))
+                    .Select(Marshal.StringToHGlobalAnsi).ToArray();
 
-            VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo = new();
-            PopulateDebugMessengerCreateInfo(ref debugCreateInfo);
-            createInfo.pNext = &debugCreateInfo;
-        }
-        else
-        {
-            createInfo.enabledLayerCount = 0;
-            createInfo.pNext = null;
-        }
+                // Check if validation was really available
+                
+                Console.WriteLine($"Enabled Validation Layers: {enabledLayerNames.Length > 0}");
+            }
 
-        if (vkCreateInstance(&createInfo, null, out instance) != VkResult.Success)
-        {
-            throw new Exception("failed to create instance!");
-        }
-        vkLoadInstance(instance);
-        //vkLoadInstance(instance);
+            var extensionProperties = vkEnumerateInstanceExtensionProperties();
+            var availableExtensionNames = new List<string>();
+            var desiredExtensionNames = new List<string>();
 
+            for (int index = 0; index < extensionProperties.Length; index++)
+            {
+                var extensionProperty = extensionProperties[index];
+                var name = Marshal.PtrToStringAnsi((IntPtr)extensionProperty.extensionName);
+                availableExtensionNames.Add(name);
+            }
 
-            
+            desiredExtensionNames.Add(VK_KHR_SURFACE_EXTENSION_NAME);
+            if (!availableExtensionNames.Contains(VK_KHR_SURFACE_EXTENSION_NAME))
+                throw new InvalidOperationException($"Required extension {VK_KHR_SURFACE_EXTENSION_NAME} is not available");
 
-        Marshal.FreeHGlobal((nint)appInfo.pApplicationName);
-        Marshal.FreeHGlobal((nint)appInfo.pEngineName);
-        SilkMarshal.Free((nint)createInfo.ppEnabledExtensionNames);
+            if (MIT.OS == OSType.Windows)
+            {
+                desiredExtensionNames.Add(KHRWin32SurfaceExtensionName);
+                if (!availableExtensionNames.Contains(KHRWin32SurfaceExtensionName))
+                    throw new InvalidOperationException($"Required extension {KHRWin32SurfaceExtensionName} is not available");
+            }
+            else if (MIT.OS == OSType.Mac)
+            {
+                desiredExtensionNames.Add(VK_MVK_MACOS_SURFACE_EXTENSION_NAME);
+                desiredExtensionNames.Add(VK_EXT_METAL_SURFACE_EXTENSION_NAME);
+                desiredExtensionNames.Add("VK_KHR_portability_enumeration");
+                if (!availableExtensionNames.Contains(VK_MVK_MACOS_SURFACE_EXTENSION_NAME) || !availableExtensionNames.Contains(VK_EXT_METAL_SURFACE_EXTENSION_NAME))
+                    throw new InvalidOperationException($"Required extension {VK_MVK_MACOS_SURFACE_EXTENSION_NAME} or {VK_EXT_METAL_SURFACE_EXTENSION_NAME} is not available");
+            }
+            else if (MIT.OS == OSType.Android)
+            {
+                desiredExtensionNames.Add(VK_KHR_ANDROID_SURFACE_EXTENSION_NAME);
+                if (!availableExtensionNames.Contains(VK_KHR_ANDROID_SURFACE_EXTENSION_NAME))
+                    throw new InvalidOperationException($"Required extension {VK_KHR_ANDROID_SURFACE_EXTENSION_NAME} is not available");
+            }
+            else if (MIT.OS == OSType.Linux)
+            {
+                // if (availableExtensionNames.Contains("VK_KHR_xlib_surface"))
+                // {
+                //     desiredExtensionNames.Add("VK_KHR_xlib_surface");
+                //     HasXlibSurfaceSupport = true;
+                // }
+                // else if (availableExtensionNames.Contains("VK_KHR_xcb_surface"))
+                // {
+                //     desiredExtensionNames.Add("VK_KHR_xcb_surface");
+                // }
+                // else
+                // {
+                //     throw new InvalidOperationException("None of the supported surface extensions VK_KHR_xcb_surface or VK_KHR_xlib_surface is available");
+                // }
+            }
 
-        if (EnableValidationLayers)
-        {
-            SilkMarshal.Free((nint)createInfo.ppEnabledLayerNames);
-        }
+            bool enableDebugReport = EnableValidationLayers && availableExtensionNames.Contains(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+            if (enableDebugReport)
+                desiredExtensionNames.Add(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+
+            var enabledExtensionNames = desiredExtensionNames.Select(Marshal.StringToHGlobalAnsi).ToArray();
+
+            try
+            {
+                fixed (void* enabledExtensionNamesPointer = &enabledExtensionNames[0])
+                fixed (void* fEnabledLayerNames = enabledLayerNames) // null if array is empty or null
+                {
+                    VkDebugUtilsMessengerCreateInfoEXT a = new()
+                    {
+                        messageSeverity = VkDebugUtilsMessageSeverityFlagsEXT.Verbose | VkDebugUtilsMessageSeverityFlagsEXT.Error | VkDebugUtilsMessageSeverityFlagsEXT.Warning| VkDebugUtilsMessageSeverityFlagsEXT.Info| VkDebugUtilsMessageSeverityFlagsEXT.Verbose,
+                        messageType = VkDebugUtilsMessageTypeFlagsEXT.General | VkDebugUtilsMessageTypeFlagsEXT.Validation | VkDebugUtilsMessageTypeFlagsEXT.Performance| VkDebugUtilsMessageTypeFlagsEXT.DeviceAddressBinding,
+                        pfnUserCallback = &DebugCallback
+                        
+                    };
+                    
+                    var instanceCreateInfo = new VkInstanceCreateInfo()
+                    {
+                        pApplicationInfo = &applicationInfo,
+                        enabledLayerCount = enabledLayerNames != null ? (uint)enabledLayerNames.Length : 0,
+                        ppEnabledLayerNames = (sbyte**)fEnabledLayerNames,
+                        enabledExtensionCount = (uint)enabledExtensionNames.Length,
+                        ppEnabledExtensionNames = (sbyte**)enabledExtensionNamesPointer,
+                        flags = VkInstanceCreateFlags.EnumeratePortabilityKHR ,
+                        pNext = &a
+                    };
+
+                    vkCreateInstance(&instanceCreateInfo, null, out instance);
+                    vkLoadInstance(instance);
+                }
+
+                // Check if validation layer was available (otherwise detected count is 0)
+                if (EnableValidationLayers)
+                {
+                    var createInfo = new VkDebugUtilsMessengerCreateInfoEXT()
+                    {
+                        messageSeverity = VkDebugUtilsMessageSeverityFlagsEXT.Verbose | VkDebugUtilsMessageSeverityFlagsEXT.Error | VkDebugUtilsMessageSeverityFlagsEXT.Warning| VkDebugUtilsMessageSeverityFlagsEXT.Info| VkDebugUtilsMessageSeverityFlagsEXT.Verbose,
+                        messageType = VkDebugUtilsMessageTypeFlagsEXT.General | VkDebugUtilsMessageTypeFlagsEXT.Validation | VkDebugUtilsMessageTypeFlagsEXT.Performance| VkDebugUtilsMessageTypeFlagsEXT.DeviceAddressBinding,
+                        pfnUserCallback = &DebugCallback
+                    };
+                    
+
+                    vkCreateDebugUtilsMessengerEXT(instance, &createInfo, null, out var debugReportCallback).CheckResult();
+                }
+            }
+            finally
+            {
+                foreach (var enabledExtensionName in enabledExtensionNames)
+                {
+                    Marshal.FreeHGlobal(enabledExtensionName);
+                }
+
+                foreach (var enabledLayerName in enabledLayerNames)
+                {
+                    Marshal.FreeHGlobal(enabledLayerName);
+                }
+
+                Marshal.FreeHGlobal((IntPtr)applicationInfo.pEngineName);
+            }
     }
 
-    private static unsafe void SetupDebugMessenger()
-    {
-        if (!EnableValidationLayers) return;
 
-        //TryGetInstanceExtension equivalent to method CreateDebugUtilsMessengerEXT from original tutorial.
-        // if (!vkCreateDebugUtilsMessengerEXT(instance, out debugUtils!)) return;
-
-        VkDebugUtilsMessengerCreateInfoEXT createInfo = new();
-        PopulateDebugMessengerCreateInfo(ref createInfo);
-        
-        if (vkCreateDebugUtilsMessengerEXT(instance, & createInfo, null, out debugMessenger) != VkResult.Success)
-        {
-            throw new Exception("failed to set up debug messenger!");
-        }
-    }
     
-    private static unsafe void PopulateDebugMessengerCreateInfo(ref VkDebugUtilsMessengerCreateInfoEXT createInfo)
-    {
-
-        createInfo.messageSeverity = VkDebugUtilsMessageSeverityFlagsEXT.Verbose |
-                                     VkDebugUtilsMessageSeverityFlagsEXT.Warning |
-                                     VkDebugUtilsMessageSeverityFlagsEXT.Error;
-        createInfo.messageType = VkDebugUtilsMessageTypeFlagsEXT.General |
-                                 VkDebugUtilsMessageTypeFlagsEXT.Performance |
-                                 VkDebugUtilsMessageTypeFlagsEXT.Validation;
-        
-        createInfo.pfnUserCallback = &DebugCallback ;
-    }
-
     private static readonly string[] requiredInstanceExtensions = {
     };
     private static unsafe string[] GetRequiredInstanceExtensions()
@@ -1095,7 +1152,10 @@ public static partial class VKRender
             vkEnumerateInstanceLayerProperties(&layerCount, availableLayersPtr);
         }
 
-        var availableLayerNames = availableLayers.Select(layer => Marshal.PtrToStringAnsi((nint)layer.layerName)).ToHashSet();
+        var availableLayerNames = availableLayers.Select(layer =>
+        {
+            return Marshal.PtrToStringAnsi((nint) layer.layerName);
+        }).ToHashSet();
 
         return validationLayers.All(availableLayerNames.Contains);
     }

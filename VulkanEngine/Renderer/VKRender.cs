@@ -79,7 +79,7 @@ public static partial class VKRender
             FrameCleanup[i]+=cleanup;
         }
     }
-    public static ImGuiController imGuiController = null!;
+    //public static ImGuiController imGuiController = null!;
 
 
     public static void Render()

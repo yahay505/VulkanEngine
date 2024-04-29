@@ -13,7 +13,7 @@ public static partial class VKRender
             action();
         }
         CleanupBufferImmediately(GPUDynamicBuffer.stagingBuffer, GPUDynamicBuffer.stagingMemory);
-        imGuiController.Dispose();
+        //imGuiController.Dispose();
         FreeGlobalData();
         vkDestroyBuffer(device, GlobalData.vertexBuffer, null);
         vkFreeMemory(device, GlobalData.vertexBuffer, null);
@@ -51,7 +51,7 @@ public static partial class VKRender
         vkDestroySurfaceKHR(instance, mainWindow.surface, null);
         vkDestroyInstance(instance, null);
 
-        VKRender.mainWindow.window.Dispose();
+        //VKRender.mainWindow.window.Dispose();
     }
 
     private static unsafe void CleanUpSwapChainStuff()

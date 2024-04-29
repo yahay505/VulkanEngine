@@ -333,7 +333,7 @@ public static partial class VKRender
             pWaitDstStageMask = _pWaitdstStageMask,
         };
 
-
+        Console.WriteLine($"submitinfo: \n commandBufferCount: {computeSubmitInfo.commandBufferCount}\n signalSemaphoreCount: {computeSubmitInfo.signalSemaphoreCount}\n waitSemaphoreCount: {computeSubmitInfo.waitSemaphoreCount}\n\n pCommandBuffers: {(nuint)computeSubmitInfo.pCommandBuffers:X8}\n\n pSignalSemaphores: {(nuint)computeSubmitInfo.pSignalSemaphores:X8}\n\n pWaitSemaphores: {(nuint)computeSubmitInfo.pWaitSemaphores:X8}");
         vkQueueSubmit(computeQueue, 1, &computeSubmitInfo,
                 DrawIndirectCountAvaliable ? default : GetCurrentFrame().computeFence)
             .Expect("failed to submit compute command buffer!");
@@ -351,7 +351,7 @@ public static partial class VKRender
     {
         
         
-        var time = (float)VKRender.mainWindow.window!.Time;
+        var time = (float)Stopwatch.GetTimestamp() / (float)Stopwatch.Frequency;
 
         var translate = Matrix4X4<float>.Identity;
         var scale = Matrix4X4<float>.Identity;
@@ -500,7 +500,7 @@ public static partial class VKRender
         // vk!.CmdDraw(commandBuffer, (uint) vertices.Length, 1, 0, 0);
         
         
-        imGuiController.Render(commandBuffer,frameBuffer,window.size);
+        //imGuiController.Render(commandBuffer,frameBuffer,window.size);
 
         vkCmdEndRenderPass(commandBuffer);
     }

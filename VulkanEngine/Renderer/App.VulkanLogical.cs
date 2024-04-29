@@ -37,17 +37,21 @@ public static partial class VKRender
             descriptorBindingStorageBufferUpdateAfterBind = true,
             descriptorBindingUpdateUnusedWhilePending = true,
         };
-        VkDeviceCreateInfo createInfo = new()
-       {
-            queueCreateInfoCount = (uint)uniqueQueueFamilies.Length,
-            pQueueCreateInfos = queueCreateInfos,
-
-            pEnabledFeatures = &deviceFeatures,
-            ppEnabledExtensionNames = (sbyte**) SilkMarshal.StringArrayToPtr( DeviceInfo.selectedExtensionNames),
-            enabledExtensionCount = (uint) DeviceInfo.selectedExtensionNames.Count,
-            pNext = &next,
-        };
-
+        var length = (uint)uniqueQueueFamilies.Length;
+        var a = stackalloc long[200];
+        var createInfo = new VkDeviceCreateInfo();
+        createInfo.pQueueCreateInfos = queueCreateInfos;
+        createInfo.enabledLayerCount = 0;
+        createInfo.ppEnabledLayerNames = null;
+        createInfo.pEnabledFeatures = &deviceFeatures;
+        createInfo.ppEnabledExtensionNames = (sbyte**) SilkMarshal.StringArrayToPtr(DeviceInfo.selectedExtensionNames);
+        createInfo.enabledExtensionCount = (uint) DeviceInfo.selectedExtensionNames.Count;
+        createInfo.pNext = &next;
+        createInfo.flags = VkDeviceCreateFlags.None;
+        
+        createInfo.queueCreateInfoCount = length;
+        if(length!=createInfo.queueCreateInfoCount)
+            throw new Exception("AAAAAAAAAA");
         if (EnableValidationLayers)
         {
             createInfo.enabledLayerCount = (uint)validationLayers.Length;
@@ -60,7 +64,8 @@ public static partial class VKRender
 
         vkCreateDevice(physicalDevice, &createInfo, null, out device)
             .Expect("failed to create logical device!");
-
+        vkLoadDevice(device);
+        
         vkGetDeviceQueue(device, _familyIndices.graphicsFamily!.Value, 0, out graphicsQueue);
         vkGetDeviceQueue(device, _familyIndices.presentFamily!.Value, 0, out presentQueue);
         vkGetDeviceQueue(device, _familyIndices.transferFamily!.Value, 0, out transferQueue);

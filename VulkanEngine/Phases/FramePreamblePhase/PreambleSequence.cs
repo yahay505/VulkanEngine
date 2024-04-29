@@ -1,4 +1,7 @@
-﻿using VulkanEngine.ECS_internals;
+﻿using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using OSBindingTMP;
+using VulkanEngine.ECS_internals;
 using VulkanEngine.Renderer;
 
 namespace VulkanEngine.Phases.FramePreamblePhase;
@@ -15,10 +18,23 @@ public static class PreambleSequence
     }
     private static void HandleInputAndWindow()
     {
-        if (VKRender.mainWindow.window!.IsClosing&&!Volatile.Read(ref Scheduler.Stopping))
+        unsafe
+        {
+            MacBinding.pump_messages(&callback, true);
+        }
+
+        if (
+            //VKRender.mainWindow.window!.IsClosing||
+            Volatile.Read(ref Scheduler.Stopping)
+            )
         {
             Scheduler.Stop();
         }
-        Input.Input.Update();
+        //Input.Input.Update();
+    }
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    static unsafe void callback(InputEventStruct* inevent)
+    {
+        Console.WriteLine(inevent->type);
     }
 }

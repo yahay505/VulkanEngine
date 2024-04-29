@@ -48,5 +48,6 @@ public enum OSType
         Windows,
         Mac,
         Linux,
-        Unknown
+        Unknown,
+        Android
 }

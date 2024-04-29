@@ -61,7 +61,7 @@ extern NSWindow* open_window(const char* title, int width, int height, int x, in
 
     return window;
 }
-extern CAMetalLayer* window_create_surface(NSWindow * window){
+extern void* window_create_surface(NSWindow * window){
     // Create a Metal layer
     CAMetalLayer *metalLayer = [CAMetalLayer layer];
     metalLayer.device = MTLCreateSystemDefaultDevice();
@@ -74,7 +74,7 @@ extern CAMetalLayer* window_create_surface(NSWindow * window){
     // Add the Metal layer to the window's content view
     [window.contentView setLayer:metalLayer];
     [window.contentView setWantsLayer:YES];
-    return metalLayer;
+    return (__bridge void*)(metalLayer);
     }
 
 

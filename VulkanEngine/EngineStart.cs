@@ -1,8 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using ImGuiNET;
-using Silk.NET.Input;
-using Silk.NET.Vulkan.Extensions.ImGui;
+using System.Runtime.InteropServices;
+using OSBindingTMP;
 using VulkanEngine.ECS_internals;
 using VulkanEngine.Renderer;
 using VulkanEngine.Renderer.ECS;
@@ -12,7 +11,7 @@ namespace VulkanEngine;
 
 public static class EngineStart
 {
-    public static void StartEngine()
+    public static unsafe void StartEngine()
     {
         foreach (var type in System.Reflection.Assembly.GetCallingAssembly().GetTypes())
         {
@@ -32,20 +31,22 @@ public static class EngineStart
         
         VKRender.InitVulkan();
         
-        var InputCntx = VKRender.mainWindow.window.CreateInput();
+        //var InputCntx = VKRender.mainWindow.window.CreateInput();
 
-        VKRender.imGuiController = new ImGuiController(VKRender.mainWindow.window,InputCntx,new ImGuiFontConfig(VKRender.AssetsPath+"/fonts/FiraSansCondensed-ExtraLight.otf",12),VKRender.physicalDevice,VKRender._familyIndices.graphicsFamily!.Value,VKRender.mainWindow.SwapChainImages.Length,VKRender.mainWindow.swapChainImageFormat,VKRender.mainWindow.depthImage.ImageFormat,VKRender.device);
-        ImGui.GetIO().ConfigFlags |= ImGuiConfigFlags.DockingEnable;
+        //VKRender.imGuiController = new ImGuiController(VKRender.mainWindow.window,null,new ImGuiFontConfig(VKRender.AssetsPath+"/fonts/FiraSansCondensed-ExtraLight.otf",12),VKRender.physicalDevice,VKRender._familyIndices.graphicsFamily!.Value,VKRender.mainWindow.SwapChainImages.Length,VKRender.mainWindow.swapChainImageFormat,VKRender.mainWindow.depthImage.ImageFormat,VKRender.device);
+        //ImGui.GetIO().ConfigFlags |= ImGuiConfigFlags.DockingEnable;
         
-        Input.Input.Init(InputCntx);
+        //Input.Input.Init(null);
 
         ECS.RegisterSystem(MeshComponent._data,typeof(MeshComponent));
-
+ 
         Game.Run();
            
         vkDeviceWaitIdle(VKRender.device);
         VKRender.CleanUp();
     }
+
+
     private static void CompileShadersTEMP()
     {
         //if env has renderdoc return early

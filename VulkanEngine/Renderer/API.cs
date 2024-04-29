@@ -1,8 +1,7 @@
-using ImGuiNET;
+// using ImGuiNET;
 using OSBindingTMP;
 using Pastel;
 using Silk.NET.Maths;
-using Silk.NET.Windowing;
 using Vortice.Vulkan;
 using static Vortice.Vulkan.Vulkan;
 namespace VulkanEngine.Renderer;
@@ -16,7 +15,7 @@ public partial class VKRender
     public static void SetCamera(Transform_ref transform, VulkanEngine.CameraData camera, int2 windowSize)
     {
         // Console.WriteLine($"{transform.world_position} {transform.forward} {transform.up} {camera.fov} {camera.nearPlaneDistance} {camera.farPlaneDistance}");
-        ImGui.Begin("SetCamera");
+        // ImGui.Begin("SetCamera");
         
         currentCamera = new()
         {
@@ -29,10 +28,11 @@ public partial class VKRender
                 ((float) windowSize.X) / windowSize.Y, camera.nearPlaneDistance, camera.farPlaneDistance),
         };
         currentCamera.proj.M22 *= -1;
-        ImGui.Text($"Camera view:\n {currentCamera.view.Row1:F3}\n{currentCamera.view.Row2:F3}\n{currentCamera.view.Row3:F3}\n{currentCamera.view.Row4:F3}");
+        
+        // ImGui.Text($"Camera view:\n {currentCamera.view.Row1:F3}\n{currentCamera.view.Row2:F3}\n{currentCamera.view.Row3:F3}\n{currentCamera.view.Row4:F3}");
         Matrix4X4.Decompose(currentCamera.view, out var scale, out var rotation, out var translation);
-        ImGui.Text($"Decomposed view:\n {scale:F3} \n {Vector3D.Transform(float3.One,rotation)*180f/float.Pi:F3}\n {translation:F3}");
-        ImGui.End();
+        // ImGui.Text($"Decomposed view:\n {scale:F3} \n {Vector3D.Transform(float3.One,rotation)*180f/float.Pi:F3}\n {translation:F3}");
+        // ImGui.End();
     }
     
     public static (VkPipeline pipeline, VkPipelineLayout pipelineLayout) CreatePSO(
@@ -91,25 +91,24 @@ public partial class VKRender
         string title,
         bool vsync = true,
         bool transparency = false,
-        WindowBorder? windowBorder = null,
+        object? windowBorder = null,
         int2? position = null
     )
     {
-        var options = WindowOptions.DefaultVulkan with
-        {
-            Size = size,
-            Title = title,
-            VSync = vsync,
-            TransparentFramebuffer = transparency,
-            WindowBorder = windowBorder??WindowOptions.DefaultVulkan.WindowBorder,
-            Position = position??WindowOptions.DefaultVulkan.Position,
-        };
+        // var options = WindowOptions.DefaultVulkan with
+        // {
+        //     Size = size,
+        //     Title = title,
+        //     VSync = vsync,
+        //     TransparentFramebuffer = transparency,
+        //     WindowBorder = windowBorder??WindowOptions.DefaultVulkan.WindowBorder,
+        //     Position = position??WindowOptions.DefaultVulkan.Position,
+        // };
         
-        return CreateWindowRaw(options);
+        return CreateWindowRaw();
     }
     
     public static unsafe EngineWindow CreateWindowRaw(
-        WindowOptions options
     )
     {
         var raw = new EngineWindow();
@@ -117,21 +116,31 @@ public partial class VKRender
         // raw.window.Initialize();
         // var type = raw.window.GetType();
         var app=OSBindingTMP.MacBinding.create_application();
-        var window=OSBindingTMP.MacBinding.open_window("test",600,800,0,0,MacBinding.NSWindowStyleMask.NSWindowStyleMaskClosable|MacBinding.NSWindowStyleMask.NSWindowStyleMaskTitled);
+        var window = MacBinding.open_window("Test",
+            800,
+            600,
+            0,
+            0,
+            MacBinding.NSWindowStyleMask.NSWindowStyleMaskTitled
+            |MacBinding.NSWindowStyleMask.NSWindowStyleMaskMiniaturizable
+            |MacBinding.NSWindowStyleMask.NSWindowStyleMaskResizable
+            //|MacBinding.NSWindowStyleMask.NSWindowStyleMaskClosable
+        );
         var surface_ptr=OSBindingTMP.MacBinding.window_create_surface(window);
+        MacBinding.window_makeKeyAndOrderFront(window);
         raw.macwindow = window;
         // Console.WriteLine($"window named {options.Title} initialized with as {type} ");
         
     
         // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
-        if(device.Handle==default) InitVulkanFirstPhase();
+        InitVulkanFirstPhase();
         
-        var macOsSurfaceCreateInfoMvk = new VkMacOSSurfaceCreateInfoMVK()
+        var macOsSurfaceCreateInfoMvk = new VkMetalSurfaceCreateInfoEXT()
         {
-            flags = VkMacOSSurfaceCreateFlagsMVK.None,
-            pView = (void*) surface_ptr,
+            flags = VkMetalSurfaceCreateFlagsEXT.None,
+            pLayer = surface_ptr,
         };
-        vkCreateMacOSSurfaceMVK(instance,&macOsSurfaceCreateInfoMvk, null, out var surface).Expect();
+        vkCreateMetalSurfaceEXT(instance,&macOsSurfaceCreateInfoMvk, null, out var surface).Expect();
         
         raw.surface = surface;
         if(device.Handle==default) InitVulkanSecondPhase(raw.surface);
@@ -139,10 +148,10 @@ public partial class VKRender
         
         
         
-        if (raw.window.VkSurface is null)
-        {
-            throw new Exception("Windowing platform doesn't support Vulkan.");
-        }
+        // if (raw.window.VkSurface is null)
+        // {
+        //     throw new Exception("Windowing platform doesn't support Vulkan.");
+        // }
         
         return raw;
     }
@@ -372,7 +381,7 @@ public partial class VKRender
 
 public class EngineWindow
 {
-    public IWindow window;
+    //public IWindow window;
     // public nint Handle;
     public VkSurfaceKHR surface;
     public VkExtent2D size;
