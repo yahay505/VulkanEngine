@@ -333,7 +333,7 @@ public static partial class VKRender
             pWaitDstStageMask = _pWaitdstStageMask,
         };
 
-        Console.WriteLine($"submitinfo: \n commandBufferCount: {computeSubmitInfo.commandBufferCount}\n signalSemaphoreCount: {computeSubmitInfo.signalSemaphoreCount}\n waitSemaphoreCount: {computeSubmitInfo.waitSemaphoreCount}\n\n pCommandBuffers: {(nuint)computeSubmitInfo.pCommandBuffers:X8}\n\n pSignalSemaphores: {(nuint)computeSubmitInfo.pSignalSemaphores:X8}\n\n pWaitSemaphores: {(nuint)computeSubmitInfo.pWaitSemaphores:X8}");
+        //Console.WriteLine($"submitinfo: \n commandBufferCount: {computeSubmitInfo.commandBufferCount}\n signalSemaphoreCount: {computeSubmitInfo.signalSemaphoreCount}\n waitSemaphoreCount: {computeSubmitInfo.waitSemaphoreCount}\n\n pCommandBuffers: {(nuint)computeSubmitInfo.pCommandBuffers:X8}\n\n pSignalSemaphores: {(nuint)computeSubmitInfo.pSignalSemaphores:X8}\n\n pWaitSemaphores: {(nuint)computeSubmitInfo.pWaitSemaphores:X8}");
         vkQueueSubmit(computeQueue, 1, &computeSubmitInfo,
                 DrawIndirectCountAvaliable ? default : GetCurrentFrame().computeFence)
             .Expect("failed to submit compute command buffer!");

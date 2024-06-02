@@ -10,6 +10,7 @@
 #import <QuartzCore/CAMetalLayer.h>
 #import <Metal/MTLDevice.h>
 #import "InputEventStruct.h"
+#import "eventParser.h"
 
 
 @interface CustomWindow : NSWindow
@@ -111,7 +112,7 @@ void pump_messages(void consumer(void*), bool wait_for_message) {
     @autoreleasepool {
         NSEvent* ev;
         do {
-            ev = [NSApp nextEventMatchingMask: NSAnyEventMask
+            ev = [NSApp nextEventMatchingMask: NSEventMaskAny
                                     untilDate: wait_for_message?NSDate.distantFuture:nil
                                        inMode: NSDefaultRunLoopMode
                                       dequeue: YES];
@@ -121,12 +122,12 @@ void pump_messages(void consumer(void*), bool wait_for_message) {
                 //NSLog([ev debugDescription]);
                 [NSApp sendEvent:ev];
                 [NSApp updateWindows];
-                struct InputEventStruct data = {(int)ev.type};
+                struct InputEventStruct data = parse_event(ev);
                 consumer(&data);
-                NSLog(@"%i",(int)ev.type);
+                //NSLog(@"%i",(int)ev.type);
                 switch (ev.type) {
                     case NSEventTypeLeftMouseDragged:
-                        NSLog(@"mouse moved");
+                        //NSLog(@"mouse moved");
                         break;
                         
                     default:
@@ -140,7 +141,7 @@ void pump_messages(void consumer(void*), bool wait_for_message) {
 void fake_consumer(void* a){}
 int main(int argc, const char * argv[]) {
 
-    NSApplication* app = create_application();
+    MyApp* app = create_application();
     NSWindow* win = open_window("asasa", 800, 600, 0, 0, 0);
     window_create_surface(win);
     

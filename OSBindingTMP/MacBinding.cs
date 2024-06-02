@@ -11,6 +11,10 @@ public class MacBinding
  {
   return new Span<string>(mac_windowing_instance_requirements);
  }
+
+    [DllImport(Library)]
+    public static extern bool install_global_listener();
+    
     [DllImport(Library)]
     public static extern void main();
     

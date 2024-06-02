@@ -25,4 +25,8 @@
       <None Include="MacFFI\out\**" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="MacFFI\" />
+    </ItemGroup>
+
 </Project>
