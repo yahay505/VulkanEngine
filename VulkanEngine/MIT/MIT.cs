@@ -32,12 +32,13 @@ public static class MIT
             switch (OS)
             {
                     case OSType.Windows:
-                            break;
+                            return Span<string>.Empty;
                     case OSType.Mac:
                             return OSBindingTMP.MacBinding.GetInstanceRequirements();
                     case OSType.Linux:
                             break;
                     case OSType.Unknown:
+                            
                             break;
             }
     }

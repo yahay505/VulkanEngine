@@ -1,7 +1,7 @@
 ﻿using System.Numerics;
 using System.Runtime.CompilerServices;
-using OSBindingTMP;
 using Silk.NET.Maths;
+using VulkanEngine.Input;
 // using ImGuiNET;
 using VulkanEngine.Renderer;
 
@@ -10,7 +10,7 @@ namespace VulkanEngine.Phases.FramePreRenderPhase;
 public static class CameraControllerJob
 {
     
-    public static float CameraRotSpeed = 0.5f;
+    public static float CameraRotSpeed = 1f;
     public static bool CameraControlEnabled = true;
     public static void CameraControl()
     {
@@ -40,32 +40,32 @@ public static class CameraControllerJob
             if (_shouldControlCamera)
             {
                 const float movespeed = 1f;
-                if (Input.Input.Key(layout_keys.kVK_ANSI_W))
+                if (Input.Input.Key(Keys.KEY_W))
                 {
                     move += camTransform.forward * movespeed * VKRender.deltaTime;
                 }
                 
-                if (Input.Input.Key(layout_keys.kVK_ANSI_S))
+                if (Input.Input.Key(Keys.KEY_S))
                 {
                     move -= camTransform.forward * movespeed * VKRender.deltaTime;
                 }
                 
-                if (Input.Input.Key(layout_keys.kVK_ANSI_A))
+                if (Input.Input.Key(Keys.KEY_A))
                 {
                     move -= camTransform.right * movespeed * VKRender.deltaTime;
                 }
                 
-                if (Input.Input.Key(layout_keys.kVK_ANSI_D))
+                if (Input.Input.Key(Keys.KEY_D))
                 {
                     move += camTransform.right * movespeed * VKRender.deltaTime;
                 }
                 
-                if (Input.Input.Key(layout_keys.kVK_Space))
+                if (Input.Input.Key(Keys.SPACE))
                 {
                     move += camTransform.up * movespeed * VKRender.deltaTime;
                 }
                 
-                if (Input.Input.Key(layout_keys.kVK_Shift))
+                if (Input.Input.Key(Keys.SHIFT_LEFT))
                 {
                     move -= camTransform.up * movespeed * VKRender.deltaTime;
                 }
@@ -87,7 +87,7 @@ public static class CameraControllerJob
                 // // ImGui.InputFloat3("loc_rot",ref Unsafe.AsRef<Vector3>((Vector3*)&loc_camRotationDegree),format:"%.3f");
                 // ImGui.InputFloat3("scale",ref Unsafe.AsRef<Vector3>((Vector3*)&camScale),format:"%.3f");
             }
-            camRotationDegree = new float3(camRotationDegree.X-delta.Y,0f,camRotationDegree.Z-delta.X);
+            camRotationDegree = new float3(camRotationDegree.X+delta.Y,0f,camRotationDegree.Z-delta.X);
             // camRotationDegree *= Single.Pi / 180f;
             camTransform.world_rotation = (camRotationDegree/180f*MathF.PI).ToQuaternion();
             // camTransform.local_rotation = Quaternion<float>.CreateFromYawPitchRoll(loc_camRotationDegree.Y,loc_camRotationDegree.X,loc_camRotationDegree.Z);

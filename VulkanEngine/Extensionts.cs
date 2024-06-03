@@ -38,6 +38,11 @@ public static class Extensions
         return (T*) Unsafe.AsPointer(ref a.GetPinnableReference());
     }
 
+    public static unsafe T* ptr<T>(this T[] a) where T : unmanaged
+    {
+        return (T*) Unsafe.AsPointer(ref a[0]);
+    }
+
 
     public static int2 ToInt2(this VkExtent2D extent) => new((int)extent.width,(int)extent.height);
     

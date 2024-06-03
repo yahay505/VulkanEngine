@@ -3,6 +3,7 @@ using OSBindingTMP;
 using Pastel;
 using Silk.NET.Maths;
 using Vortice.Vulkan;
+using WindowsBindings;
 using static Vortice.Vulkan.Vulkan;
 namespace VulkanEngine.Renderer;
 
@@ -112,37 +113,61 @@ public partial class VKRender
     )
     {
         var raw = new EngineWindow();
-        // raw.window = Window.Create(options);
-        // raw.window.Initialize();
-        // var type = raw.window.GetType();
-        var app=OSBindingTMP.MacBinding.create_application();
-        var window = MacBinding.open_window("Test",
-            800,
-            600,
-            0,
-            0,
-            MacBinding.NSWindowStyleMask.NSWindowStyleMaskTitled
-            |MacBinding.NSWindowStyleMask.NSWindowStyleMaskMiniaturizable
-            |MacBinding.NSWindowStyleMask.NSWindowStyleMaskResizable
-            //|MacBinding.NSWindowStyleMask.NSWindowStyleMaskClosable
-        );
-        var surface_ptr=OSBindingTMP.MacBinding.window_create_surface(window);
-        MacBinding.window_makeKeyAndOrderFront(window);
-        raw.macwindow = window;
-        // Console.WriteLine($"window named {options.Title} initialized with as {type} ");
+        switch (MIT.OS)
+        {
+            case OSType.Mac:
+            {
+                var app = OSBindingTMP.MacBinding.create_application();
+                var window = MacBinding.open_window("Test",
+                    800,
+                    600,
+                    0,
+                    0,
+                    MacBinding.NSWindowStyleMask.NSWindowStyleMaskTitled
+                    | MacBinding.NSWindowStyleMask.NSWindowStyleMaskMiniaturizable
+                    | MacBinding.NSWindowStyleMask.NSWindowStyleMaskResizable
+                    //|MacBinding.NSWindowStyleMask.NSWindowStyleMaskClosable
+                );
+                var surface_ptr = OSBindingTMP.MacBinding.window_create_surface(window);
+                MacBinding.window_makeKeyAndOrderFront(window);
+                raw.macwindow = window;
+                // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+                if (instance == null) InitVulkanFirstPhase();
+
+                var macOsSurfaceCreateInfoMvk = new VkMetalSurfaceCreateInfoEXT()
+                {
+                    flags = VkMetalSurfaceCreateFlagsEXT.None,
+                    pLayer = surface_ptr,
+                };
+                vkCreateMetalSurfaceEXT(instance, &macOsSurfaceCreateInfoMvk, null, out var surface).Expect();
+
+                raw.surface = surface;
+            }
+                break;
+            case OSType.Windows:
+            {
+                InitVulkanFirstPhase();
+
+                WinAPI.create_app();
+                raw.HWND = WinAPI.open_window();
+                raw.HINSTANCE = WinAPI.get_hinstance();
+                var winSurfaceCreateInfo = new VkWin32SurfaceCreateInfoKHR()
+                {
+                    hinstance = raw.HINSTANCE,
+                    hwnd = raw.HWND,
+                    
+                };
+                VkSurfaceKHR surface;
+                vkCreateWin32SurfaceKHR(instance, &winSurfaceCreateInfo, null, &surface).Expect();
+                raw.surface = surface;
+                
+            }
+                break;
+        }
+
         
     
-        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
-        InitVulkanFirstPhase();
-        
-        var macOsSurfaceCreateInfoMvk = new VkMetalSurfaceCreateInfoEXT()
-        {
-            flags = VkMetalSurfaceCreateFlagsEXT.None,
-            pLayer = surface_ptr,
-        };
-        vkCreateMetalSurfaceEXT(instance,&macOsSurfaceCreateInfoMvk, null, out var surface).Expect();
-        
-        raw.surface = surface;
+
         if(device.Handle==default) InitVulkanSecondPhase(raw.surface);
 
         
@@ -408,7 +433,10 @@ public class EngineWindow
 
     public ScreenSizedImage[] extraImages;
     public bool swapchainImagesShared;
+    
     public NSWindow macwindow;
+    
+    public nint HWND, HINSTANCE;
 }
 
 public struct ScreenSizedImage

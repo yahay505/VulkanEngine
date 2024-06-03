@@ -1,4 +1,6 @@
+using System.Runtime.Intrinsics;
 using VulkanEngine.ECS_internals.Resources;
+using WindowsBindings;
 
 namespace VulkanEngine.Input;
 
@@ -7,149 +9,121 @@ public static class Input
     static List<char> enteredThisFrame = new();
     // static IInputContext context;
     public static ECSResource InputResource = new ECSResource("INPUT");
-    
-    static List<KeyState> KeyStates = new();
-    static List<KeyState> MouseKeyStates = new();
+    public static ulong down, up, pressed;
+    private static ulong[] keyb = [0ul,0ul,0ul,0ul];
+
     // static IMouse mouse;
-    public static float2 lastMousePosition = new(0,0);
-    public static float2 mousePosition = new(0,0);
-    public static float2 mouseDelta = new(0,0);
-    public static float2 lastMouseScroll = new(0,0);
-    public static float2 mouseScroll = new(0,0);
-    public static float2 mouseScrollDelta = new(0,0);
+    public static float2 globalMousePos = default;
+    public static float2 mouseDelta = default;
+    public static float2 mouseScroll = default;
+
+    #region internal
+
     
+
     public static void Init()
     {
         return;
-        // context = _context;//bad code
-        // context.Keyboards.ForEach((a)=>
-        // {
-            // a.SupportedKeys.ForEach((b)=>
-            // {
-                // if ((int)b>=KeyStates.Count)
-                // {
-                    // KeyStates.AddRange(new KeyState[(int) ((b)-KeyStates.Count+1)]);
-                // }
-                // KeyStates[(int)b]=0;
-            // });
-            // a.KeyDown += OnKeyDown;
-            // a.KeyUp += OnKeyUp;
-            // a.KeyChar += OnChar;
-        // });
-       // context.Mice.ForEach(m =>
-       // {
-           // m.Click += OnMouseClick;
-           // m.MouseMove += OnMouseMove;
-           // m.Scroll += OnMouseScroll;
-           // m.MouseDown += OnMouseDown;
-           // m.MouseUp += OnMouseUp;
-           // m.DoubleClick += OnMouseDoubleClick;   
-       // });
-       // MouseKeyStates.AddRange(new KeyState[20]);
     }
 
-    // private static void OnMouseDoubleClick(IMouse arg1, MouseButton arg2, Vector2 arg3)
-    // {
-    //     throw new NotImplementedException();
-    // }
-
-    // private static void OnMouseUp(IMouse arg1, MouseButton arg2)
-    // {
-    //     MouseKeyStates[(int) arg2]&=~KeyState.Down;
-    //     MouseKeyStates[(int) arg2]|=KeyState.Released;
-    // }
-    //
-    // private static void OnMouseDown(IMouse arg1, MouseButton arg2)
-    // {
-    //     MouseKeyStates[(int) arg2]|=KeyState.Down|KeyState.Pressed;
-    // }
-    //
-    // private static void OnMouseScroll(IMouse arg1, ScrollWheel arg2)
-    // {
-    //     mouseScroll = new(arg2.X,arg2.Y);
-    //     mouseScrollDelta = mouseScroll - lastMouseScroll;
-    // }
-    //
-    // private static void OnMouseMove(IMouse arg1, Vector2 arg2)
-    // {
-    //     mousePosition = new(arg2.X,arg2.Y);
-    //     mouseDelta = mousePosition - lastMousePosition;
-    // }
-    //
-    // private static void OnMouseClick(IMouse arg1, MouseButton arg2, Vector2 arg3)
-    // {
-    //     // throw new NotImplementedException();
-    // }
-
-    public static void Update()
+    public static void GetInput()
     {
-        ClearFrameState();
-        lastMousePosition = mousePosition;
-        lastMouseScroll = mouseScroll;
-
-        // VKRender.mainWindow.window.DoEvents();
+        mouseDelta = default;
+        switch (MIT.OS)
+        {
+            case OSType.Windows:
+                GetInputWin();
+                break;
+            case OSType.Mac:
+                throw new NotImplementedException();
+                break;
+            case OSType.Linux:
+                throw new NotImplementedException();
+                break;
+            case OSType.Unknown:
+                throw new NotImplementedException();
+                break;
+            case OSType.Android:
+                throw new NotImplementedException();
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
     }
 
-    private static void ClearFrameState()
+    private static unsafe void GetInputWin()
     {
-        KeyStates.ForEachRef((ref KeyState a) => { a &= ~(KeyState.Pressed | KeyState.Released); });
-        MouseKeyStates.ForEachRef((ref KeyState a) => { a &= ~(KeyState.Pressed | KeyState.Released); });
-        mouseDelta = new(0);
-        mouseScrollDelta = new(0);
+        var dpi = 4f;
+        var data = WinAPI.pump_messages(false);
+        up = data.up;
+        down = data.down;
+        pressed = data.pressed;
+        if (data.mouseXRaw!=0||data.mouseYRaw!=0)
+            Console.WriteLine($"{data.mouseXRaw}-{data.mouseYRaw}");
+        if (data.isRawRelative)
+        {
+            mouseDelta = new float2 (data.mouseXRaw, -data.mouseYRaw)/dpi;
+        }
+        else
+        {
+            mouseDelta = new float2(data.mouseXRaw, -data.mouseYRaw)/dpi - mouseDelta;
+        }
+
+        globalMousePos = new(data.mouseXSoft, data.mouseYSoft);
+
+        mouseScroll = new(data.scrollX, data.scrollY);
+        for (int i = 0; i < data.scanCodeCount; i++)
+        {
+            var flag = data.scanCodesPtr[i * 2];
+            var scanCode = data.scanCodesPtr[i * 2 + 1];
+            if ((flag & 2)!=0)
+            {
+                scanCode = (ushort) (scanCode & 255 | 0xe000);
+            }
+
+            byte index = (byte) PlatformCodeConsolidator.OSToEnum(scanCode);
+            
+            var j = index % 64;
+            var k = index / 64;
+            var mask = 1ul << j;
+            fixed (ulong* arr = &keyb[0])
+            {
+                arr[k] |= mask;
+                mask = (flag & 1ul) << j; //if keyup   
+                arr[k] &= ~(mask);
+            }
+            Console.Write($"{(mask == 0 ? """U""" : """D""")} {(Keys)index} - ");
+        }
+        // Console.WriteLine($"up:{up},down:{down},pressed:{pressed}, delta:{mouseDelta}, keyb:{keyb[0]}-{keyb[1]}-{keyb[2]}-{keyb[3]}");
     }
-    // private static void OnKeyDown(IKeyboard sender, Key key, int i)
-    // {
-    //     Console.Write("""🔽""");
-    //     Console.WriteLine(key);
-    //     KeyStates[(int) key]|=KeyState.Down|KeyState.Pressed;
-    // }
-    // private static void OnKeyUp(IKeyboard sender, Key key, int i)
-    // {
-    //     Console.Write("\ud83d\udd3c");
-    //     Console.WriteLine(key);
-    //     KeyStates[(int) key]&=~KeyState.Down;
-    //     KeyStates[(int) key]|=KeyState.Released;
-    // }
-    // private static void OnChar(IKeyboard sender, char key)
-    // {
-    //     Console.Write("""⌨""");
-    //     Console.WriteLine(key);
-    // }
+
+    #endregion
+
+    #region api
+
     
-    // public static bool Key(Key key)
-    // {
-    //     return (KeyStates[(int) key] & KeyState.Down) != 0;
-    // }
-    // public static bool KeyPressed(Key key)
-    // {
-    //     return (KeyStates[(int) key] & KeyState.Pressed) != 0;
-    // }
-    // public static bool KeyReleased(Key key)
-    // {
-    //     return (KeyStates[(int) key] & KeyState.Released) != 0;
-    // }
-    // public static bool MouseButton(MouseButton button)
-    // {
-    //     return (MouseKeyStates[(int) button] & KeyState.Down)!=0;
-    // }
-    // public static bool MouseButtonPressed(MouseButton button)
-    // {
-    //     return (MouseKeyStates[(int) button] & KeyState.Pressed)!=0;
-    // }
-    //
-    // public static bool MouseButtonReleased(MouseButton button)
-    // {
-    //     return (MouseKeyStates[(int) button] & KeyState.Released) != 0;
-    // }
+
+
+        public static bool MouseButton(int i)
+        {
+            return (pressed & (1ul << i)) != 0;
+        }
+
+        public static bool Key(Keys key)
+        {
+            unsafe
+            {
+                byte index = (byte) key;
+                var j = index % 64;
+                var k = index / 64;
+                return (keyb[k] & (1ul << j)) != 0;
+            }
+        }
+
+        #endregion
 
 }
-[Flags]
-public enum KeyState:byte
-{
-    Down=1,
-    Pressed=2,
-    Released=4
-}
+
 // [Flags]
 // public enum MouseButtonStates:byte
 // {

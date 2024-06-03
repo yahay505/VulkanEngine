@@ -127,9 +127,11 @@ public static partial class VKRender
                     .Expect("failed to create semaphore!");
                 vkCreateFence(device, &fenceCreateInfo, null, out z->renderFence)
                     .Expect("failed to create fence!");
+
                 fenceCreateInfo = fenceCreateInfo with {flags = 0};
                 vkCreateFence(device, &fenceCreateInfo, null, out z->computeFence)
                     .Expect("failed to create fence!");
+
             }
 
             CleanupStack.Push(() =>
@@ -1083,8 +1085,8 @@ public static partial class VKRender
                         ppEnabledLayerNames = (sbyte**)fEnabledLayerNames,
                         enabledExtensionCount = (uint)enabledExtensionNames.Length,
                         ppEnabledExtensionNames = (sbyte**)enabledExtensionNamesPointer,
-                        flags = VkInstanceCreateFlags.EnumeratePortabilityKHR ,
-                        pNext = &a
+                        flags = MIT.OS==OSType.Mac?VkInstanceCreateFlags.EnumeratePortabilityKHR:VkInstanceCreateFlags.None ,
+                        pNext = EnableValidationLayers?&a:default,
                     };
 
                     vkCreateInstance(&instanceCreateInfo, null, out instance);
@@ -1097,7 +1099,7 @@ public static partial class VKRender
                     var createInfo = new VkDebugUtilsMessengerCreateInfoEXT()
                     {
                         messageSeverity = VkDebugUtilsMessageSeverityFlagsEXT.Verbose | VkDebugUtilsMessageSeverityFlagsEXT.Error | VkDebugUtilsMessageSeverityFlagsEXT.Warning| VkDebugUtilsMessageSeverityFlagsEXT.Info| VkDebugUtilsMessageSeverityFlagsEXT.Verbose,
-                        messageType = VkDebugUtilsMessageTypeFlagsEXT.General | VkDebugUtilsMessageTypeFlagsEXT.Validation | VkDebugUtilsMessageTypeFlagsEXT.Performance| VkDebugUtilsMessageTypeFlagsEXT.DeviceAddressBinding,
+                        messageType = VkDebugUtilsMessageTypeFlagsEXT.General | VkDebugUtilsMessageTypeFlagsEXT.Validation | VkDebugUtilsMessageTypeFlagsEXT.Performance| VkDebugUtilsMessageTypeFlagsEXT.DeviceAddressBinding ,
                         pfnUserCallback = &DebugCallback
                     };
                     

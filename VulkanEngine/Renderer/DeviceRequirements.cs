@@ -25,6 +25,7 @@ public static class DeviceRequirements
 
     public static int scoreDevice(DeviceInfo deviceInfo)
     {
+        
         var score = 0;
         
         

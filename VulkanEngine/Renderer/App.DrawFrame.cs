@@ -13,17 +13,29 @@ public static partial class VKRender
     // static Fence[] inFlightFences;
     private static long last_tick;
     public static float deltaTime;
+    // cleanup dangerous semaphore with signal pending from vkAcquireNextImageKHR (tie it to a specific queue)
+// https://github.com/KhronosGroup/Vulkan-Docs/issues/1059
+    static unsafe void cleanupUnsafeSemaphore( VkQueue queue, VkSemaphore semaphore ){
+        const VkPipelineStageFlags psw = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+        VkSubmitInfo submit_info = new(){};
+        submit_info.waitSemaphoreCount = 1;
+        submit_info.pWaitSemaphores = &semaphore;
+
+        vkQueueSubmit( queue, 1, &submit_info, default );
+    }
     private static unsafe void DrawFrame(EngineWindow window, out bool retry)
     {
-        start:
         retry = false;
+        
         
         uint imageIndex = 999;
         {
+            vkDeviceWaitIdle(device);
             //start
             var fence = GetCurrentFrame().renderFence;
-            vkWaitForFences(device, 1, &fence, true, ulong.MaxValue)
+            start: vkWaitForFences(device, 1, &fence, true, ulong.MaxValue)
                 .Expect("failed to wait for fence!");
+            
             var result = vkAcquireNextImageKHR(device, window.swapChain, ulong.MaxValue,
                 GetCurrentFrame().RenderSemaphore, default, &imageIndex);
 
@@ -33,53 +45,47 @@ public static partial class VKRender
                     break;
                 case VkResult.SuboptimalKHR:
                 case VkResult.ErrorOutOfDateKHR:
+
+                  
                     ResizeSwapChain(window,ChooseSwapExtent(window).ToInt2());
-                    // var buf=BeginSingleTimeCommands();
-                    // vkEndCommandBuffer(buf).Expect();
-                    var renderSemaphore = GetCurrentFrame().RenderSemaphore;
-                    var pipelineStageFlags = VkPipelineStageFlags.BottomOfPipe;
-                    var psub = new VkSubmitInfo()
-                   {
-                        commandBufferCount = 0,
-                        pCommandBuffers = default,
-                        waitSemaphoreCount = 1,
-                        pWaitSemaphores = &renderSemaphore,
-                        signalSemaphoreCount = 0,
-                        pSignalSemaphores = default,
-                        pWaitDstStageMask = &pipelineStageFlags,
-                        pNext = default
-                    };
-                    var psub2 = new VkSubmitInfo()
-                   {
-                        commandBufferCount = 0,
-                        pCommandBuffers = default,
-                        waitSemaphoreCount = 1,
-                        pWaitSemaphores = &renderSemaphore,
-                    };
-                    vkResetFences(device, 1, &fence).Expect(); //reset since were gonna re-set it immidiatly
-                    vkQueueSubmit(graphicsQueue,1, &psub,fence).Expect();
                     
+                     var renderSemaphore = GetCurrentFrame().RenderSemaphore;
+                     var pipelineStageFlags = VkPipelineStageFlags.BottomOfPipe;
+                     var psub = new VkSubmitInfo()
+                    {
+                         commandBufferCount = 0,
+                         pCommandBuffers = default,
+                         waitSemaphoreCount = 1,
+                         pWaitSemaphores = &renderSemaphore,
+                         signalSemaphoreCount = 0,
+                         pSignalSemaphores = default,
+                         pWaitDstStageMask = &pipelineStageFlags,
+                         pNext = default
+                     };
+                    // vkDeviceWaitIdle(device);
+                     vkResetFences(device, fence).Expect(); //reset since were gonna re-set it immediately
+                     vkQueueSubmit(graphicsQueue,psub,fence).Expect();
+                     
                     
-                    // vkDestroySemaphore(device,GetCurrentFrame().RenderSemaphore,null);
-                    // var sci = new SemaphoreCreateInfo()
-                    //{
-                    //     flags = SemaphoreCreateFlags.None,
-                    //     PNext = default,
-                    // };
-                    // vkCreateSemaphore(device,&sci,null,out GetCurrentFrame().RenderSemaphore);
+                     vkDestroySemaphore(device,GetCurrentFrame().RenderSemaphore,null);
+
+                     vkCreateSemaphore(device,out GetCurrentFrame().RenderSemaphore);
                     retry = true;
-                    goto start;
-                    return;
+                    if (result==VkResult.ErrorOutOfDateKHR)
+                    {
+                        goto start;
+                    }
+                    break;
                 default:
                     result.Expect("failed to acquire swap chain image!");
                     throw new UnreachableException();
             }
 
-            if (fence.Handle != default)
-            {
-                vkWaitForFences(device, 1, &fence, true, ulong.MaxValue)
-                    .Expect("failed to wait for fence!");
-            }
+            // if (fence.Handle != default)
+            // {
+            //     vkWaitForFences(device, 1, &fence, true, ulong.MaxValue)
+            //         .Expect("failed to wait for fence!");
+            // }
 
             vkResetFences(device, 1, &fence).Expect(); //only reset if we are rendering
             vkResetCommandPool(device, GetCurrentFrame().commandPool, VkCommandPoolResetFlags.ReleaseResources)

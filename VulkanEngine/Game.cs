@@ -33,7 +33,7 @@ public static class Game
         CamTransform.local_position = new float3(0,0,0);
         CamTransform.local_position = new float3(10,0,0);    
 
-        CamTransform.local_rotation = Quaternion<float>.Identity;
+        CamTransform.local_rotation = Quaternion<float>.CreateFromYawPitchRoll(0, 0,float.Pi/2f);
         var meshes = VKRender.LoadMesh(VKRender.AssetsPath + "/models/scene.fbx").Select((mesh)=>GPURenderRegistry.RegisterMesh(new(){indexBuffer = mesh.indices,vertexBuffer = mesh.vertices})).ToArray();
 
         int[] staticScene = new int[meshes.Length];

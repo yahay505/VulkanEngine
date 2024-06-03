@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VulkanEngine", "VulkanEngin
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OSBindingTMP", "OSBindingTMP\OSBindingTMP.csproj", "{A89C1A43-78AE-402E-9F77-BF00EF33557E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WindowsBindings", "WindowsBindings\WindowsBindings.csproj", "{9971B5E0-EE1D-44FB-86DE-A144C7803A62}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -41,6 +43,18 @@ Global
 		{A89C1A43-78AE-402E-9F77-BF00EF33557E}.Release|Mac.Build.0 = Release|Any CPU
 		{A89C1A43-78AE-402E-9F77-BF00EF33557E}.Release|Windows.ActiveCfg = Release|Any CPU
 		{A89C1A43-78AE-402E-9F77-BF00EF33557E}.Release|Windows.Build.0 = Release|Any CPU
+		{9971B5E0-EE1D-44FB-86DE-A144C7803A62}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9971B5E0-EE1D-44FB-86DE-A144C7803A62}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9971B5E0-EE1D-44FB-86DE-A144C7803A62}.Debug|Mac.ActiveCfg = Debug|Any CPU
+		{9971B5E0-EE1D-44FB-86DE-A144C7803A62}.Debug|Mac.Build.0 = Debug|Any CPU
+		{9971B5E0-EE1D-44FB-86DE-A144C7803A62}.Debug|Windows.ActiveCfg = Debug|Any CPU
+		{9971B5E0-EE1D-44FB-86DE-A144C7803A62}.Debug|Windows.Build.0 = Debug|Any CPU
+		{9971B5E0-EE1D-44FB-86DE-A144C7803A62}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9971B5E0-EE1D-44FB-86DE-A144C7803A62}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9971B5E0-EE1D-44FB-86DE-A144C7803A62}.Release|Mac.ActiveCfg = Release|Any CPU
+		{9971B5E0-EE1D-44FB-86DE-A144C7803A62}.Release|Mac.Build.0 = Release|Any CPU
+		{9971B5E0-EE1D-44FB-86DE-A144C7803A62}.Release|Windows.ActiveCfg = Release|Any CPU
+		{9971B5E0-EE1D-44FB-86DE-A144C7803A62}.Release|Windows.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
