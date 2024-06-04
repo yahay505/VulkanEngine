@@ -9,7 +9,8 @@ public class VertexBuffer
     {
         buffer = new(initialSize,
             VkBufferUsageFlags.VertexBuffer,
-            VkMemoryPropertyFlags.DeviceLocal);
+            VkMemoryPropertyFlags.DeviceLocal,
+            "vertex Buffer"u8);
     }
     public uint Upload(Span<Vertex> data)
     {

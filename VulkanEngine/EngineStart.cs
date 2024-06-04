@@ -27,7 +27,7 @@ public static class EngineStart
         // VKRender.InitWindow();1
         VKRender.mainWindow = VKRender.CreateWindow(new(800, 600),"VulkanEngine");
         VKRender.CreateSwapchain(VKRender.mainWindow,true);
-        VKRender.LoadMesh(VKRender.AssetsPath+"/models/model.obj");
+        // VKRender.LoadMesh(VKRender.AssetsPath+"/models/model.obj");
         
         VKRender.InitVulkan();
         

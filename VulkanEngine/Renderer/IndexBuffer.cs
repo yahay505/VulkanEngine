@@ -9,7 +9,8 @@ public class IndexBuffer
     {
         buffer = new(initialSize,
             VkBufferUsageFlags.IndexBuffer,
-            VkMemoryPropertyFlags.DeviceLocal);
+            VkMemoryPropertyFlags.DeviceLocal,
+            "indexBuffer"u8);
         
     }
     public uint Upload(Span<uint> data)

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Silk.NET.Maths;
 using VulkanEngine.ECS_internals;
 using VulkanEngine.Phases.FramePreamblePhase;
@@ -34,7 +35,8 @@ public static class Game
         CamTransform.local_position = new float3(10,0,0);    
 
         CamTransform.local_rotation = Quaternion<float>.CreateFromYawPitchRoll(0, 0,float.Pi/2f);
-        var meshes = VKRender.LoadMesh(VKRender.AssetsPath + "/models/scene.fbx").Select((mesh)=>GPURenderRegistry.RegisterMesh(new(){indexBuffer = mesh.indices,vertexBuffer = mesh.vertices})).ToArray();
+        var meshes = VKRender.LoadMesh(VKRender.AssetsPath + "/models/scene.glb");
+        var refs=meshes.Select((mesh)=>GPURenderRegistry.RegisterMesh(new(){indexBuffer = mesh.indices,vertexBuffer = mesh.vertices})).ToArray();
 
         int[] staticScene = new int[meshes.Length];
         // load scene
@@ -42,17 +44,25 @@ public static class Game
         {
             var mesh = meshes[i];
             staticScene[i] = CreateEntity();
-            TransformSystem.AddItemWithGlobalID(staticScene[i]);
-            MeshComponent._data.AddItemWithGlobalID(staticScene[i],new(){registryMeshID = mesh.index});
+            
+            var transform = TransformSystem.AddItemWithGlobalID(staticScene[i]);
+            Silk.NET.Maths.Matrix4X4.Decompose(Matrix4X4.Transpose(mesh.transform), out var scale, out var rot, out var pos);
+            transform.local_scale = scale;
+            transform.local_rotation = rot;
+            transform.local_position = pos;
+            Console.WriteLine($"{i} :: pos: {transform.local_position} rot: {transform.local_rotation.ToEuler()*180f/float.Pi} scale: {transform.local_scale} parent: {mesh.parentID}");
+            // if (mesh.parentID>=0)
+                // transform.parent = Unsafe.BitCast<int,Transform_ref>(TransformSystem._data.EntityIndices.Span[staticScene[mesh.parentID]]);
+            MeshComponent._data.AddItemWithGlobalID(staticScene[i],new(){registryMeshID = refs[i].index});
         }
         
         // load monkey
-        var (vertices, indices) = VKRender.LoadMesh(VKRender.AssetsPath + "/models/model.obj").Single();
-        var monkeyMeshRef = GPURenderRegistry.RegisterMesh(new(){indexBuffer = indices,vertexBuffer = vertices});
+        // var (vertices, indices,_,_) = VKRender.LoadMesh(VKRender.AssetsPath + "/models/model.obj").Single();
+        // var monkeyMeshRef = GPURenderRegistry.RegisterMesh(new(){indexBuffer = indices,vertexBuffer = vertices});
 
-        var monkey = CreateEntity();
-        var trans = TransformSystem.AddItemWithGlobalID(monkey);
-        var meshcomp= MeshComponent._data.AddItemWithGlobalID(monkey,new(){registryMeshID = monkeyMeshRef.index});
+        // var monkey = CreateEntity();
+        // var trans = TransformSystem.AddItemWithGlobalID(monkey);
+        // var meshcomp= MeshComponent._data.AddItemWithGlobalID(monkey,new(){registryMeshID = monkeyMeshRef.index});
         
         PreambleSequence.Register();
         FramePreTickSequence.Register();

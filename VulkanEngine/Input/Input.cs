@@ -58,8 +58,8 @@ public static class Input
         up = data.up;
         down = data.down;
         pressed = data.pressed;
-        if (data.mouseXRaw!=0||data.mouseYRaw!=0)
-            Console.WriteLine($"{data.mouseXRaw}-{data.mouseYRaw}");
+        // if (data.mouseXRaw!=0||data.mouseYRaw!=0)
+            // Console.WriteLine($"{data.mouseXRaw}-{data.mouseYRaw}");
         if (data.isRawRelative)
         {
             mouseDelta = new float2 (data.mouseXRaw, -data.mouseYRaw)/dpi;
@@ -92,7 +92,7 @@ public static class Input
                 mask = (flag & 1ul) << j; //if keyup   
                 arr[k] &= ~(mask);
             }
-            Console.Write($"{(mask == 0 ? """U""" : """D""")} {(Keys)index} - ");
+            // Console.Write($"{(mask == 0 ? """🔽""" : """🔼""")} {(Keys)index} - ");
         }
         // Console.WriteLine($"up:{up},down:{down},pressed:{pressed}, delta:{mouseDelta}, keyb:{keyb[0]}-{keyb[1]}-{keyb[2]}-{keyb[3]}");
     }

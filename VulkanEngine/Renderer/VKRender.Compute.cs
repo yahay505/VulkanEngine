@@ -22,6 +22,8 @@ public static partial class VKRender
             CreateBuffer((ulong) readbackSize, VkBufferUsageFlags.TransferDst,
                 VkMemoryPropertyFlags.HostVisible | VkMemoryPropertyFlags.HostCoherent,
                 out GlobalData.ReadBackBuffer, out GlobalData.ReadBackMemory);
+            MarkObject(GlobalData.ReadBackBuffer,"ReadBackBuffer"u8);
+            MarkObject(GlobalData.ReadBackMemory,"ReadBackMemory"u8);
             fixed(void** ptr = &GlobalData.ReadBackBufferPtr)
                 vkMapMemory(device, GlobalData.ReadBackMemory, 0, (ulong) readbackSize,0, ptr)
                     .Expect("failed to map memory!");
@@ -215,6 +217,7 @@ public static partial class VKRender
         
     }
 
+
     public static unsafe void EnsureRenderObjectRelatedBuffersAreSized(int minimumSize)
     {
         var ROtarget = Math.Max(10,minimumSize);
@@ -232,7 +235,10 @@ public static partial class VKRender
                     VkBufferUsageFlags.TransferDst |
                     VkBufferUsageFlags.StorageBuffer,
                     VkMemoryPropertyFlags.HostVisible | VkMemoryPropertyFlags.HostCoherent,
-                    &frameData->hostRenderObjectsBuffer, &frameData->hostRenderObjectsMemory);
+                    out frameData->hostRenderObjectsBuffer, out frameData->hostRenderObjectsMemory);
+                MarkObject(frameData->hostRenderObjectsBuffer,"hostRenderObjectsBuffer"u8,CurrentFrameIndex);
+                MarkObject(frameData->hostRenderObjectsMemory,"hostRenderObjectsMemory"u8,CurrentFrameIndex);
+                
                 vkMapMemory(device, frameData->hostRenderObjectsMemory, 0, (ulong) newBufSizeInBytes, 0,
                         &frameData->hostRenderObjectsBufferPtr)
                     .Expect("failed to map memory!");
@@ -271,6 +277,7 @@ public static partial class VKRender
                 out VkBuffer newDeviceRenderObjectsBuffer,
                 out var newDeviceRenderObjectsBufferMemory);
 
+
             CreateBuffer( //device indirect draw buffer
                 (ulong) newBufSizeInBytes_CmdDII,
                 VkBufferUsageFlags.TransferSrc |
@@ -279,15 +286,21 @@ public static partial class VKRender
                 VkBufferUsageFlags.IndirectBuffer,
                 VkMemoryPropertyFlags.DeviceLocal, 
                 // VkMemoryPropertyFlags.HostVisible | VkMemoryPropertyFlags.HostCoherent,
-                out VkBuffer newDeviceIndirectDrawBuffer,
+                out var newDeviceIndirectDrawBuffer,
                 out var newDeviceIndirectDrawBufferMemory);
+
 
             GlobalData.deviceRenderObjectsBuffer = newDeviceRenderObjectsBuffer;
             GlobalData.deviceRenderObjectsMemory = newDeviceRenderObjectsBufferMemory;
+            MarkObject(GlobalData.deviceRenderObjectsBuffer,"deviceRenderObjectsBuffer"u8,CurrentFrameIndex);
+            MarkObject(GlobalData.deviceRenderObjectsMemory,"deviceRenderObjectsMemory"u8,CurrentFrameIndex);
             GlobalData.deviceRenderObjectsBufferSize = newbufsize;
             GlobalData.deviceRenderObjectsBufferSizeInBytes = newBufSizeInBytes_RO;
+            
             GlobalData.deviceIndirectDrawBuffer = newDeviceIndirectDrawBuffer;
             GlobalData.deviceIndirectDrawBufferMemory = newDeviceIndirectDrawBufferMemory;
+            MarkObject(GlobalData.deviceIndirectDrawBuffer,"deviceIndirectDrawBuffer"u8,CurrentFrameIndex);
+            MarkObject(GlobalData.deviceIndirectDrawBufferMemory,"deviceIndirectDrawBufferMemory"u8,CurrentFrameIndex);
             GlobalData.deviceIndirectDrawBufferSize = newbufsize;
             GlobalData.deviceIndirectDrawBufferSizeInBytes = newBufSizeInBytes_CmdDII;
             
@@ -332,7 +345,7 @@ public static partial class VKRender
             if (FrameData[i].hostRenderObjectsMemory.Handle != 0)
                 vkFreeMemory(device, FrameData[i].hostRenderObjectsMemory, default);
         
-    }
+   }
 
     public static unsafe void EnsureMeshRelatedBuffersAreSized()
     {
@@ -352,7 +365,8 @@ public static partial class VKRender
         CreateBuffer(newSizeByte, VkBufferUsageFlags.StorageBuffer,
             VkMemoryPropertyFlags.HostVisible|VkMemoryPropertyFlags.HostCoherent,
             out GlobalData.MeshInfoBuffer, out GlobalData.MeshInfoBufferMemory);
-
+        MarkObject(GlobalData.MeshInfoBuffer,"MeshInfoBuffer"u8);
+        MarkObject(GlobalData.MeshInfoBufferMemory,"MeshInfoBufferMemory"u8);
         
         uint oldSize = (uint) GlobalData.MeshInfoBufferSize * (uint) sizeof(MeshInfo);
         GlobalData.MeshInfoBufferSize = nextSize;

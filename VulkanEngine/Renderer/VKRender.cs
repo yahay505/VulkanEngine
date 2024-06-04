@@ -1,3 +1,4 @@
+using System.Numerics;
 using System.Reflection;
 using Silk.NET.Assimp;
 using Silk.NET.Maths;
@@ -126,21 +127,31 @@ public struct Camera
         
 }
 
-public static unsafe (Vertex[] vertices,uint[] indices)[] LoadMesh(string File)
+public static unsafe (Vertex[] vertices,uint[] indices,float4x4 transform,int parentID)[] LoadMesh(string File)
     {
+        var id = -1;
         using var assimp = Assimp.GetApi()!;
         
         var scene=assimp.ImportFile(File, (uint)PostProcessPreset.TargetRealTimeMaximumQuality)!;
-        var a = new List< (Vertex[] vertices,uint[] indices)>();
-
-        VisitSceneNode(scene->MRootNode);
+        var a = new List<(Vertex[], uint[], float4x4, int)>();
+        VisitSceneNode(scene->MRootNode,id,Matrix4x4.Identity);
         
         assimp.ReleaseImport(scene);
         
         return a.ToArray();
-        
-        void VisitSceneNode(Node* node)
+
+        void VisitSceneNode(Node* node,int parentID,Matrix4x4 matrixStack)
         {
+            Matrix4x4 ma = matrixStack;
+            id++;
+            if (node->MNumMeshes ==0)
+            {
+                ma = ma * node->MTransformation;
+            }
+            else
+            {
+                ma = Matrix4x4.Identity;
+            }
             for (int m = 0; m < node->MNumMeshes; m++)
             {
                 var mesh = scene->MMeshes[node->MMeshes[m]];
@@ -179,12 +190,12 @@ public static unsafe (Vertex[] vertices,uint[] indices)[] LoadMesh(string File)
                         }
                     }
                 }
-                a.Add((_vertices.ToArray(), _indices.ToArray()));
+                a.Add((_vertices.ToArray(), _indices.ToArray(), (ma * node->MTransformation).ToGeneric(),parentID));
             }
         
             for (int c = 0; c < node->MNumChildren; c++)
             {
-                VisitSceneNode(node->MChildren[c]!);
+                VisitSceneNode(node->MChildren[c]!,id,ma);
             }
         }
     }

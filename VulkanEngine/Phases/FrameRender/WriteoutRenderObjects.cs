@@ -11,7 +11,7 @@ public static class WriteoutRenderObjects
         var query = MakeQuery<Transform_ref, MeshComponent>();
         var count = 0;
         VKRender.EnsureRenderObjectRelatedBuffersAreSized(MeshComponent._data.used);// overkill if we have meshes without transforms, but why would we???
-
+        
         while (HasResults(ref query, out var id, out var transform, out var meshComponent))
         {
             VKRender.GetCurrentFrame().hostRenderObjectsBufferAsSpan[count++] = new ()

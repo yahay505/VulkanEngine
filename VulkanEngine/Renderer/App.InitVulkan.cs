@@ -551,7 +551,8 @@ public static partial class VKRender
                     VkMemoryPropertyFlags.HostVisible | VkMemoryPropertyFlags.HostCoherent,
                     out FrameData[i].uniformBuffer,
                     out FrameData[i].uniformBufferMemory);
-           
+            MarkObject(FrameData[i].uniformBuffer,"UBO"u8);
+            MarkObject(FrameData[i].uniformBufferMemory,"UBOMemory"u8);
     
             fixed (void** ppData = &FrameData[i].uniformBufferMapped)
                 vkMapMemory(device,FrameData[i].uniformBufferMemory, 0, (ulong) bufferSize, 0, ppData)

@@ -23,7 +23,7 @@ layout(location = 1) out vec2 fragTexCoord;
 
 void main() {
     //move x direction by gl_Index*2 model based on gl_InstanceIndex
-    gl_Position =    ubo.viewproj*(outputData.data[gl_InstanceIndex].model * vec4(inPosition, 1.0)) ;
+    gl_Position =    (ubo.viewproj * outputData.data[gl_InstanceIndex].model )* vec4(inPosition, 1.) ;
 //    gl_Position = ubo.proj * ubo.view * ubo.model * vec4(inPosition, 1.0);
     fragColor = inColor;
     fragTexCoord = inTexCoord;

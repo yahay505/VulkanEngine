@@ -19,23 +19,35 @@ public class GPUDynamicBuffer<T> where T:unmanaged
     public VkBuffer buffer;
     public VkDeviceMemory memory;
     private int currentSize=0;
+    private unsafe sbyte* name;
+    private int nameLenght;
+    private int variantNo;
     private ulong currentSizeInBytes=>(ulong) (currentSize*Unsafe.SizeOf<T>());
     private uint currentbyteOffset=0;
-
     public unsafe void* DebugPtr;
-    public GPUDynamicBuffer(ulong initialSizeInItems, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties)
+    
+    
+    public GPUDynamicBuffer(ulong initialSizeInItems, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,ReadOnlySpan<byte> name)
     {
-        _usage = usage|VkBufferUsageFlags.TransferDst|VkBufferUsageFlags.TransferSrc;
-        _properties = properties;
+        unsafe
+        {
+            _usage = usage|VkBufferUsageFlags.TransferDst|VkBufferUsageFlags.TransferSrc;
+            _properties = properties;
 #if GPUDEBG
         _properties &= ~VkMemoryPropertyFlags.DeviceLocal;
         _properties |= VkMemoryPropertyFlags.HostVisible | VkMemoryPropertyFlags.HostCoherent;
 #endif
+            this.name = name.As<byte,sbyte>().GetPointer();
+            this.nameLenght = name.Length;
         
-        
-        currentSize = (int) initialSizeInItems;
+            currentSize = (int) initialSizeInItems;
     
-        CreateBuffer(currentSizeInBytes,_usage,_properties,out buffer,out memory);
+            CreateBuffer(currentSizeInBytes,_usage,_properties,out buffer,out memory);
+            if(name!=default)
+            {
+                MarkObject(buffer,name,variantNo);
+                MarkObject(memory,name,variantNo);
+            }
 #if GPUDEBG
 
         unsafe
@@ -45,7 +57,7 @@ public class GPUDynamicBuffer<T> where T:unmanaged
                     debugPtr);
         }
 #endif
-
+        }
     }
 
     public unsafe uint Upload(Span<T> data, VkPipelineStageFlags dstStageMask)
@@ -62,6 +74,9 @@ public class GPUDynamicBuffer<T> where T:unmanaged
             var newSize = Math.Max(currentSize + data.Length,(currentSize * 2));
             currentSize = newSize; //auto sets currentSizeInBytes
             CreateBuffer(currentSizeInBytes,_usage,_properties,out buffer,out memory);
+            variantNo++;
+            MarkObject(buffer,name,variantNo);
+            MarkObject(memory,name,variantNo);
 #if GPUDEBG
             fixed (void** debugPtr = &DebugPtr)
                 vkMapMemory(device, memory, 0, currentSizeInBytes, 0,
@@ -106,6 +121,7 @@ public class GPUDynamicBuffer<T> where T:unmanaged
                 VkMemoryPropertyFlags.HostVisible | VkMemoryPropertyFlags.HostCoherent,
                 out GPUDynamicBuffer.stagingBuffer,
                 out GPUDynamicBuffer.stagingMemory);
+            MarkObject(GPUDynamicBuffer.stagingBuffer,"GPUDynamicBuffer.stagingBuffer"u8);
             fixed (void** pstagingMemoryPtr = &GPUDynamicBuffer.stagingMemoryPtr)
                 vkMapMemory(device, GPUDynamicBuffer.stagingMemory, 0, (ulong) dataLength, 0,
                 pstagingMemoryPtr);
