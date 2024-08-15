@@ -13,6 +13,8 @@ public static partial class VKRender
 
         public static VkCommandPool globalCommandPool;
         public static VkCommandBuffer oneTimeUseCommandBuffer;
+        public static VkFence oneTimeUseCBFence;
+
         
         public static VkBuffer deviceRenderObjectsBuffer;
         public static VkDeviceMemory deviceRenderObjectsMemory;
@@ -69,9 +71,12 @@ public static partial class VKRender
                 .Expect("failed to allocate command buffer!");
         GlobalData.indexBuffer = new IndexBuffer(1);
         GlobalData.vertexBuffer = new VertexBuffer(1);
+        vkCreateFence(device, out GlobalData.oneTimeUseCBFence)
+            .Expect();
     }
     private static unsafe void FreeGlobalData()
     {
         vkDestroyCommandPool(device, GlobalData.globalCommandPool, null);
+        vkDestroyFence(device, GlobalData.oneTimeUseCBFence);
     }
 }

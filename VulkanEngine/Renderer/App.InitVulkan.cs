@@ -6,6 +6,8 @@ using SixLabors.ImageSharp.PixelFormats;
 using Vortice.Vulkan;
 using VulkanEngine.Renderer.GPUStructs;
 using static Vortice.Vulkan.Vulkan;
+using static VulkanEngine.Renderer.GPUDEBUG;
+
 
 namespace VulkanEngine.Renderer;
 
@@ -18,7 +20,10 @@ public static partial class VKRender
         // CreateSwapChain(true);
         // CreateSwapChainImageViews();
         CreateRenderPass(mainWindow);
-        CreateDescriptorSetLayout();
+        CreateFirstDescriptorSetLayout();
+        TextureManager.InitTextureEngine();
+        MaterialManager.Init();
+        GfxPipelineLayout = CreatePipelineLayout([DescriptorSetLayout, TextureManager.descSetLayout]);
         CreateGraphicsPipeline();
 
         AllocatePerFrameData();
@@ -54,7 +59,7 @@ public static partial class VKRender
     static VkImage textureImage = default;
     static VkDeviceMemory textureImageMemory = default;
 
-    // public static Vertex[] vertices = {
+    // public static DefaultVertex[] vertices = {
     //     ((-0.5f, -0.5f,0), (1.0f, 0.0f, 0.0f),(0,0)),
     //     ((0.5f, -0.5f,0), (0.0f, 1.0f, 0.0f),(1,0)),
     //     ((0.5f, 0.5f,0), (0.0f, 0.0f, 1.0f),(1,1)),
@@ -92,7 +97,7 @@ public static partial class VKRender
 
         fixed (FrameData* frameDatas = FrameData)
         {
-            for (int i = 0; i < FRAME_OVERLAP; i++)
+            for (var i = 0; i < FRAME_OVERLAP; i++)
             {
                 var fenceCreateInfo = new VkFenceCreateInfo
                 {
@@ -211,8 +216,8 @@ public static partial class VKRender
     
     private static unsafe VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags imageAspectFlags)
     {
-        VkImageViewCreateInfo createInfo = new()
-       {
+        var createInfo = new VkImageViewCreateInfo
+        {
             image = image,
             viewType = VkImageViewType.Image2D,
             format = format,
@@ -243,37 +248,37 @@ public static partial class VKRender
     
     private static unsafe void CreateTextureImage()
     {
-        using var img = SixLabors.ImageSharp.Image.Load<Rgba32>(AssetsPath+"/textures/texture.jpg");
-        ulong imageSize = (ulong)(img.Width * img.Height * img.PixelType.BitsPerPixel / 8);
+        using var img = SixLabors.ImageSharp.Image.Load<Rgba32>(AssetsPath+"textures/texture.jpg");
+        var imageSize = (ulong)(img.Width * img.Height * img.PixelType.BitsPerPixel / 8);
         
         VkBuffer stagingBuffer = default;
         VkDeviceMemory stagingBufferMemory = default;
         CreateBuffer(imageSize,
-            VkBufferUsageFlags.TransferSrc,
-            VkMemoryPropertyFlags.HostVisible | VkMemoryPropertyFlags.HostCoherent,
-            &stagingBuffer,
-            &stagingBufferMemory);
+                    VkBufferUsageFlags.TransferSrc,
+                    VkMemoryPropertyFlags.HostVisible | VkMemoryPropertyFlags.HostCoherent,
+                    &stagingBuffer,
+                    &stagingBufferMemory);
 
         void* data;
         vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
         img.CopyPixelDataTo(new Span<byte>(data, (int)imageSize));
         vkUnmapMemory(device, stagingBufferMemory);
 
-        fixed(VkImage* pTextureImage = &textureImage)
-        fixed(VkDeviceMemory* pTextureImageMemory = &textureImageMemory)
-            CreateImage((uint) img.Width,
-            (uint) img.Height,
-            VkFormat.R8G8B8A8Srgb,
-            VkImageTiling.Optimal,
-            VkImageUsageFlags.TransferDst | VkImageUsageFlags.Sampled,
-            VkMemoryPropertyFlags.DeviceLocal,
-            pTextureImage,
-            pTextureImageMemory);
-        
+        CreateImage( (uint) img.Width,
+                    (uint) img.Height,
+                    VkFormat.R8G8B8A8Srgb,
+                    VkImageTiling.Optimal,
+                    VkImageUsageFlags.TransferDst | VkImageUsageFlags.Sampled,
+                    VkMemoryPropertyFlags.DeviceLocal,
+                    false,
+                    VkImageCreateFlags.None,
+                    out textureImage,
+                    out textureImageMemory);
+            
 
-        TransitionImageLayout(textureImage, VkFormat.R8G8B8A8Srgb, VkImageLayout.Undefined, VkImageLayout.TransferDstOptimal);
+        TransitionImageLayout(textureImage, VkFormat.R8G8B8A8Srgb, VkImageLayout.Undefined, VkImageLayout.TransferDstOptimal,0,1);
         CopyBufferToImage(stagingBuffer, textureImage, (uint)img.Width, (uint)img.Height);
-        TransitionImageLayout(textureImage, VkFormat.R8G8B8A8Srgb, VkImageLayout.TransferDstOptimal, VkImageLayout.ShaderReadOnlyOptimal);
+        TransitionImageLayout(textureImage, VkFormat.R8G8B8A8Srgb, VkImageLayout.TransferDstOptimal, VkImageLayout.ShaderReadOnlyOptimal,0,1);
 
         vkDestroyBuffer(device, stagingBuffer, null);
         vkFreeMemory(device, stagingBufferMemory, null);
@@ -281,12 +286,17 @@ public static partial class VKRender
 
     }
 
-    private static unsafe void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
+    public static unsafe void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint baseMipLevel, uint MiplevelCount)
     {
         var commandBuffer = BeginSingleTimeCommands();
+        TransitionImageLayout(commandBuffer, image, format, oldLayout, newLayout, baseMipLevel, MiplevelCount);
+        EndSingleTimeCommands(commandBuffer);
+    }
+    public static unsafe void TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint baseMipLevel, uint MiplevelCount)
+    {
         
-        VkImageMemoryBarrier barrier=new()
-       {
+        var barrier= new VkImageMemoryBarrier
+        {
             oldLayout = oldLayout,
             newLayout = newLayout,
             srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
@@ -295,8 +305,8 @@ public static partial class VKRender
             subresourceRange = new VkImageSubresourceRange
             {
                 aspectMask = VkImageAspectFlags.Color,
-                baseMipLevel = 0,
-                levelCount = 1,
+                baseMipLevel = baseMipLevel,
+                levelCount = MiplevelCount,
                 baseArrayLayer = 0,
                 layerCount = 1,
             },
@@ -326,6 +336,21 @@ public static partial class VKRender
             barrier.dstAccessMask = VkAccessFlags.DepthStencilAttachmentRead | VkAccessFlags.DepthStencilAttachmentWrite;
             sourceStage = VkPipelineStageFlags.TopOfPipe;
             destinationStage = VkPipelineStageFlags.EarlyFragmentTests;
+            barrier.subresourceRange.aspectMask = VkImageAspectFlags.Depth; // migh tbe wrong
+        }
+        else if (oldLayout == VkImageLayout.TransferDstOptimal && newLayout == VkImageLayout.TransferSrcOptimal)
+        {
+            barrier.srcAccessMask = VkAccessFlags.TransferWrite;
+            barrier.dstAccessMask = VkAccessFlags.TransferRead;
+            sourceStage = VkPipelineStageFlags.Transfer;
+            destinationStage = VkPipelineStageFlags.Transfer;
+        }
+        else if (oldLayout == VkImageLayout.TransferSrcOptimal && newLayout == VkImageLayout.ShaderReadOnlyOptimal)
+        {
+            barrier.srcAccessMask = VkAccessFlags.TransferRead;
+            barrier.dstAccessMask = VkAccessFlags.ShaderRead;
+            sourceStage = VkPipelineStageFlags.Transfer;
+            destinationStage = VkPipelineStageFlags.ComputeShader|VkPipelineStageFlags.AllGraphics;
         }
         else
         {
@@ -350,7 +375,6 @@ public static partial class VKRender
         );
         
         
-        EndSingleTimeCommands(commandBuffer);
     }
 
     private static bool HasStencilComponent(VkFormat format)
@@ -358,10 +382,16 @@ public static partial class VKRender
         return format == VkFormat.D32SfloatS8Uint || format == VkFormat.D24UnormS8Uint;
     }
 
-    private static unsafe void CopyBufferToImage(VkBuffer buffer, VkImage image, uint width, uint height)
+    public static unsafe void CopyBufferToImage(VkBuffer buffer, VkImage image, uint width, uint height)
     {
         var commandBuffer = BeginSingleTimeCommands();
-        VkBufferImageCopy region=new()
+        CopyBufferToImage(commandBuffer, buffer, image, width, height, 0);
+        EndSingleTimeCommands(commandBuffer);
+    }
+
+    public static unsafe void CopyBufferToImage(VkCommandBuffer commandBuffer, VkBuffer buffer, VkImage image, uint width, uint height, uint mipLevel)
+    {
+        var region= new VkBufferImageCopy
         {
             bufferOffset = 0,
             bufferRowLength = 0,
@@ -369,7 +399,7 @@ public static partial class VKRender
             imageSubresource = new VkImageSubresourceLayers
             {
                 aspectMask = VkImageAspectFlags.Color,
-                mipLevel = 0,
+                mipLevel = mipLevel,
                 baseArrayLayer = 0,
                 layerCount = 1,
             },
@@ -387,16 +417,15 @@ public static partial class VKRender
             }
         };
         vkCmdCopyBufferToImage(commandBuffer, buffer, image, VkImageLayout.TransferDstOptimal, 1, &region);
-        EndSingleTimeCommands(commandBuffer);
     }
    
-    private static unsafe VkCommandBuffer BeginSingleTimeCommands()
+    public static unsafe VkCommandBuffer BeginSingleTimeCommands()
    {
-        VkCommandBuffer commandBuffer=GlobalData.oneTimeUseCommandBuffer;
+        var commandBuffer=GlobalData.oneTimeUseCommandBuffer;
         
         vkResetCommandBuffer(commandBuffer,VkCommandBufferResetFlags.None);
 
-        VkCommandBufferBeginInfo beginInfo=new()
+        var beginInfo= new VkCommandBufferBeginInfo
         {
             flags = VkCommandBufferUsageFlags.OneTimeSubmit
         };
@@ -404,21 +433,23 @@ public static partial class VKRender
         vkBeginCommandBuffer(commandBuffer, &beginInfo);
         return commandBuffer;
     }   
-    private static unsafe void EndSingleTimeCommands(VkCommandBuffer commandBuffer)
+    public static unsafe void EndSingleTimeCommands(VkCommandBuffer commandBuffer)
     {
         vkEndCommandBuffer(commandBuffer);
-        VkSubmitInfo submitInfo=new()
-       {
+        var submitInfo= new VkSubmitInfo
+        {
             commandBufferCount = 1,
             pCommandBuffers = &commandBuffer
         };
 
-        vkQueueSubmit(graphicsQueue, 1, &submitInfo, default).Expect();
-        vkQueueWaitIdle(graphicsQueue).Expect();
+        vkQueueSubmit(graphicsQueue, 1, &submitInfo, GlobalData.oneTimeUseCBFence).Expect();
+        vkWaitForFences(device, GlobalData.oneTimeUseCBFence, true, ulong.MaxValue);
+        vkResetFences(device, GlobalData.oneTimeUseCBFence);
+        //vkQueueWaitIdle(graphicsQueue).Expect();
     }
 
-    private static unsafe void CreateImage(uint width, uint height, VkFormat format, VkImageTiling tiling,
-        VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage* pTextureImage, VkDeviceMemory* pTextureImageMemory)
+    public static unsafe void CreateImage(uint width, uint height, VkFormat format, VkImageTiling tiling,
+        VkImageUsageFlags usage, VkMemoryPropertyFlags properties, bool hasMips, VkImageCreateFlags ImageFlags, out VkImage TextureImage, out VkDeviceMemory TextureImageMemory)
     {
         {
             //create image
@@ -432,31 +463,32 @@ public static partial class VKRender
                     height = height,
                     depth = 1,
                 },
-                mipLevels = 1,
+                mipLevels = hasMips?MipCount(width,height):1,
                 arrayLayers = 1,
                 samples = VkSampleCountFlags.Count1,
                 tiling = tiling,
                 usage = usage,
                 sharingMode = VkSharingMode.Exclusive,
                 initialLayout = VkImageLayout.Undefined,
-                flags = 0,
+                flags = ImageFlags,
             };
-            vkCreateImage(device, &imageCreateInfo, null, pTextureImage)
+            vkCreateImage(device, &imageCreateInfo, null, out TextureImage)
                 .Expect("failed to create image!");
         }
         VkMemoryRequirements memRequirements;
-        vkGetImageMemoryRequirements(device, *pTextureImage, &memRequirements);
+        vkGetImageMemoryRequirements(device, TextureImage, &memRequirements);
 
-        VkMemoryAllocateInfo allocInfo = new()
-       {
+        var allocInfo = new VkMemoryAllocateInfo
+        {
             allocationSize = memRequirements.size,
             memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, properties)
         };
 
-        vkAllocateMemory(device, &allocInfo, null, pTextureImageMemory)
+        vkAllocateMemory(device, &allocInfo, null, out TextureImageMemory)
             .Expect("failed to allocate image memory!");
 
-        vkBindImageMemory(device, *pTextureImage, *pTextureImageMemory, 0);
+        vkBindImageMemory(device, TextureImage, TextureImageMemory, 0)
+            .Expect();
     }
 
     private static unsafe void CreateDescriptorSets()
@@ -469,7 +501,7 @@ public static partial class VKRender
             descriptorSetCount = 1,
             pSetLayouts = layouts,
         };
-        for (int i = 0; i < FRAME_OVERLAP; i++)
+        for (var i = 0; i < FRAME_OVERLAP; i++)
         {
             VkDescriptorSet a;
             vkAllocateDescriptorSets(device, &allocInfo, &a)
@@ -493,7 +525,7 @@ public static partial class VKRender
                 new()
                {
                     dstSet = FrameData[i].descriptorSets.GFX,
-                    dstBinding = BindingPoints.GPU_Gfx_UBO,
+                    dstBinding = GPUBindingPoints.GPU_Gfx_UBO,
                     dstArrayElement = 0,
                     descriptorType = VkDescriptorType.UniformBuffer,
                     descriptorCount = 1,
@@ -502,7 +534,7 @@ public static partial class VKRender
                 new()
                {
                     dstSet = FrameData[i].descriptorSets.GFX,
-                    dstBinding = BindingPoints.GPU_Gfx_Image_Sampler,
+                    dstBinding = GPUBindingPoints.GPU_Gfx_Image_Sampler,
                     dstArrayElement = 0,
                     descriptorType = VkDescriptorType.CombinedImageSampler,
                     descriptorCount = 1,
@@ -544,7 +576,7 @@ public static partial class VKRender
     private static unsafe void CreateUniformBuffers()
     {
         var bufferSize = sizeof(UniformBufferObject);
-        for (int i = 0; i < FRAME_OVERLAP; i++)
+        for (var i = 0; i < FRAME_OVERLAP; i++)
         {
             CreateBuffer((ulong) bufferSize,
                     VkBufferUsageFlags.UniformBuffer,
@@ -560,16 +592,18 @@ public static partial class VKRender
         }
         CleanupStack.Push(()=>
         {
-            for (int i = 0; i < FRAME_OVERLAP; i++)
+            for (var i = 0; i < FRAME_OVERLAP; i++)
                 CleanupBufferImmediately(FrameData[i].uniformBuffer, FrameData[i].uniformBufferMemory);
         });
     }
 
-    private static unsafe void CreateDescriptorSetLayout()
+
+    private static unsafe void CreateFirstDescriptorSetLayout()
    {
+       // new VkDescriptorSetLayoutBindingFlagsCreateInfo{pBindingFlags = VkDescriptorBindingFlags.VariableDescriptorCount}
         var uboLayoutBinding = new VkDescriptorSetLayoutBinding
         {
-            binding = BindingPoints.GPU_Gfx_UBO,
+            binding = GPUBindingPoints.GPU_Gfx_UBO,
             descriptorType = VkDescriptorType.UniformBuffer,
             descriptorCount = 1,
             stageFlags = VkShaderStageFlags.Vertex,
@@ -577,7 +611,7 @@ public static partial class VKRender
         };
         var samplerLayoutBinding = new VkDescriptorSetLayoutBinding
         {
-            binding = BindingPoints.GPU_Gfx_Image_Sampler,
+            binding = GPUBindingPoints.GPU_Gfx_Image_Sampler,
             descriptorCount = 1,
             descriptorType = VkDescriptorType.CombinedImageSampler,
             stageFlags = VkShaderStageFlags.Fragment,
@@ -585,10 +619,10 @@ public static partial class VKRender
         };
         var drawcallSSBOBinding = new VkDescriptorSetLayoutBinding
         {
-            binding = BindingPoints.GPU_Gfx_Input_Indirect,
+            binding = GPUBindingPoints.GPU_Gfx_Input_Indirect,
             descriptorType = VkDescriptorType.StorageBuffer,
             descriptorCount = 1,
-            stageFlags = VkShaderStageFlags.Vertex,
+            stageFlags = VkShaderStageFlags.Vertex|VkShaderStageFlags.Fragment,
             pImmutableSamplers = null,
         };
         var bindings = stackalloc[] {uboLayoutBinding, samplerLayoutBinding,drawcallSSBOBinding};
@@ -613,18 +647,18 @@ public static partial class VKRender
         vkCreateDescriptorSetLayout(device, &layoutInfo, null, out DescriptorSetLayout)
             .Expect("failed to create descriptor set layout!");
     }
-
-    static unsafe void CreateBuffer(ulong size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
+    
+    public static unsafe void CreateBuffer(ulong size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
         out VkBuffer buffer, out VkDeviceMemory bufferMemory)
     {
         fixed (VkBuffer* pBuffer = &buffer)
         fixed (VkDeviceMemory* pBufferMemory = &bufferMemory)
             CreateBuffer(size, usage, properties, pBuffer, pBufferMemory);
     }
-    static unsafe void CreateBuffer(ulong size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer* buffer, VkDeviceMemory* bufferMemory)
+    public static unsafe void CreateBuffer(ulong size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer* buffer, VkDeviceMemory* bufferMemory)
     {
-        VkBufferCreateInfo bufferInfo = new()
-       {
+        var bufferInfo = new VkBufferCreateInfo
+        {
             size = size,
             usage = usage,
             sharingMode = VkSharingMode.Exclusive
@@ -634,8 +668,8 @@ public static partial class VKRender
         VkMemoryRequirements memRequirements;
         vkGetBufferMemoryRequirements(device, *buffer, &memRequirements);
         
-        VkMemoryAllocateInfo allocInfo = new()
-       {
+        var allocInfo = new VkMemoryAllocateInfo
+        {
             allocationSize = memRequirements.size,
             memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, properties)
         };
@@ -653,7 +687,7 @@ public static partial class VKRender
     {
         var commandBuffer = BeginSingleTimeCommands();
         
-        VkBufferCopy copyRegion=new ()
+        var copyRegion= new VkBufferCopy
         {
             srcOffset = 0, // Optional
             dstOffset = 0, // Optional
@@ -772,8 +806,8 @@ public static partial class VKRender
     private static unsafe void CreateGraphicsPipeline()
     {
         //depends on renderpass
-        byte[] vertexShaderCode = File.ReadAllBytes(AssetsPath+"/shaders/compiled/triangle.vert.spv");
-        byte[] fragmentShaderCode = File.ReadAllBytes(AssetsPath+"/shaders/compiled/triangle.frag.spv");
+        var vertexShaderCode = File.ReadAllBytes(AssetsPath+"shaders/compiled/triangle.vert.spv");
+        var fragmentShaderCode = File.ReadAllBytes(AssetsPath+"shaders/compiled/triangle.frag.spv");
         
         var vertexModule = CreateShaderModule(vertexShaderCode);
         var fragmentModule = CreateShaderModule(fragmentShaderCode);
@@ -794,15 +828,16 @@ public static partial class VKRender
         };
         var combinedStages = stackalloc[] {fragShaderStageInfo, vertShaderStageInfo};
         
-        var bindingDescription = Vertex.GetBindingDescription();
-        var vertexInputAttributeDescriptions = Vertex.GetAttributeDescriptions();
+        var vertexInputAttributeDescriptions = DefaultVertex.GetAttributeDescriptions(0);
+        var bindingDescription = DefaultVertex.GetBindingDescription(0);
+        fixed (VkVertexInputBindingDescription* bindingDescriptionPtr = bindingDescription)
         fixed (VkVertexInputAttributeDescription* attributeDescriptions = vertexInputAttributeDescriptions)
         {
             var vertexInputInfo = new VkPipelineVertexInputStateCreateInfo
             {
 
                 vertexBindingDescriptionCount = 1,
-                pVertexBindingDescriptions = &bindingDescription,
+                pVertexBindingDescriptions = bindingDescriptionPtr,
                 vertexAttributeDescriptionCount = (uint) vertexInputAttributeDescriptions.Length,
                 pVertexAttributeDescriptions = attributeDescriptions,
             };
@@ -867,14 +902,14 @@ public static partial class VKRender
                 stencilTestEnable = false,
                 
             };
-            VkPipelineColorBlendAttachmentState colorBlendAttachment = new()
+            var colorBlendAttachment = new VkPipelineColorBlendAttachmentState
             {
                 colorWriteMask = VkColorComponentFlags.R | VkColorComponentFlags.G | VkColorComponentFlags.B |
                                  VkColorComponentFlags.A,
                 blendEnable = false,
             };
 
-            VkPipelineColorBlendStateCreateInfo colorBlending = new()
+            var colorBlending = new VkPipelineColorBlendStateCreateInfo
             {
 
                 logicOpEnable = false,
@@ -887,19 +922,18 @@ public static partial class VKRender
             colorBlending.blendConstants[1] = 0;
             colorBlending.blendConstants[2] = 0;
             colorBlending.blendConstants[3] = 0;
-            fixed (VkDescriptorSetLayout* pDescriptorSetLayout = &DescriptorSetLayout)
-            {
-                VkPipelineLayoutCreateInfo pipelineLayoutInfo = new()
-                {
-
-                    setLayoutCount = 1,
-                    pSetLayouts = pDescriptorSetLayout,
-                    pushConstantRangeCount = 0,
-                };
-
-                vkCreatePipelineLayout(device, &pipelineLayoutInfo, null, out GfxPipelineLayout)
-                    .Expect("failed to create pipeline layout!");
-            }
+            // fixed (VkDescriptorSetLayout* pDescriptorSetLayout = &DescriptorSetLayout)
+            // {
+            //     var pipelineLayoutInfo = new VkPipelineLayoutCreateInfo
+            //     {
+            //         setLayoutCount = 1,
+            //         pSetLayouts = pDescriptorSetLayout,
+            //         pushConstantRangeCount = 0,
+            //     };
+            //
+            //     vkCreatePipelineLayout(device, &pipelineLayoutInfo, null, out GfxPipelineLayout)
+            //         .Expect("failed to create pipeline layout!");
+            // }
 
         
 
@@ -932,21 +966,7 @@ public static partial class VKRender
         vkDestroyShaderModule(device,fragmentModule,null);
     }
 
-    static unsafe VkShaderModule CreateShaderModule(byte[] code)
-    {
-        fixed (byte* pCode = code)
-        {
-            var shaderCreateInfo = new VkShaderModuleCreateInfo()
-            {
-                codeSize = (nuint) code.Length,
-                pCode = (uint*) pCode,
-            };
-            vkCreateShaderModule(device, &shaderCreateInfo, null, out var result)
-                .Expect("failed to create shader module!");
-            return result;
-        }
 
-    }
     // private static unsafe void CreateSwapChainImageViews(EngineWindow window)
     // {
     //     
@@ -983,14 +1003,14 @@ public static partial class VKRender
                 "VK_LAYER_KHRONOS_validation",
             };
 
-            IntPtr[] enabledLayerNames = new IntPtr[0];
+            var enabledLayerNames = new IntPtr[0];
 
             if (EnableValidationLayers)
             {
                 var layers = vkEnumerateInstanceLayerProperties();
                 var availableLayerNames = new HashSet<string>();
 
-                for (int index = 0; index < layers.Length; index++)
+                for (var index = 0; index < layers.Length; index++)
                 {
                     var properties = layers[index];
                     var namePointer = properties.layerName;
@@ -1012,7 +1032,7 @@ public static partial class VKRender
             var availableExtensionNames = new List<string>();
             var desiredExtensionNames = new List<string>();
 
-            for (int index = 0; index < extensionProperties.Length; index++)
+            for (var index = 0; index < extensionProperties.Length; index++)
             {
                 var extensionProperty = extensionProperties[index];
                 var name = Marshal.PtrToStringAnsi((IntPtr)extensionProperty.extensionName);
@@ -1060,7 +1080,7 @@ public static partial class VKRender
                 // }
             }
 
-            bool enableDebugReport = EnableValidationLayers && availableExtensionNames.Contains(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+            var enableDebugReport = EnableValidationLayers && availableExtensionNames.Contains(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
             if (enableDebugReport)
                 desiredExtensionNames.Add(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
@@ -1071,7 +1091,7 @@ public static partial class VKRender
                 fixed (void* enabledExtensionNamesPointer = &enabledExtensionNames[0])
                 fixed (void* fEnabledLayerNames = enabledLayerNames) // null if array is empty or null
                 {
-                    VkDebugUtilsMessengerCreateInfoEXT a = new()
+                    var a = new VkDebugUtilsMessengerCreateInfoEXT
                     {
                         messageSeverity = VkDebugUtilsMessageSeverityFlagsEXT.Verbose | VkDebugUtilsMessageSeverityFlagsEXT.Error | VkDebugUtilsMessageSeverityFlagsEXT.Warning| VkDebugUtilsMessageSeverityFlagsEXT.Info| VkDebugUtilsMessageSeverityFlagsEXT.Verbose,
                         messageType = VkDebugUtilsMessageTypeFlagsEXT.General | VkDebugUtilsMessageTypeFlagsEXT.Validation | VkDebugUtilsMessageTypeFlagsEXT.Performance| VkDebugUtilsMessageTypeFlagsEXT.DeviceAddressBinding,
@@ -1126,24 +1146,24 @@ public static partial class VKRender
 
 
     
-    private static readonly string[] requiredInstanceExtensions = {
-    };
-    private static unsafe string[] GetRequiredInstanceExtensions()
-    {
-
-
-        var extensions = MIT.VulkanWindowingInstanceExtensions().ToArray().Concat(requiredInstanceExtensions)
-#if MAC
-                .Append("VK_KHR_portability_enumeration")
-#endif
-            ;
-        if (EnableValidationLayers)
-        {
-            return extensions.Append(VK_EXT_DEBUG_UTILS_EXTENSION_NAME).ToArray();
-        }
-
-        return extensions.ToArray();
-    }
+    // private static readonly string[] requiredInstanceExtensions = {
+    // };
+//     private static unsafe string[] GetRequiredInstanceExtensions()
+//     {
+//
+//
+//         var extensions = MIT.VulkanWindowingInstanceExtensions().ToArray().Concat(requiredInstanceExtensions)
+// #if MAC
+//                 .Append("VK_KHR_portability_enumeration")
+// #endif
+//             ;
+//         if (EnableValidationLayers)
+//         {
+//             return extensions.Append(VK_EXT_DEBUG_UTILS_EXTENSION_NAME).ToArray();
+//         }
+//
+//         return extensions.ToArray();
+//     }
 
     static string[] validationLayers = {"VK_LAYER_KHRONOS_validation"};
     private static unsafe bool CheckValidationLayerSupport()

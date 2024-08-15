@@ -4,6 +4,7 @@ namespace VulkanEngine.Renderer;
 
 public class DeviceInfo
 {
+    public string name;
     public VkPhysicalDevice device;
     public VkPhysicalDeviceProperties properties;
     public bool supportsCmdDrawIndexedIndirectCount;

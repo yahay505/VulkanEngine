@@ -9,5 +9,5 @@ public static partial class VKRender
         false;
 #endif
 
-    internal const int FRAME_OVERLAP = 3;
+    internal const int FRAME_OVERLAP = 2;
 }

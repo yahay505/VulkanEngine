@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using Silk.NET.Maths;
 using VulkanEngine.Phases.FrameRender;
 using Vortice.Vulkan;
+using VulkanEngine.Renderer.Text;
 using static Vortice.Vulkan.Vulkan;
 namespace VulkanEngine.Renderer;
 
@@ -30,7 +31,7 @@ public static partial class VKRender
         
         uint imageIndex = 999;
         {
-            vkDeviceWaitIdle(device);
+            // vkDeviceWaitIdle(device);
             //start
             var fence = GetCurrentFrame().renderFence;
             start: vkWaitForFences(device, 1, &fence, true, ulong.MaxValue)
@@ -116,7 +117,7 @@ public static partial class VKRender
         
         var gfxCommandBuffer = GetCurrentFrame().GfxCommandBuffer;
         
-        RecordCommandBuffer(window,gfxCommandBuffer, (int)imageIndex, objectCount);
+        DrawFrame_GFXPart(window,gfxCommandBuffer, (int)imageIndex, objectCount);
         
         
         vkEndCommandBuffer(gfxCommandBuffer)
@@ -179,7 +180,10 @@ public static partial class VKRender
         };
         vkBeginCommandBuffer(computeCommandBuffer, &commandBufferBeginInfo)
             .Expect("failed to begin recording command buffer!");
-
+        //todo move
+        MaterialManager.Sync(computeCommandBuffer,VkPipelineStageFlags.ComputeShader|VkPipelineStageFlags.AllGraphics,VkAccessFlags.ShaderRead);
+        
+        
         var vkBufferCopy = new VkBufferCopy(){srcOffset = 0, dstOffset = 0, size = (uint) GetCurrentFrame().hostRenderObjectsBufferSizeInBytes};
         vkCmdCopyBuffer(computeCommandBuffer, GetCurrentFrame().hostRenderObjectsBuffer,
             GlobalData.deviceRenderObjectsBuffer, 1,
@@ -189,6 +193,8 @@ public static partial class VKRender
         var pDescriptorSet = stackalloc VkDescriptorSet[] {GetCurrentFrame().descriptorSets.Compute};
         vkCmdBindDescriptorSets(computeCommandBuffer, VkPipelineBindPoint.Compute, ComputePipelineLayout, 0, 1,
             pDescriptorSet, 0, null);
+        //MaterialManager.Bind(computeCommandBuffer,0);
+        
         int ComputeWorkGroupSize = 16;
         var dispatchSize = (uint) (objectCount / ComputeWorkGroupSize) + 1;
         VkBufferMemoryBarrier to0first4bytes = new()
@@ -406,7 +412,7 @@ public static partial class VKRender
             return fb;
         }
 }
-    private static unsafe void RecordCommandBuffer(EngineWindow window,VkCommandBuffer commandBuffer, int imageIndex, int maxDrawCount)
+    private static unsafe void DrawFrame_GFXPart(EngineWindow window,VkCommandBuffer commandBuffer, int imageIndex, int maxDrawCount)
     {
         var beginInfo = new VkCommandBufferBeginInfo
        {
@@ -471,14 +477,14 @@ public static partial class VKRender
         vkCmdSetViewport(commandBuffer,0,1,&viewPort);
         vkCmdSetScissor(commandBuffer,0,1,&scissor);
         var vertexBuffers =stackalloc []{(VkBuffer)GlobalData.vertexBuffer};
-        var offsets = stackalloc []{(ulong)0};
+        var offsets = stackalloc [] {0ul};
         
         // vk!.CmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
         var pDescriptorSet = stackalloc VkDescriptorSet[] {GetCurrentFrame().descriptorSets.GFX};
         vkCmdBindIndexBuffer(commandBuffer, GlobalData.indexBuffer, 0, VkIndexType.Uint32);
         vkCmdBindDescriptorSets(commandBuffer, VkPipelineBindPoint.Graphics, GfxPipelineLayout, 0, 1, pDescriptorSet, 0, null);
-
+        // vkCmdBindDescriptorSets(commandBuffer,VkPipelineBindPoint.Graphics, TextureManager.descSetLayout,1,1,default,0,null);
 
         if (DrawIndirectCountAvaliable)
         {
@@ -501,7 +507,7 @@ public static partial class VKRender
                 (uint) postCullCount,
                 (uint) sizeof(GPUStructs.ComputeDrawOutput));
         }
-
+        DebugTextRenderer.Draw(commandBuffer);
         
         // vk!.CmdDraw(commandBuffer, (uint) vertices.Length, 1, 0, 0);
         

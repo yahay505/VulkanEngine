@@ -1,4 +1,8 @@
 // using ImGuiNET;
+
+using System.Diagnostics.Contracts;
+using System.Numerics;
+using Cathei.LinqGen;
 using OSBindingTMP;
 using Pastel;
 using Silk.NET.Maths;
@@ -18,7 +22,7 @@ public partial class VKRender
         // Console.WriteLine($"{transform.world_position} {transform.forward} {transform.up} {camera.fov} {camera.nearPlaneDistance} {camera.farPlaneDistance}");
         // ImGui.Begin("SetCamera");
         
-        currentCamera = new()
+        currentCamera = new Camera
         {
             view = Matrix4X4.CreateLookAt(
                 transform.world_position, 
@@ -35,27 +39,124 @@ public partial class VKRender
         // ImGui.Text($"Decomposed view:\n {scale:F3} \n {Vector3D.Transform(float3.One,rotation)*180f/float.Pi:F3}\n {translation:F3}");
         // ImGui.End();
     }
-    
-    public static (VkPipeline pipeline, VkPipelineLayout pipelineLayout) CreatePSO(
-        ReadOnlySpan<VkPipelineShaderStageCreateInfo> shaderStages,
-        VkVertexInputAttributeDescription[] VertexDefinition,
-        ReadOnlySpan<VkDynamicState> dynamicStates,
-        VkPipelineRasterizationStateCreateInfo rasterizer,
-        VkPipelineMultisampleStateCreateInfo multisampling,
-        VkPipelineDepthStencilStateCreateInfo depthStencil,
-        VkPipelineColorBlendAttachmentState colorBlendAttachment,
-        VkPipelineColorBlendStateCreateInfo colorBlending,
-        ReadOnlySpan<VkDescriptorSetLayout> descriptorSetLayouts
-        )
+
+    public static unsafe VkShaderModule CreateShaderModule(byte[] code)
     {
+        fixed (byte* pCode = code)
+        {
+            var shaderCreateInfo = new VkShaderModuleCreateInfo()
+            {
+                codeSize = (nuint) code.Length,
+                pCode = (uint*) pCode,
+            };
+            vkCreateShaderModule(device, &shaderCreateInfo, null, out var result)
+                .Expect("failed to create shader module!");
+            return result;
+        }
+    }
+
+    public static unsafe VkPipelineLayout CreatePipelineLayout(ReadOnlySpan<VkDescriptorSetLayout> descriptorSetLayouts)
+    {
+        fixed(VkDescriptorSetLayout* descriptorSetLayoutsPtr = descriptorSetLayouts)
+        {
+            // create pipeline layout
+            var pipelineLayoutInfo = new VkPipelineLayoutCreateInfo
+            {
+
+                setLayoutCount = (uint) descriptorSetLayouts.Length,
+                pSetLayouts = descriptorSetLayoutsPtr,
+                pushConstantRangeCount = 0,
+            };
+            vkCreatePipelineLayout(device, &pipelineLayoutInfo, null, out var pipelineLayout)
+                .Expect("failed to create pipeline layout!");
+            return pipelineLayout;
+        }
+    }
+    public static VkPipeline CreatePSO(
+            ReadOnlySpan<VkPipelineShaderStageCreateInfo> shaderStages,
+            ReadOnlySpan<VkVertexInputBindingDescription> VertexBindings,
+            ReadOnlySpan<VkVertexInputAttributeDescription> VertexDefinitions,
+            VkPrimitiveTopology topology,
+            bool primitiveRestartEnable,
+            ReadOnlySpan<VkDynamicState> dynamicStates,
+            VkPipelineRasterizationStateCreateInfo rasterizer,
+            VkPipelineMultisampleStateCreateInfo multisampling,
+            VkPipelineDepthStencilStateCreateInfo depthStencil,
+            VkPipelineColorBlendStateCreateInfo colorBlending,
+            VkPipelineLayout pipelineLayout,
+            VkRenderPass renderPass,
+            uint subpass
+            )
+    {
+        // (dynamicStates.Gen().Count(a => a == VkDynamicState.Viewport) > 0)
+        //     .Assert("Viewport must be in dynamic states");
+        // (dynamicStates.Gen().Count(a => a == VkDynamicState.Scissor) > 0)
+        //     .Assert("Scissor must be in dynamic states");
         unsafe
         {
             fixed(VkPipelineShaderStageCreateInfo* shaderStagesPtr = shaderStages)
             fixed(VkDynamicState* dynamicStatesPtr = dynamicStates)
-            fixed(VkDescriptorSetLayout* descriptorSetLayoutsPtr= descriptorSetLayouts)
+            fixed(VkVertexInputBindingDescription* VertexBindingsPtr = VertexBindings)
+            fixed(VkVertexInputAttributeDescription* VertexDefinitionsPtr = VertexDefinitions)
             {
                 
-                throw new NotImplementedException();
+                //
+                // create pipeline
+                var dynamicStateCI = new VkPipelineDynamicStateCreateInfo
+                {
+                    dynamicStateCount = (uint) dynamicStates.Length,
+                    pDynamicStates = dynamicStatesPtr,
+                };
+                var CBACI = new VkPipelineColorBlendStateCreateInfo
+                {
+                    
+                };
+                
+                var vertexInputInfo = new VkPipelineVertexInputStateCreateInfo
+                {
+                    vertexBindingDescriptionCount = (uint) VertexBindings.Length,
+                    pVertexBindingDescriptions = VertexBindingsPtr,
+                    vertexAttributeDescriptionCount = (uint) VertexDefinitions.Length,
+                    pVertexAttributeDescriptions = VertexDefinitionsPtr,
+                };
+
+                var inputAss = new VkPipelineInputAssemblyStateCreateInfo
+                {
+                    topology = topology,
+                    primitiveRestartEnable = primitiveRestartEnable
+                };
+                var viewportState = new VkPipelineViewportStateCreateInfo
+                {
+                    viewportCount = 1,
+                    scissorCount = 1,
+                };
+                var PSOCI = new VkGraphicsPipelineCreateInfo
+                {
+                    pNext = null,
+                    stageCount = (uint) shaderStages.Length,
+                    pStages = shaderStagesPtr,
+                    pVertexInputState = &vertexInputInfo,
+                    basePipelineHandle = default,
+                    basePipelineIndex = default,
+                    flags = default,
+                    layout = pipelineLayout,
+                    renderPass = renderPass,
+                    subpass = subpass,
+                    pColorBlendState = &colorBlending,
+                    pDepthStencilState = &depthStencil,
+                    pDynamicState = &dynamicStateCI,
+                    pInputAssemblyState = &inputAss,
+                    pTessellationState = null, // idk
+                    pViewportState = &viewportState,
+                    pRasterizationState = &rasterizer,
+                    pMultisampleState = &multisampling,
+
+
+                };
+                vkCreateGraphicsPipeline(device, default, PSOCI, out var pipeline)
+                    .Expect("failed to create graphics pipeline!");
+
+                return pipeline;
             }    
         }
     }
@@ -204,8 +305,8 @@ public partial class VKRender
                 imageCount = deviceSwapChainSupport.Capabilities.maxImageCount;
             }
 
-            VkSwapchainCreateInfoKHR creatInfo = new()
-           {
+            var creatInfo = new VkSwapchainCreateInfoKHR
+            {
                 surface = window.surface,
                 minImageCount = imageCount,
                 imageFormat = window.surfaceFormat.format,
@@ -285,7 +386,7 @@ public partial class VKRender
             vkGetSwapchainImagesKHR(device, window.swapChain, & imageCount, tmp_swapchain);
             
             
-            for (int i = 0; i < imageCount; i++)
+            for (var i = 0; i < imageCount; i++)
             {
                 var imageview = CreateImageView(tmp_swapchain[i], window.swapChainImageFormat, VkImageAspectFlags.Color);
                 
@@ -301,7 +402,7 @@ public partial class VKRender
                     CurrentFrame);
             }
             window.depthImage = AllocateScreenSizedImage(window.size.ToInt2(),FindDepthFormat(),VkImageUsageFlags.DepthStencilAttachment,VkMemoryPropertyFlags.DeviceLocal,VkImageAspectFlags.Depth ,false);
-            TransitionImageLayout(window.depthImage.Image, window.depthImage.ImageFormat, VkImageLayout.Undefined, VkImageLayout.DepthStencilAttachmentOptimal);
+            TransitionImageLayout(window.depthImage.Image, window.depthImage.ImageFormat, VkImageLayout.Undefined, VkImageLayout.DepthStencilAttachmentOptimal,0,1);
 
         }
     }
@@ -320,7 +421,7 @@ public partial class VKRender
             minImageCount = (uint) window.SwapChainImages.Length,
             imageFormat = window.surfaceFormat.format,
             imageColorSpace = window.surfaceFormat.colorSpace,
-            imageExtent = new((uint)newsize.X, (uint)newsize.Y),
+            imageExtent = new VkExtent2D((uint)newsize.X, (uint)newsize.Y),
             imageArrayLayers = 1,
             imageUsage = VkImageUsageFlags.ColorAttachment,
             
@@ -357,10 +458,10 @@ public partial class VKRender
         vkGetSwapchainImagesKHR(device,new_swapChain,(uint*)&imagecount,tmp_swapchain)
             .Expect();
 
-        for (int i = 0; i < imagecount; i++)
+        for (var i = 0; i < imagecount; i++)
         {
             window.SwapChainImages[i].EnqueueDestroy();
-            window.SwapChainImages[i] = new(
+            window.SwapChainImages[i] = new ScreenSizedImage(
                 newsize,
                 window.swapChainImageFormat,
                 false,
@@ -373,11 +474,11 @@ public partial class VKRender
         }
         window.depthImage.EnqueueDestroy();
         window.depthImage = AllocateScreenSizedImage(newsize,window.depthImage.ImageFormat,window.depthImage.ImageUsage,window.depthImage.MemoryProperties, VkImageAspectFlags.Depth, false );
-        TransitionImageLayout(window.depthImage.Image, window.depthImage.ImageFormat, VkImageLayout.Undefined, VkImageLayout.DepthStencilAttachmentOptimal);
+        TransitionImageLayout(window.depthImage.Image, window.depthImage.ImageFormat, VkImageLayout.Undefined, VkImageLayout.DepthStencilAttachmentOptimal,0,1);
 
         vkDestroySwapchainKHR(device,window.swapChain,null);
         window.swapChain = new_swapChain;
-        window.size = new((uint)newsize.X, (uint)newsize.Y);
+        window.size = new VkExtent2D((uint)newsize.X, (uint)newsize.Y);
         return;
        
         
@@ -386,22 +487,21 @@ public partial class VKRender
     public static ScreenSizedImage AllocateScreenSizedImage(int2 size, VkFormat format, VkImageUsageFlags usage,
         VkMemoryPropertyFlags props, VkImageAspectFlags aspect, bool preserveOnResize)
     {
-        unsafe
-        {
-            VkImage image;
-            VkDeviceMemory mem;
-            CreateImage((uint) size.X, (uint) size.Y,
-                format,
-                VkImageTiling.Optimal,
-                usage,
-                props,
-                &image,
-                &mem);
+        CreateImage((uint) size.X, (uint) size.Y,
+            format,
+            VkImageTiling.Optimal,
+            usage,
+            props,
+            false,
+            VkImageCreateFlags.None,
+            out var image,
+            out var mem);
 
-            return new(size,format,preserveOnResize,image,usage,props,mem,CreateImageView(image,format,aspect),CurrentFrame);
-        }
+        return new ScreenSizedImage(size,format,preserveOnResize,image,usage,props,mem,CreateImageView(image,format,aspect),CurrentFrame);
     }
-    
+
+    [Pure]
+    public static uint MipCount(uint width, uint height) => (uint) (BitOperations.Log2(Math.Max(width, height)) + 1);
 }
 
 public class EngineWindow

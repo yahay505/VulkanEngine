@@ -5,16 +5,21 @@ using Vortice.Vulkan;
 using static Vortice.Vulkan.Vulkan;
 namespace VulkanEngine.Renderer;
 
-public static partial class VKRender
+public static class GPUDEBUG
 {
     [Conditional("DEBUG")]
     public static unsafe void MarkObject<T>(T target, sbyte* name, int lname, int variant = -1) where T : struct =>
         MarkObject(target, new(name, lname), variant);
+    [Conditional("DEBUG")]
+    public static unsafe void MarkObject<T>(T target, string s) where T : struct =>
+        MarkObject(target, Encoding.UTF8.GetBytes(s), -1);
+    [Conditional("DEBUG")]
+
 
     [Conditional("DEBUG")]
     public static unsafe void MarkObject<T>(T target,ReadOnlySpan<byte> name,int variant=-1) where T : struct
     {
-        var str = new VkDebugUtilsObjectNameInfoEXT()
+        VkDebugUtilsObjectNameInfoEXT str = new()
         {
             objectType = getEnum(target),
             objectHandle = Unsafe.BitCast<T,ulong>(target),
@@ -26,7 +31,7 @@ public static partial class VKRender
             rname = Encoding.UTF8.GetBytes($"{Encoding.UTF8.GetString(name)}-v{variant}\0");
             str.pObjectName = (sbyte*) rname.GetPointer();
         }
-        vkSetDebugUtilsObjectNameEXT(device, &str);
+        vkSetDebugUtilsObjectNameEXT(VKRender.device, &str);
     }
     private static VkObjectType getEnum<T>(T obj)
     {
@@ -36,7 +41,31 @@ public static partial class VKRender
                 return VkObjectType.Buffer;
             case VkDeviceMemory _:
                 return VkObjectType.DeviceMemory;
+            case VkImage _:
+                return VkObjectType.Image;
+            case VkImageView _:
+                return VkObjectType.ImageView;
         }
         throw new UnreachableException();
+    }
+    [Conditional("DEBUG")]
+    public static unsafe void BeginRegion(VkCommandBuffer commandBuffer, ReadOnlySpan<byte> name, float4 color = default)
+    {
+        VkDebugUtilsLabelEXT marker = new()
+        {
+            pLabelName = (sbyte*) name.GetPointer(),
+        };
+        marker.color[0] = color[0];
+        marker.color[1] = color[1];
+        marker.color[2] = color[2];
+        marker.color[3] = color[3];
+        vkCmdBeginDebugUtilsLabelEXT(commandBuffer,&marker);
+        
+    }
+
+    [Conditional("DEBUG")]
+    public static unsafe void EndRegion(VkCommandBuffer commandBuffer)
+    {
+        vkCmdEndDebugUtilsLabelEXT(commandBuffer);
     }
 }

@@ -45,7 +45,7 @@ public static class GPURenderRegistry
         return VKRender.GlobalData.indexBuffer.Upload(meshIndexBuffer);
     }
 
-    private static uint LoadVertices(Vertex[] meshVertexBuffer)
+    private static uint LoadVertices(DefaultVertex[] meshVertexBuffer)
     {
         return VKRender.GlobalData.vertexBuffer.Upload(meshVertexBuffer);
     }
@@ -78,7 +78,7 @@ public struct MeshData
 {
     public GpuLoadStatus status;
     public uint[] indexBuffer;
-    public Vertex[] vertexBuffer;
+    public DefaultVertex[] vertexBuffer;
     public uint indexBufferOffset;
     public int vertexBufferOffset;
 }
@@ -108,6 +108,6 @@ public struct Mesh_ref
 //     public ulong indexBufferOffset;
 //     public long vertexBufferOffset;
 //     public uint[] indexBuffer;
-//     public Vertex[] vertexBuffer;
+//     public DefaultVertex[] vertexBuffer;
 //
 // }

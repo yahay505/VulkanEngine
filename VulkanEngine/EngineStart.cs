@@ -63,13 +63,13 @@ public static class EngineStart
                 "*.vert",
                 "*.frag",
                 "*.comp",
-            }.SelectMany(search_string => Directory.GetFiles(VKRender.AssetsPath + "/shaders",
+            }.SelectMany(search_string => Directory.GetFiles(VKRender.AssetsPath + "shaders",
                 search_string,
                 SearchOption.AllDirectories))
             .Select(in_name =>
            {
-                var out_name = VKRender.AssetsPath + "/shaders/compiled" +
-                               in_name[((VKRender.AssetsPath + "/shaders").Length)..] + ".spv";
+                var out_name = VKRender.AssetsPath + "shaders/compiled" +
+                               in_name[((VKRender.AssetsPath + "shaders").Length)..] + ".spv";
 
                 return Process.Start("glslc", $@"{in_name} -o {out_name}");
             }).ToArray();

@@ -27,16 +27,9 @@ public static partial class VKRender
             };
         }
 
-        VkPhysicalDeviceFeatures deviceFeatures = new VkPhysicalDeviceFeatures
-        {
-            samplerAnisotropy = true,
-            multiDrawIndirect = true
-        };
-        var next = new VkPhysicalDeviceDescriptorIndexingFeatures()
-       {
-            descriptorBindingStorageBufferUpdateAfterBind = true,
-            descriptorBindingUpdateUnusedWhilePending = true,
-        };
+        
+        VkPhysicalDeviceFeatures deviceFeatures = DeviceRequirements.requiredDeviceFeatures;
+
         var length = (uint)uniqueQueueFamilies.Length;
         var a = stackalloc long[200];
         var createInfo = new VkDeviceCreateInfo();
@@ -46,7 +39,7 @@ public static partial class VKRender
         createInfo.pEnabledFeatures = &deviceFeatures;
         createInfo.ppEnabledExtensionNames = (sbyte**) SilkMarshal.StringArrayToPtr(DeviceInfo.selectedExtensionNames);
         createInfo.enabledExtensionCount = (uint) DeviceInfo.selectedExtensionNames.Count;
-        createInfo.pNext = &next;
+        createInfo.pNext = Unsafe.AsPointer(ref DeviceRequirements.requiredIndexingFeatures);
         createInfo.flags = VkDeviceCreateFlags.None;
         
         createInfo.queueCreateInfoCount = length;

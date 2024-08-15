@@ -181,11 +181,9 @@ public static class ECS
                 query.mainindex++;
                 continue;
             }
-            if (query.storages[1].Item1.EntityIndicesProp.Span[GlobalID]!=0&&query.storages.Gen().Skip(1).All(new MyStruct(){Gid = GlobalID}))
+            if (query.storages[1].Item1.EntityIndicesProp.Span[GlobalID]!=0&&ABuggyCheckIForgotWhyItExists(query, GlobalID))
             {
-                // var asasas = query.storages.Gen().;
-                // t1=Unsafe.BitCast<int,T1>(asasas.((a)=>a.Item2==0).Item1.EntityIndicesProp.Span[GlobalID]);
-                // t2=Unsafe.BitCast<int,T2>(query.storages[1].Item1.EntityIndicesProp.Span[GlobalID]);
+                
                 t1 = Unsafe.BitCast<int,T1>(GetSystem<T1>().EntityIndicesProp.Span[GlobalID]);
                 t2 = Unsafe.BitCast<int,T2>(GetSystem<T2>().EntityIndicesProp.Span[GlobalID]);
                 
@@ -201,6 +199,22 @@ public static class ECS
         return false;
     }
 
+    private static bool ABuggyCheckIForgotWhyItExists<T1, T2>(ECSQuery<T1, T2> query, int GlobalID) where T1 :unmanaged,Iinterface where T2 :unmanaged,Iinterface
+    {
+        //todo rewrite
+        //todo actually rewrite the whole thing
+        var storagesLength = query.storages.Length;
+        for (int i = 1; i < storagesLength; i++)
+        {
+            var (compstore, _) = query.storages[i];
+            if (compstore.EntityListProp.Length < GlobalID || compstore.EntityListProp.Span[GlobalID] <= 0)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
 }
 public interface Iinterface{}
 public interface Idata{}

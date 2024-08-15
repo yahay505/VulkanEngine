@@ -2,6 +2,7 @@
 using System.Runtime.CompilerServices;
 using Vortice.Vulkan;
 using static Vortice.Vulkan.Vulkan;
+using static VulkanEngine.Renderer.GPUDEBUG;
 namespace VulkanEngine.Renderer;
 public static partial class VKRender{
 static class GPUDynamicBuffer
@@ -10,7 +11,7 @@ static class GPUDynamicBuffer
     public static VkDeviceMemory stagingMemory;
     public static unsafe void* stagingMemoryPtr;
     public static int sizeOfStagingMemory=0;
-    
+    public static int stagingMemoryUsed;
 }
 public class GPUDynamicBuffer<T> where T:unmanaged
 {
@@ -25,6 +26,7 @@ public class GPUDynamicBuffer<T> where T:unmanaged
     private ulong currentSizeInBytes=>(ulong) (currentSize*Unsafe.SizeOf<T>());
     private uint currentbyteOffset=0;
     public unsafe void* DebugPtr;
+    public bool isMapped = false;
     
     
     public GPUDynamicBuffer(ulong initialSizeInItems, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,ReadOnlySpan<byte> name)
@@ -59,9 +61,12 @@ public class GPUDynamicBuffer<T> where T:unmanaged
 #endif
         }
     }
-
     public unsafe uint Upload(Span<T> data, VkPipelineStageFlags dstStageMask)
     {
+        if (Interlocked.CompareExchange(ref GPUDynamicBuffer.stagingMemoryUsed,1,0)!=0)
+        {
+            throw new Exception();
+        }
         var cmdBuf=BeginSingleTimeCommands();
 
         var dataLength = (uint)data.Length * Unsafe.SizeOf<T>();
@@ -180,9 +185,21 @@ public class GPUDynamicBuffer<T> where T:unmanaged
         var offset=currentbyteOffset/(uint)Unsafe.SizeOf<T>();
         currentbyteOffset += (uint)dataLength;
         EndSingleTimeCommands(cmdBuf);
+        if (Interlocked.CompareExchange(ref GPUDynamicBuffer.stagingMemoryUsed,0,1)!=1)
+        {
+            throw new Exception();
+        }
         return offset;
     }
-    
 
+    public unsafe T* MapOrGetAdress()
+    {
+        ((_properties & VkMemoryPropertyFlags.HostVisible) != 0).Assert();
+        if (isMapped) return (T*) DebugPtr;
+        fixed (void** a = &DebugPtr)
+            vkMapMemory(device, memory, 0, currentSizeInBytes, 0, a);
+        isMapped = true;
+        return (T*) DebugPtr;
+    }
 }
 }

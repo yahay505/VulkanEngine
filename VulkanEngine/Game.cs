@@ -8,6 +8,7 @@ using VulkanEngine.Phases.FramePreTickPhase;
 using VulkanEngine.Phases.FrameRender;
 using VulkanEngine.Phases.Tick;
 using VulkanEngine.Renderer.ECS;
+using VulkanEngine.Renderer.Text;
 
 namespace VulkanEngine;
 using VulkanEngine.Renderer;
@@ -20,7 +21,6 @@ public static class Game
 
     public static void Run()
     {
-   
         
         
         var CameraTarget = CreateEntity();
@@ -35,7 +35,12 @@ public static class Game
         CamTransform.local_position = new float3(10,0,0);    
 
         CamTransform.local_rotation = Quaternion<float>.CreateFromYawPitchRoll(0, 0,float.Pi/2f);
-        var meshes = VKRender.LoadMesh(VKRender.AssetsPath + "/models/scene.glb");
+        
+        DebugTextRenderer.init();
+
+        
+        
+        var meshes = VKRender.LoadMesh(VKRender.AssetsPath + "models/scene.glb");
         var refs=meshes.Select((mesh)=>GPURenderRegistry.RegisterMesh(new(){indexBuffer = mesh.indices,vertexBuffer = mesh.vertices})).ToArray();
 
         int[] staticScene = new int[meshes.Length];

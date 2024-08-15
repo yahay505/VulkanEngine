@@ -52,8 +52,8 @@ public static partial class VKRender
 
     public static VkPhysicalDevice physicalDevice=>DeviceInfo.device;
     public static VkDevice device;
-    private static VkDescriptorSetLayout DescriptorSetLayout;
-    private static VkPipelineLayout GfxPipelineLayout;
+    public static VkDescriptorSetLayout DescriptorSetLayout;
+    public static VkPipelineLayout GfxPipelineLayout;
     private static VkPipeline GraphicsPipeline;
 
     private static VkPipeline ComputePipeline;
@@ -107,7 +107,7 @@ public static string AssetsPath
             f=f.Parent!;
             if (f==null) throw new Exception("Assets folder not found");
         }
-        _RPath=f.FullName+"/Assets";
+        _RPath=f.FullName+"/Assets/";
         return _RPath;
     }
 }
@@ -127,13 +127,13 @@ public struct Camera
         
 }
 
-public static unsafe (Vertex[] vertices,uint[] indices,float4x4 transform,int parentID)[] LoadMesh(string File)
+public static unsafe (DefaultVertex[] vertices,uint[] indices,float4x4 transform,int parentID)[] LoadMesh(string File)
     {
         var id = -1;
         using var assimp = Assimp.GetApi()!;
         
         var scene=assimp.ImportFile(File, (uint)PostProcessPreset.TargetRealTimeMaximumQuality)!;
-        var a = new List<(Vertex[], uint[], float4x4, int)>();
+        var a = new List<(DefaultVertex[], uint[], float4x4, int)>();
         VisitSceneNode(scene->MRootNode,id,Matrix4x4.Identity);
         
         assimp.ReleaseImport(scene);
@@ -155,8 +155,8 @@ public static unsafe (Vertex[] vertices,uint[] indices,float4x4 transform,int pa
             for (int m = 0; m < node->MNumMeshes; m++)
             {
                 var mesh = scene->MMeshes[node->MMeshes[m]];
-                var vertexMap = new Dictionary<Vertex, uint>();
-                var _vertices = new List<Vertex>();
+                var vertexMap = new Dictionary<DefaultVertex, uint>();
+                var _vertices = new List<DefaultVertex>();
                 var _indices = new List<uint>();
 
                 for (int f = 0; f < mesh->MNumFaces; f++)
@@ -170,7 +170,7 @@ public static unsafe (Vertex[] vertices,uint[] indices,float4x4 transform,int pa
                         var position = mesh->MVertices[index];
                         var texture = mesh->MTextureCoords![0]![(int)index];
         
-                        Vertex vertex = new()
+                        DefaultVertex vertex = new()
                         {
                             pos = new Vector3D<float>(position.X, position.Y, position.Z),
                             color = new Vector3D<float>(1, 1, 1),

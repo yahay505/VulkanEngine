@@ -2,6 +2,8 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 using Vortice.Vulkan;
 using Range = System.Range;
 using Result=Vortice.Vulkan.VkResult;
@@ -72,7 +74,7 @@ public static class Extensions
         }
     }
 
-    [Conditional("ASSERTS")]
+    [Conditional("ASSERTS"),Conditional("DEBUG")]
     public static void Assert(this bool b,string message="assertion failed")
     {
         if (!b)
@@ -80,7 +82,7 @@ public static class Extensions
             throw new(message);
         }
     }
-    [Conditional("ASSERTS")]
+    [Conditional("ASSERTS"),Conditional("DEBUG")]
     public static void AssertLog(this bool b,string message="assertion failed")
     {
         if (!b)
@@ -89,4 +91,27 @@ public static class Extensions
             Console.WriteLine(message);
         }
     }
+
+    public static unsafe bool BitwiseEquals<T>(ref this T lhs,ref T rhs) where T : unmanaged
+    {
+        var a = new ReadOnlySpan<byte>(Unsafe.AsPointer(ref lhs), Unsafe.SizeOf<T>());
+        return a.SequenceEqual(new ReadOnlySpan<byte>(Unsafe.AsPointer(ref rhs), Unsafe.SizeOf<T>()));
+    }
+
+    public static uint SizeInBytes<T>(this Image<T> image) where T : unmanaged, IPixel<T>
+    {
+        return (uint) (image.Height * image.Width * image.PixelType.BitsPerPixel/8);
+    }
+
+    public static (int start, int end) Decompose(this Range range) => (range.Start.Value, range.End.Value);
+    public static bool DoesOverlap(this Range lhs,Range rhs) => 
+        Math.Max(lhs.Start.Value, lhs.End.Value) > Math.Max(rhs.Start.Value, rhs.End.Value)
+            ? Math.Max(rhs.Start.Value, rhs.End.Value) >= Math.Min(lhs.Start.Value, lhs.End.Value)
+            : Math.Max(lhs.Start.Value, lhs.End.Value) >= Math.Min(rhs.Start.Value, rhs.End.Value);
+
+    public static Range Consolidate(this Range lhs, Range rhs) =>
+        (Math.Min(Math.Min(lhs.Start.Value, lhs.End.Value), Math.Min(rhs.Start.Value, rhs.End.Value))..Math.Max(Math.Max(lhs.Start.Value, lhs.End.Value), Math.Max(rhs.Start.Value, rhs.End.Value)));
+    
+    private static Range Normalize(this Range range) =>
+        (Math.Min(range.Start.Value, range.End.Value)..Math.Max(range.Start.Value, range.End.Value));
 }

@@ -14,8 +14,6 @@ public struct FrameData
     public VkFence renderFence, computeFence;
     public VkCommandPool commandPool;
     // public CommandBuffer mainCommandBuffer;
-    public VkBuffer stagingBuffer;
-    public VkDeviceMemory stagingMemory;
     public VkBuffer hostRenderObjectsBuffer;
     public VkDeviceMemory hostRenderObjectsMemory;
     public unsafe void* hostRenderObjectsBufferPtr;

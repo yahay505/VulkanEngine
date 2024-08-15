@@ -4,6 +4,7 @@ using Silk.NET.Core.Native;
 using Vortice.Vulkan;
 using VulkanEngine.Renderer.GPUStructs;
 using static Vortice.Vulkan.Vulkan;
+using static VulkanEngine.Renderer.GPUDEBUG;
 namespace VulkanEngine.Renderer;
 
 public static partial class VKRender
@@ -30,7 +31,7 @@ public static partial class VKRender
             CleanupStack.Push(()=>CleanupBufferImmediately(GlobalData.ReadBackBuffer, GlobalData.ReadBackMemory));
         }
         
-        var computeShaderCode = File.ReadAllBytes(AssetsPath + "/shaders/compiled/PreRender.comp.spv");
+        var computeShaderCode = File.ReadAllBytes(AssetsPath + "shaders/compiled/PreRender.comp.spv");
         var computeMOdule = CreateShaderModule(computeShaderCode);
         var computeShaderStageInfo = new VkPipelineShaderStageCreateInfo()
         {
@@ -44,7 +45,7 @@ public static partial class VKRender
             new VkDescriptorSetLayoutBinding
             {
                 //in data
-                binding = BindingPoints.GPU_Compute_Input_Data,
+                binding = GPUBindingPoints.GPU_Compute_Input_Data,
                 descriptorType = VkDescriptorType.StorageBuffer,
                 descriptorCount = 1,
                 stageFlags = VkShaderStageFlags.Compute
@@ -52,7 +53,7 @@ public static partial class VKRender
             new VkDescriptorSetLayoutBinding
             {
                 //out renderindirect
-                binding = BindingPoints.GPU_Compute_Output_Data,
+                binding = GPUBindingPoints.GPU_Compute_Output_Data,
                 descriptorType = VkDescriptorType.StorageBuffer,
                 descriptorCount = 1,
                 stageFlags = VkShaderStageFlags.Compute | VkShaderStageFlags.Vertex
@@ -60,36 +61,36 @@ public static partial class VKRender
             new VkDescriptorSetLayoutBinding
             {
                 // meshDB
-                binding = BindingPoints.GPU_Compute_Input_Mesh,
+                binding = GPUBindingPoints.GPU_Compute_Input_Mesh,
                 descriptorType = VkDescriptorType.StorageBuffer,
                 descriptorCount = 1,
                 stageFlags = VkShaderStageFlags.Compute
             },
-            // new DescriptorSetLayoutBinding()
-            // {
-            //     binding = BindingPoints.GPU_Compute_Output_Secondary,
-            //     DescriptorType = DescriptorType.StorageBuffer,
-            //     DescriptorCount = 1,
-            //     StageFlags = ShaderStageFlags.Compute,
-            // }
+            new VkDescriptorSetLayoutBinding()
+            {
+                binding = GPUBindingPoints.GPU_Compute_Input_Materials,
+                descriptorType = VkDescriptorType.StorageBuffer,
+                descriptorCount = 1,
+                stageFlags = VkShaderStageFlags.Compute,
+            }
         };
         var pBindingFlags= stackalloc VkDescriptorBindingFlags[]
         {
             VkDescriptorBindingFlags.UpdateUnusedWhilePending,
             VkDescriptorBindingFlags.UpdateUnusedWhilePending,
             VkDescriptorBindingFlags.UpdateUnusedWhilePending,
-            // DescriptorBindingFlags.None
+            VkDescriptorBindingFlags.UpdateUnusedWhilePending
         };
         var descriptorSetLayoutBindingFlagsCreateInfo = new VkDescriptorSetLayoutBindingFlagsCreateInfo()
         {
-            bindingCount = 3,
+            bindingCount = 4,
             pBindingFlags = pBindingFlags
         };
         var descriptorSetLayoutCreateInfo = new VkDescriptorSetLayoutCreateInfo()
         {
-            bindingCount = 3,
+            bindingCount = 4,
             pBindings = descriptorSetLayoutBinding,
-            pNext =&descriptorSetLayoutBindingFlagsCreateInfo 
+            pNext = &descriptorSetLayoutBindingFlagsCreateInfo 
         };
         vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCreateInfo, null, out var computeDescriptorSetLayout);
         ComputeDescriptorSetLayout = computeDescriptorSetLayout;
@@ -174,7 +175,7 @@ public static partial class VKRender
             new()
             {
                 dstSet = GetCurrentFrame().descriptorSets.Compute,
-                dstBinding = BindingPoints.GPU_Compute_Input_Data,
+                dstBinding = GPUBindingPoints.GPU_Compute_Input_Data,
                 dstArrayElement = 0,
                 descriptorType = VkDescriptorType.StorageBuffer,
                 descriptorCount = 1,
@@ -183,7 +184,7 @@ public static partial class VKRender
             new()
             {
                 dstSet = GetCurrentFrame().descriptorSets.Compute,
-                dstBinding = BindingPoints.GPU_Compute_Output_Data,
+                dstBinding = GPUBindingPoints.GPU_Compute_Output_Data,
                 dstArrayElement = 0,
                 descriptorType = VkDescriptorType.StorageBuffer,
                 descriptorCount = 1,
@@ -192,7 +193,7 @@ public static partial class VKRender
             new()
             {
                 dstSet = GetCurrentFrame().descriptorSets.Compute,
-                dstBinding = BindingPoints.GPU_Compute_Input_Mesh,
+                dstBinding = GPUBindingPoints.GPU_Compute_Input_Mesh,
                 dstArrayElement = 0,
                 descriptorType = VkDescriptorType.StorageBuffer,
                 descriptorCount = 1,
@@ -201,7 +202,7 @@ public static partial class VKRender
             new() //gfx 
             {
                 dstSet = GetCurrentFrame().descriptorSets.GFX,
-                dstBinding = BindingPoints.GPU_Gfx_Input_Indirect,
+                dstBinding = GPUBindingPoints.GPU_Gfx_Input_Indirect,
                 dstArrayElement = 0,
                 descriptorType = VkDescriptorType.StorageBuffer,
                 descriptorCount = 1,
