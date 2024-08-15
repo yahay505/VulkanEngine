@@ -193,7 +193,7 @@ public static partial class VKRender
         var pDescriptorSet = stackalloc VkDescriptorSet[] {GetCurrentFrame().descriptorSets.Compute};
         vkCmdBindDescriptorSets(computeCommandBuffer, VkPipelineBindPoint.Compute, ComputePipelineLayout, 0, 1,
             pDescriptorSet, 0, null);
-        //MaterialManager.Bind(computeCommandBuffer,0);
+        MaterialManager.Bind(computeCommandBuffer,0);
         
         int ComputeWorkGroupSize = 16;
         var dispatchSize = (uint) (objectCount / ComputeWorkGroupSize) + 1;

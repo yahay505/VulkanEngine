@@ -647,7 +647,20 @@ public static partial class VKRender
         vkCreateDescriptorSetLayout(device, &layoutInfo, null, out DescriptorSetLayout)
             .Expect("failed to create descriptor set layout!");
     }
-    
+
+    public static unsafe void DestroyBuffer(VkBuffer buffer, VkDeviceMemory memory)
+    {
+        vkDestroyBuffer(device,buffer);
+        vkFreeMemory(device,memory);
+    }
+    public static unsafe void CreateBufferMapped(ulong size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
+        out VkBuffer buffer, out VkDeviceMemory bufferMemory, out void* ptr)
+    {
+        CreateBuffer(size, usage, properties, out buffer, out bufferMemory);
+        void* a;
+        vkMapMemory(device, bufferMemory, 0, size, VkMemoryMapFlags.None, &a);
+        ptr = a;
+    }
     public static unsafe void CreateBuffer(ulong size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
         out VkBuffer buffer, out VkDeviceMemory bufferMemory)
     {
