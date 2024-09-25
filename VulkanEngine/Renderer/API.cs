@@ -502,6 +502,11 @@ public partial class VKRender
 
     [Pure]
     public static uint MipCount(uint width, uint height) => (uint) (BitOperations.Log2(Math.Max(width, height)) + 1);
+
+    public static VkCommandBuffer GetRenderCB1()
+    {
+        return GetCurrentFrame().ComputeCommandBuffer;
+    }
 }
 
 public class EngineWindow

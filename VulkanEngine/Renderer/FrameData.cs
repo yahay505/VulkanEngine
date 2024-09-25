@@ -24,15 +24,15 @@ public struct FrameData
     public int hostRenderObjectsBufferSize;
     public int hostRenderObjectsBufferSizeInBytes;
     public VkCommandBuffer GfxCommandBuffer, ComputeCommandBuffer;
-    public DescriptorSets descriptorSets;
+    // public DescriptorSets descriptorSets;
 
     public VkBuffer uniformBuffer;
     public VkDeviceMemory uniformBufferMemory;
     public unsafe void* uniformBufferMapped;
     
-    public struct DescriptorSets
-    {
-        public VkDescriptorSet GFX;
-        public VkDescriptorSet Compute;
-    }
+    // public struct DescriptorSets
+    // {
+    //     public VkDescriptorSet GFX;
+    //     // public VkDescriptorSet Compute;
+    // }
 }

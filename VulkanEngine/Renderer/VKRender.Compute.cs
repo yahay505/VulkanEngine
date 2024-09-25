@@ -96,23 +96,23 @@ public static partial class VKRender
         ComputeDescriptorSetLayout = computeDescriptorSetLayout;
         CleanupStack.Push(()=>vkDestroyDescriptorSetLayout(device,ComputeDescriptorSetLayout, null));
         
-
+        
         var layouts = stackalloc VkDescriptorSetLayout[] {computeDescriptorSetLayout};
-        var allocInfo = new VkDescriptorSetAllocateInfo
-        {
-            descriptorPool = DescriptorPool,
-            descriptorSetCount = 1,
-            pSetLayouts = layouts,
-        };
-        for (int i = 0; i < FRAME_OVERLAP; i++)
-        {
-            VkDescriptorSet computeDescriptorSet = default;
-            vkAllocateDescriptorSets(device, &allocInfo,  &computeDescriptorSet)
-                .Expect("failed to allocate descriptor sets!");
-            FrameData[i].descriptorSets.Compute = computeDescriptorSet;
-        }
-        //UpdateComputeSSBODescriptors(0, 0, 0, 0);
-
+        // var allocInfo = new VkDescriptorSetAllocateInfo
+        // {
+        //     descriptorPool = DescriptorPool,
+        //     descriptorSetCount = 1,
+        //     pSetLayouts = layouts,
+        // };
+        // for (int i = 0; i < FRAME_OVERLAP; i++)
+        // {
+        //     VkDescriptorSet computeDescriptorSet = default;
+        //     vkAllocateDescriptorSets(device, &allocInfo,  &computeDescriptorSet)
+        //         .Expect("failed to allocate descriptor sets!");
+        //     FrameData[i].descriptorSets.Compute = computeDescriptorSet;
+        // }
+        // //UpdateComputeSSBODescriptors(0, 0, 0, 0);
+        //
 
 
         // vkCreateComputePipelines(device, default, 1, &computePipelineInfo, null, out var pipeline);
@@ -141,7 +141,7 @@ public static partial class VKRender
     
     
 
-    private static unsafe void UpdateComputeSSBODescriptors(ulong inRange, ulong outRange)
+    private static unsafe void zort_UpdateComputeSSBODescriptors(ulong inRange, ulong outRange)
     {
         var inputBuffer = new VkDescriptorBufferInfo
         {
@@ -174,7 +174,7 @@ public static partial class VKRender
         {
             new()
             {
-                dstSet = GetCurrentFrame().descriptorSets.Compute,
+                dstSet = default,
                 dstBinding = GPUBindingPoints.GPU_Compute_Input_Data,
                 dstArrayElement = 0,
                 descriptorType = VkDescriptorType.StorageBuffer,
@@ -183,7 +183,7 @@ public static partial class VKRender
             },
             new()
             {
-                dstSet = GetCurrentFrame().descriptorSets.Compute,
+                dstSet = default,
                 dstBinding = GPUBindingPoints.GPU_Compute_Output_Data,
                 dstArrayElement = 0,
                 descriptorType = VkDescriptorType.StorageBuffer,
@@ -192,24 +192,24 @@ public static partial class VKRender
             },
             new()
             {
-                dstSet = GetCurrentFrame().descriptorSets.Compute,
+                dstSet = default,
                 dstBinding = GPUBindingPoints.GPU_Compute_Input_Mesh,
                 dstArrayElement = 0,
                 descriptorType = VkDescriptorType.StorageBuffer,
                 descriptorCount = 1,
                 pBufferInfo = &MeshInfoBuffer,
             },
-            new() //gfx 
-            {
-                dstSet = GetCurrentFrame().descriptorSets.GFX,
-                dstBinding = GPUBindingPoints.GPU_Gfx_Input_Indirect,
-                dstArrayElement = 0,
-                descriptorType = VkDescriptorType.StorageBuffer,
-                descriptorCount = 1,
-                pBufferInfo = &OutputBufferForGfx,
-            },
+            // new() //gfx 
+            // {
+            //     dstSet = default,
+            //     dstBinding = GPUBindingPoints.GPU_Gfx_Input_Indirect,
+            //     dstArrayElement = 0,
+            //     descriptorType = VkDescriptorType.StorageBuffer,
+            //     descriptorCount = 1,
+            //     pBufferInfo = &OutputBufferForGfx,
+            // },
         };
-        vkUpdateDescriptorSets(device, 4, descriptorWrites, 0, null);
+        // vkUpdateDescriptorSets(device, 4, descriptorWrites, 0, null);
         // vkUpdateDescriptorSets(device, 1, descriptorWrites[0], 0, null);
         // vkUpdateDescriptorSets(device,1, descriptorWrites[1], 0, null);
         // vkUpdateDescriptorSets(device,1, descriptorWrites[2], 0, null);

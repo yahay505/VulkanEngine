@@ -12,7 +12,8 @@ public static partial class VKRender
 {
 
     private static bool DrawIndirectCountAvaliable =>
-        DeviceInfo.supportsCmdDrawIndexedIndirectCount
+        true
+        // || DeviceInfo.supportsCmdDrawIndexedIndirectCount
         // false
         ;
     
@@ -54,9 +55,9 @@ public static partial class VKRender
     public static VkDevice device;
     public static VkDescriptorSetLayout DescriptorSetLayout;
     public static VkPipelineLayout GfxPipelineLayout;
-    private static VkPipeline GraphicsPipeline;
+    public static VkPipeline GraphicsPipeline;
 
-    private static VkPipeline ComputePipeline;
+    public static VkPipeline ComputePipeline;
     public static VkPipelineLayout ComputePipelineLayout;
     private static VkDescriptorSetLayout ComputeDescriptorSetLayout;
     static VkDescriptorPool DescriptorPool;

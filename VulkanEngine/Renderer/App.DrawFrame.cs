@@ -190,9 +190,10 @@ public static partial class VKRender
             &vkBufferCopy);
         vkCmdBindPipeline(computeCommandBuffer, VkPipelineBindPoint.Compute, ComputePipeline);
 
-        var pDescriptorSet = stackalloc VkDescriptorSet[] {GetCurrentFrame().descriptorSets.Compute};
-        vkCmdBindDescriptorSets(computeCommandBuffer, VkPipelineBindPoint.Compute, ComputePipelineLayout, 0, 1,
-            pDescriptorSet, 0, null);
+        // var pDescriptorSet = stackalloc VkDescriptorSet[] {GetCurrentFrame().descriptorSets.Compute};
+        // vkCmdBindDescriptorSets(computeCommandBuffer, VkPipelineBindPoint.Compute, ComputePipelineLayout, 0, 1,
+            // pDescriptorSet, 0, null);
+
         MaterialManager.Bind(computeCommandBuffer,0);
         
         int ComputeWorkGroupSize = 16;

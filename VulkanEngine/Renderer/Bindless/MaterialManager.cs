@@ -10,14 +10,16 @@ public static class MaterialManager
 {
     private const int materialSize = 32;
     private static HostCachedBuffer buffer;
+    private static VkDescriptorBufferInfo bufferInfo;
+
     public static void Init()
     {
         buffer = new(new(new byte[320]),VkBufferUsageFlags.StorageBuffer,VkMemoryPropertyFlags.DeviceLocal,"Material Info Buffer"u8);
     }
 
-    public static unsafe void Bind(VkCommandBuffer commandBuffer, uint targetSet)
+    public static unsafe VkWriteDescriptorSet Bind(uint baseBindNo)
     {
-        VkDescriptorBufferInfo bufferInfo = new()
+        bufferInfo = new()
         {
             buffer = buffer.slave.buffer,
             offset = 0,
@@ -28,12 +30,12 @@ public static class MaterialManager
             descriptorCount = 1,
             dstArrayElement = 0,
             descriptorType = VkDescriptorType.StorageBuffer,
-            dstBinding = 4,
+            dstBinding = baseBindNo,
             dstSet = 0,
-            pBufferInfo = &bufferInfo,
+            pBufferInfo = bufferInfo.ptr(),
         };
-        
-        vkCmdPushDescriptorSetKHR(commandBuffer,VkPipelineBindPoint.Compute,VKRender.ComputePipelineLayout,targetSet,1,&write);
+
+        return write;
     }
     public static void SetMaterial(int MatID, ReadOnlySpan<byte> material)
     {

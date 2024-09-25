@@ -625,7 +625,12 @@ public static partial class VKRender
             stageFlags = VkShaderStageFlags.Vertex|VkShaderStageFlags.Fragment,
             pImmutableSamplers = null,
         };
-        var bindings = stackalloc[] {uboLayoutBinding, samplerLayoutBinding,drawcallSSBOBinding};
+        var bindings = stackalloc[]
+        {
+            uboLayoutBinding,
+            samplerLayoutBinding,
+            drawcallSSBOBinding
+        };
         var pBindingFlags= stackalloc VkDescriptorBindingFlags[]
         {
             VkDescriptorBindingFlags.UpdateUnusedWhilePending,

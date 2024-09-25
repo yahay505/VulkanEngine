@@ -28,13 +28,3 @@ struct ComputeDrawOutput {
     int MaterialData[8]; // 32 bytes
     mat4 model; // 64 bytes
 };
-// 64 bytes
-struct ComputeInputConfig {
-    uint objectCount;
-    uint[15] padding;
-};
-// 64 bytes
-struct ComputeOutputConfig {
-    uint objectCount;
-    uint[15] padding;
-};
