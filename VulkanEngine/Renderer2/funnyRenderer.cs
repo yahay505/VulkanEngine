@@ -1,0 +1,231 @@
+﻿using SixLabors.ImageSharp;
+using Vortice.Vulkan;
+using VulkanEngine.Renderer2.infra;
+using VulkanEngine.Renderer2.infra.Bindless;
+using static Vortice.Vulkan.Vulkan;
+namespace VulkanEngine.Renderer2;
+
+public static class funnyRenderer
+{
+    private static int frameNo = 0;
+    private static VkSemaphore sempahore;
+    private static VkSemaphore[] renderSemaphores;
+    private static EngineImage target;
+    private static VkFramebuffer fb;
+    private static VkPipelineLayout pipelineLayout;
+    private static VkRenderPass renderpass;
+    private static VkCommandPool tpm;
+    private static VkPipeline pipeline;
+    private static VkDeviceMemory memory;
+    private static VkBuffer buff;
+    
+
+    public static unsafe void init(EngineWindow window)
+    {
+        vkCreateCommandPool(API.device, VkCommandPoolCreateFlags.None, API.chosenDevice.indices.graphicsFamily!.Value,
+            out tpm);
+        target = API.CreateImage(window.size.width, window.size.height, VkFormat.R8G8B8A8Srgb, VkImageTiling.Optimal,
+            VkImageUsageFlags.ColorAttachment|VkImageUsageFlags.TransferSrc, VkMemoryPropertyFlags.DeviceLocal, false, VkImageCreateFlags.None,
+            VkImageAspectFlags.Color);
+        API.AllocateDeviceResourcesForImage(target);
+        window.depthImage = API.CreateImage(window.size.width, window.size.height, API.FindDepthFormat(),
+            VkImageTiling.Optimal, VkImageUsageFlags.DepthStencilAttachment, VkMemoryPropertyFlags.DeviceLocal, false,
+            VkImageCreateFlags.None, API.HasStencilComponent(API.FindDepthFormat())?VkImageAspectFlags.Stencil | VkImageAspectFlags.Depth: VkImageAspectFlags.Depth);
+        API.AllocateDeviceResourcesForImage(window.depthImage);
+        renderpass = API.CreateRenderPass([
+                new(target.imageFormat, VkSampleCountFlags.Count1, VkAttachmentLoadOp.Clear,
+                    VkAttachmentStoreOp.Store,
+                    VkAttachmentLoadOp.Load, VkAttachmentStoreOp.Store, VkImageLayout.TransferSrcOptimal,
+                    VkImageLayout.TransferSrcOptimal),
+                new(window.depthImage.imageFormat, VkSampleCountFlags.Count1, VkAttachmentLoadOp.Clear,
+                    VkAttachmentStoreOp.Store, VkAttachmentLoadOp.DontCare, VkAttachmentStoreOp.DontCare,
+                    VkImageLayout.DepthStencilAttachmentOptimal, VkImageLayout.DepthStencilAttachmentOptimal)
+            ],
+            [new()
+            {
+                srcSubpass = VK_SUBPASS_EXTERNAL,
+                dstSubpass = 0,
+                dstAccessMask = VkAccessFlags.ColorAttachmentWrite|VkAccessFlags.DepthStencilAttachmentWrite,
+                srcAccessMask = VkAccessFlags.TransferRead,
+                dstStageMask = VkPipelineStageFlags.AllGraphics,
+                srcStageMask = VkPipelineStageFlags.Transfer,
+            },
+            new()
+            {
+                srcSubpass = 0,
+                dstSubpass = VK_SUBPASS_EXTERNAL,
+                srcAccessMask = VkAccessFlags.ColorAttachmentWrite|VkAccessFlags.DepthStencilAttachmentWrite,
+                dstAccessMask = VkAccessFlags.TransferRead,
+                srcStageMask = VkPipelineStageFlags.AllGraphics,
+                dstStageMask = VkPipelineStageFlags.Transfer,
+            }],
+            [new(0, VkImageLayout.ColorAttachmentOptimal)],
+            new(1,VkImageLayout.DepthStencilAttachmentOptimal));
+        pipelineLayout = API.CreatePipelineLayout([TextureManager.descSetLayout]);
+        pipeline= API.CreatePSO(
+            [
+                new()
+                {
+                    stage = VkShaderStageFlags.Vertex,
+                    module = API.CreateShaderModule(File.ReadAllBytes(API.AssetsPath+"shaders/compiled/Debug/DebugScreenSpaceTri.vert.spv")),
+                    pName = (sbyte*) ("main"u8).GetPointer(),
+                },
+                new()
+                {
+                    stage = VkShaderStageFlags.Fragment,
+                    module = API.CreateShaderModule(File.ReadAllBytes(API.AssetsPath+"shaders/compiled/Debug/DebugtransparentShine.frag.spv")),
+                    pName = (sbyte*) ("main"u8).GetPointer(),
+                }
+            ],
+            [new(12), new(8, binding: 1)],
+            [new(0, VkFormat.R32G32B32Sfloat, 0, 0), new(1, VkFormat.R32G32Sfloat, 0, 1)],
+            VkPrimitiveTopology.TriangleList,
+            false,
+            [VkDynamicState.Scissor, VkDynamicState.Viewport],
+            new(VkCullModeFlags.Back, frontFace: VkFrontFace.CounterClockwise),
+            new(VkSampleCountFlags.Count1),
+            new(true, true, VkCompareOp.Less, false, VkStencilOpState.Default, VkStencilOpState.Default),
+            new(new(false), logicOp: VkLogicOp.Copy),
+            pipelineLayout,
+            renderpass, 0
+        );
+        
+        vkCreateSemaphore(API.device, out sempahore);
+        renderSemaphores = new VkSemaphore[2];
+        vkCreateSemaphore(API.device, out renderSemaphores[0]);
+        vkCreateSemaphore(API.device, out renderSemaphores[1]);
+       
+        fb = API.CreateFrameBuffer(target.width,target.height,[target.view,window.depthImage.view],renderpass);
+      
+        API.CreateBuffer(50,VkBufferUsageFlags.VertexBuffer,VkMemoryPropertyFlags.None, out buff,out memory);
+
+    }
+
+    public static unsafe void Render(EngineWindow window)
+    {
+        int retryCount = 0;
+        acquire: var rez = vkAcquireNextImageKHR(API.device,window.swapChai
+            n,UInt64.MaxValue,sempahore,default, out var index);
+        rez.Expect();
+        switch (rez)
+        {
+            case VkResult.Success:
+                break;
+            case VkResult.SuboptimalKHR:
+                if (retryCount == 0) // retry once
+                {
+                    var relinfo = new VkReleaseSwapchainImagesInfoEXT()
+                    {
+                        swapchain = window.swapChain,
+                        imageIndexCount = 1,
+                        pImageIndices = &index,
+                    };
+                    vkReleaseSwapchainImagesEXT(API.device, &relinfo);
+                    goto case VkResult.ErrorOutOfDateKHR;
+                }
+                break;
+            case VkResult.ErrorOutOfDateKHR:
+                retryCount++;
+                if (retryCount>10)
+                {
+                    throw new Exception();
+                }
+
+                API.CreateSwapchain(window,window.swapChain);
+                goto acquire;
+        }
+        
+        VkCommandBuffer cb;
+        vkAllocateCommandBuffer(API.device, tpm, VkCommandBufferLevel.Primary, out cb);//tmp
+        vkBeginCommandBuffer(cb, VkCommandBufferUsageFlags.None);
+        if (window.depthImage.layout[0] != VkImageLayout.DepthStencilAttachmentOptimal)
+            API.TransitionImageLayout(cb, window.depthImage, VkImageLayout.DepthStencilAttachmentOptimal, 0, 1);
+        if (target.layout[0] != VkImageLayout.TransferSrcOptimal)
+            API.TransitionImageLayout(cb, target, VkImageLayout.TransferSrcOptimal, 0, 1);
+        
+        var clears = stackalloc VkClearValue[]{new(0f,.5f,.7f,.5f),new(0f,0)};
+        var passInfo = new VkRenderPassBeginInfo()
+        {
+            renderPass = renderpass,
+            clearValueCount = 2,
+            framebuffer = fb,
+            pClearValues = clears,
+            renderArea = new(1,1)
+        };
+        vkCmdBeginRenderPass(cb,&passInfo,VkSubpassContents.Inline);
+
+        vkCmdBindPipeline(cb,VkPipelineBindPoint.Graphics,pipeline);
+        vkCmdSetViewport(cb,0,new VkViewport(window.size.width,window.size.height));
+        vkCmdSetScissor(cb,new(window.size));
+        vkCmdBindVertexBuffer(cb,0,buff,0);
+        vkCmdBindVertexBuffer(cb,1,buff,0);
+
+        vkCmdDraw(cb,3,1,0,0);
+        vkCmdEndRenderPass(cb);
+        cb.BARRIER_ALL();
+
+        // target.layout[0] = VkImageLayout.ColorAttachmentOptimal;
+        vkEndCommandBuffer(cb);
+        var ss = renderSemaphores[frameNo % 2];
+        vkDeviceWaitIdle(API.device);
+        vkQueueSubmit(API.graphicsQueue,
+            new VkSubmitInfo()
+                {commandBufferCount = 1, pCommandBuffers = &cb, signalSemaphoreCount = 1, pSignalSemaphores = &ss},
+            default);
+        
+        vkDeviceWaitIdle(API.device);
+
+
+
+
+        VkCommandBuffer blit_cb = default;
+        vkAllocateCommandBuffer(API.device, tpm, VkCommandBufferLevel.Primary, out blit_cb);//tmp
+
+        vkBeginCommandBuffer(blit_cb, VkCommandBufferUsageFlags.OneTimeSubmit);
+        var windowSwapChainImage = window.SwapChainImages[index];
+        var bb = new VkImageCopy();
+        
+        bb.srcOffset=new(0,0,0);
+        bb.dstOffset=new(0,0,0);
+  
+        bb.extent=new((int) window.size.width,(int) window.size.height,1);
+        bb.srcSubresource = new(VkImageAspectFlags.Color, 0, 0, 1);
+        bb.dstSubresource = new(VkImageAspectFlags.Color, 0, 0, 1);
+        API.TransitionImageLayout(blit_cb, windowSwapChainImage, VkImageLayout.General, 0, 1);
+        VkClearColorValue a = new(1f, 1f, 1f, 1f);
+        VkImageSubresourceRange b = new()
+        {
+            aspectMask = VkImageAspectFlags.Color,
+            layerCount = 1,
+            levelCount = 1,
+            baseArrayLayer = 0,
+            baseMipLevel = 0,
+        };
+        vkCmdClearColorImage(blit_cb,windowSwapChainImage.deviceImage,VkImageLayout.General,&a,1,&b);
+        API.TransitionImageLayout(blit_cb, windowSwapChainImage, VkImageLayout.TransferDstOptimal, 0, 1);
+
+        vkCmdCopyImage(blit_cb,target.deviceImage,target.layout[0],windowSwapChainImage.deviceImage,windowSwapChainImage.layout[0],1,&bb);
+        API.TransitionImageLayout(blit_cb, windowSwapChainImage, VkImageLayout.PresentSrcKHR, 0, 1);
+
+        vkEndCommandBuffer(blit_cb);
+
+        var vkPipelineStageFlags = VkPipelineStageFlags.AllCommands;
+        var waits = stackalloc VkSemaphore[] {ss,sempahore };
+        var signal = window.ReadyToPresentToSwapchainSemaphores[index];
+        var blitSub = new VkSubmitInfo()
+        {
+            commandBufferCount = 1,
+            pCommandBuffers = &blit_cb,
+            signalSemaphoreCount = 1,
+            pSignalSemaphores = &signal,
+            waitSemaphoreCount = 2,
+            pWaitSemaphores = waits,
+            pWaitDstStageMask = &vkPipelineStageFlags
+        };
+        vkQueueSubmit(API.graphicsQueue, blitSub, default);
+        vkDeviceWaitIdle(API.device);
+
+        vkQueuePresentKHR(API.graphicsQueue, signal, window.swapChain, index);
+        frameNo++;
+    }
+}

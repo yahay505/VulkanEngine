@@ -1,5 +1,6 @@
 ﻿using VulkanEngine.ECS_internals;
 using VulkanEngine.Renderer;
+using VulkanEngine.Renderer2.infra.Bindless;
 
 namespace VulkanEngine.Phases.Tick;
 
@@ -27,8 +28,8 @@ public static class MockTickSequence
 
     private static unsafe void updateMats()
     {
-        var a = VKRender.CurrentFrame;
-        MaterialManager.SetMaterial(3,new(&a,4));
+        // var a = VKRender.CurrentFrame;
+        // MaterialManager.SetMaterial(3,new(&a,4));
     }
     private static void Work()
     {

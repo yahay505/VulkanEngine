@@ -1,7 +1,10 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Drawing;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Windows.Win32;
 using Windows.Win32.Foundation;
+using Windows.Win32.Graphics.Dwm;
+using Windows.Win32.Graphics.Gdi;
 using Windows.Win32.UI.Input;
 using Windows.Win32.UI.WindowsAndMessaging;
 
@@ -21,6 +24,10 @@ public static class WinAPI
             // Console.WriteLine($"forwarded to window procedure: 0x{eventID:x}: {(WIN_EVENTS) eventID}");
             switch ((WIN_EVENTS) eventID)
             {
+                    case (WIN_EVENTS)0x0010:
+                    {
+                        throw new Exception("window closed");
+                    }
                 case WIN_EVENTS.WM_PAINT:
                     FUNCKİNG_BREAK = true;
                     goto default;
@@ -142,7 +149,7 @@ public static class WinAPI
                 lpfnWndProc = WinMain,
                 hInstance = hinstance,
                 lpszClassName = lpWindowName,
-                style = WNDCLASS_STYLES.CS_HREDRAW| WNDCLASS_STYLES.CS_VREDRAW,
+                style = WNDCLASS_STYLES.CS_HREDRAW| WNDCLASS_STYLES.CS_VREDRAW | WNDCLASS_STYLES.CS_OWNDC,
             };
             registerClass = PInvoke.RegisterClass(lpWndClass);
             Console.WriteLine(registerClass);
@@ -157,10 +164,19 @@ public static class WinAPI
 
     public unsafe static nint open_window()
     {
-         var window = PInvoke.CreateWindowEx(WINDOW_EX_STYLE.WS_EX_LEFT/*|WINDOW_EX_STYLE.WS_EX_LAYERED*/, lpWindowName, lpWindowName,
+         var window = PInvoke.CreateWindowEx(WINDOW_EX_STYLE.WS_EX_LEFT /*| WINDOW_EX_STYLE.WS_EX_LAYERED*/, lpWindowName, lpWindowName,
                 WINDOW_STYLE.WS_OVERLAPPEDWINDOW | WINDOW_STYLE.WS_VISIBLE, 0, 0, 300, 400, (HWND) 0, (HMENU) 0,
                 hinstance);
+         PInvoke.SetPixelFormat(PInvoke.GetDC(window),)
+         var rgn = PInvoke.CreateRectRgn(0,0,-1,-1);
+         DWM_BLURBEHIND bb;
+         bb.dwFlags = (0b11);
+         bb.fEnable = true;
+         bb.hRgnBlur = rgn;
+         bb.fTransitionOnMaximized = false;
+         PInvoke.DwmEnableBlurBehindWindow(window, &bb);
             PInvoke.ShowWindow(window, (SHOW_WINDOW_CMD.SW_NORMAL));
+            // PInvoke.UpdateLayeredWindow(window,PInvoke.GetDC(default),null,null,default,null,new COLORREF(255), (BLENDFUNCTION?)(null),UPDATE_LAYERED_WINDOW_FLAGS.ULW_ALPHA);
             //register Raw Input
             var rids = stackalloc RAWINPUTDEVICE[]
             {
@@ -249,6 +265,7 @@ public static class WinAPI
                 break;
             }
 
+           
             switch (msg.message)
             {
                 // case WIN_EVENTS.WM_NCHITTEST:

@@ -55,7 +55,7 @@
     
     <ItemGroup><!--      <Folder Include="Assets\shaders\compiled\" />-->
     
-      <Folder Include="Assets\shaders\compiled\" />
+      <Folder Include="Assets\shaders\compiled\Debug\" />
     
       <Folder Include="JoltPhysics\" />
     </ItemGroup>

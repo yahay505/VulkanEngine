@@ -13,7 +13,7 @@ public static class PreambleSequence
     {
         var HandleInputWindow = new ExecutionUnitBuilder(HandleInputAndWindow)
             .Named("HandleInputnWindow")
-            .Writes(VKRender.RendererEcsResource,Input.Input.InputResource) // make more granular
+            // .Writes(VKRender.RendererEcsResource,Input.Input.InputResource) // make more granular
             .Build();
         ScheduleMaker.RegisterToTarget(HandleInputWindow, "frame_preamble");
     }

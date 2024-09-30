@@ -13,3 +13,8 @@ user32
 //user32.*
 kernel32
 //kernel32.*
+UpdateLayeredWindow
+GetDC
+DwmEnableBlurBehindWindow
+CreateRectRgn
+SetPixelFormat

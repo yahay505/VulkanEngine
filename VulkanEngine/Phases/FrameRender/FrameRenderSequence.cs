@@ -11,38 +11,38 @@ public class FrameRenderSequence
 {
     public static void Register()
     {
-        var writeoutRenderObjectsUnit = new ExecutionUnitBuilder(WriteoutRenderObjects.WriteOutObjectData)
-            .Named("WriteoutRenderObjects")
-            .Reads(TransformSystem.Resource,MeshComponent.Resource)
-            .Writes(VKRender.RendererEcsResource)
-            .Build();
-        var renderUnit = new ExecutionUnitBuilder(Render)
-            .RunsAfter(writeoutRenderObjectsUnit)
-            .Named("Render")
-            .Reads(TransformSystem.Resource)
-            .Writes(VKRender.RendererEcsResource,VKRender.IMGUIResource)
-            .Build();
-        ScheduleMaker.RegisterToTarget(writeoutRenderObjectsUnit, "frame_render");
-        ScheduleMaker.RegisterToTarget(renderUnit, "frame_render");
+        // var writeoutRenderObjectsUnit = new ExecutionUnitBuilder(WriteoutRenderObjects.WriteOutObjectData)
+        //     .Named("WriteoutRenderObjects")
+        //     .Reads(TransformSystem.Resource,MeshComponent.Resource)
+        //     .Writes(VKRender.RendererEcsResource)
+        //     .Build();
+        // var renderUnit = new ExecutionUnitBuilder(Render)
+        //     .RunsAfter(writeoutRenderObjectsUnit)
+        //     .Named("Render")
+        //     .Reads(TransformSystem.Resource)
+        //     .Writes(VKRender.RendererEcsResource,VKRender.IMGUIResource)
+        //     .Build();
+        // ScheduleMaker.RegisterToTarget(writeoutRenderObjectsUnit, "frame_render");
+        // ScheduleMaker.RegisterToTarget(renderUnit, "frame_render");
     }
     private static void Render()
     {
-        VKRender.UpdateTime();
-        DisplayFps();
-        unsafe
-        {
-            var query = MakeQuery<Transform_ref,Camera_ref>();
-            if (!HasResults(ref query, out _, out var transform, out var camera))
-            {
-                throw new NotImplementedException();
-            }
-            VKRender.SetCamera(transform, camera.data,VKRender.mainWindow.size.ToInt2());
-        }
-
-        //Editor.EditorRoot.Render();            
-
-        VKRender.Render();
-        //VKRender.imGuiController.Update(VKRender.deltaTime);
+        // VKRender.UpdateTime();
+        // DisplayFps();
+        // unsafe
+        // {
+        //     var query = MakeQuery<Transform_ref,Camera_ref>();
+        //     if (!HasResults(ref query, out _, out var transform, out var camera))
+        //     {
+        //         throw new NotImplementedException();
+        //     }
+        //     VKRender.SetCamera(transform, camera.data,VKRender.mainWindow.size.ToInt2());
+        // }
+        //
+        // //Editor.EditorRoot.Render();            
+        //
+        // VKRender.Render();
+        // //VKRender.imGuiController.Update(VKRender.deltaTime);
 
     }
     private static void DisplayFps()

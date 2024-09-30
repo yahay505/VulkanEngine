@@ -9,8 +9,6 @@ using VulkanEngine;
 static class Program
 {
     public static string[] args=null!;
-    [HandleProcessCorruptedStateExceptions]
-    [SecurityCritical]
     static unsafe void Main(string[] args)
     {
         //AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
@@ -29,8 +27,8 @@ static class Program
         {
             throw;
         }
-        
-        throw new NotImplementedException();
+        Thread.Sleep(5000);
+        // throw new NotImplementedException();
     }
 
     private static void OnUnhandledException(object sender, UnhandledExceptionEventArgs e)
