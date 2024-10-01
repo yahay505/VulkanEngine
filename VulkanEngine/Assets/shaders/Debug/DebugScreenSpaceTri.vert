@@ -12,6 +12,5 @@ void main() {
     UV =    gl_VertexIndex==0 ? vec2(0.,0.):
                 gl_VertexIndex==1 ? vec2(0.,2.):
                                      vec2(2.,0.);
-    gl_Position = vec4(UV,0.,1.);
-    UV = vec2(1);
+    gl_Position = vec4(UV*2-1,0.,1.);
 }

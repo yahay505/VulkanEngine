@@ -35,10 +35,10 @@ public static class funnyRenderer
         renderpass = API.CreateRenderPass([
                 new(target.imageFormat, VkSampleCountFlags.Count1, VkAttachmentLoadOp.Clear,
                     VkAttachmentStoreOp.Store,
-                    VkAttachmentLoadOp.Load, VkAttachmentStoreOp.Store, VkImageLayout.TransferSrcOptimal,
+                    VkAttachmentLoadOp.Clear, VkAttachmentStoreOp.Store, VkImageLayout.TransferSrcOptimal,
                     VkImageLayout.TransferSrcOptimal),
                 new(window.depthImage.imageFormat, VkSampleCountFlags.Count1, VkAttachmentLoadOp.Clear,
-                    VkAttachmentStoreOp.Store, VkAttachmentLoadOp.DontCare, VkAttachmentStoreOp.DontCare,
+                    VkAttachmentStoreOp.Store, VkAttachmentLoadOp.Clear, VkAttachmentStoreOp.Store,
                     VkImageLayout.DepthStencilAttachmentOptimal, VkImageLayout.DepthStencilAttachmentOptimal)
             ],
             [new()
@@ -82,10 +82,33 @@ public static class funnyRenderer
             VkPrimitiveTopology.TriangleList,
             false,
             [VkDynamicState.Scissor, VkDynamicState.Viewport],
-            new(VkCullModeFlags.Back, frontFace: VkFrontFace.CounterClockwise),
+            new()
+            {
+                lineWidth = 1,
+                cullMode = VkCullModeFlags.None,
+                frontFace = VkFrontFace.CounterClockwise,
+                polygonMode = VkPolygonMode.Fill,
+                
+            },
             new(VkSampleCountFlags.Count1),
-            new(true, true, VkCompareOp.Less, false, VkStencilOpState.Default, VkStencilOpState.Default),
-            new(new(false), logicOp: VkLogicOp.Copy),
+            new()
+            {
+                depthTestEnable = true,
+                depthWriteEnable = true,
+                depthCompareOp = VkCompareOp.Less,
+                stencilTestEnable = false,
+            },
+            new(new()
+            {
+                blendEnable = true,
+                alphaBlendOp = VkBlendOp.Add,
+                srcAlphaBlendFactor = VkBlendFactor.One,
+                dstAlphaBlendFactor = VkBlendFactor.OneMinusSrcAlpha,
+                srcColorBlendFactor = VkBlendFactor.One,
+                dstColorBlendFactor = VkBlendFactor.OneMinusSrcAlpha,
+                colorBlendOp = VkBlendOp.Add,
+                colorWriteMask = VkColorComponentFlags.All
+            }),
             pipelineLayout,
             renderpass, 0
         );
@@ -103,9 +126,50 @@ public static class funnyRenderer
 
     public static unsafe void Render(EngineWindow window)
     {
+       
+        VkCommandBuffer cb;
+        vkAllocateCommandBuffer(API.device, tpm, VkCommandBufferLevel.Primary, out cb);//tmp
+        vkBeginCommandBuffer(cb, VkCommandBufferUsageFlags.None);
+        if (window.depthImage.layout[0] != VkImageLayout.DepthStencilAttachmentOptimal)
+            API.TransitionImageLayout(cb, window.depthImage, VkImageLayout.DepthStencilAttachmentOptimal, 0, 1);
+        if (target.layout[0] != VkImageLayout.TransferSrcOptimal)
+            API.TransitionImageLayout(cb, target, VkImageLayout.TransferSrcOptimal, 0, 1);
+        
+        var clears = stackalloc VkClearValue[]{new(0f,.0f,.0f,.0f),new(1f,0)};
+        var passInfo = new VkRenderPassBeginInfo()
+        {
+            renderPass = renderpass,
+            clearValueCount = 2,
+            framebuffer = fb,
+            pClearValues = clears,
+            renderArea = new(target.width,target.height)
+        };
+        vkCmdBeginRenderPass(cb,&passInfo,VkSubpassContents.Inline);
+
+        vkCmdBindPipeline(cb,VkPipelineBindPoint.Graphics,pipeline);
+        vkCmdSetViewport(cb,0,new VkViewport(window.size.width,window.size.height));
+        vkCmdSetScissor(cb,new(window.size));
+        vkCmdBindVertexBuffer(cb,0,buff,0);
+        vkCmdBindVertexBuffer(cb,1,buff,0);
+
+        vkCmdDraw(cb,3,1,0,0);
+        vkCmdEndRenderPass(cb);
+
+        vkEndCommandBuffer(cb);
+        var ss = renderSemaphores[frameNo % 2];
+        vkQueueSubmit(API.graphicsQueue,
+            new VkSubmitInfo()
+                {commandBufferCount = 1, pCommandBuffers = &cb, signalSemaphoreCount = 1, pSignalSemaphores = &ss},
+            default);
+        
+        
+        present(window, ss);
+    }
+
+    private static unsafe void present(EngineWindow window, VkSemaphore ss)
+    {
         int retryCount = 0;
-        acquire: var rez = vkAcquireNextImageKHR(API.device,window.swapChai
-            n,UInt64.MaxValue,sempahore,default, out var index);
+        acquire: var rez = vkAcquireNextImageKHR(API.device,window.swapChain,UInt64.MaxValue,sempahore,default, out var index);
         rez.Expect();
         switch (rez)
         {
@@ -134,49 +198,6 @@ public static class funnyRenderer
                 API.CreateSwapchain(window,window.swapChain);
                 goto acquire;
         }
-        
-        VkCommandBuffer cb;
-        vkAllocateCommandBuffer(API.device, tpm, VkCommandBufferLevel.Primary, out cb);//tmp
-        vkBeginCommandBuffer(cb, VkCommandBufferUsageFlags.None);
-        if (window.depthImage.layout[0] != VkImageLayout.DepthStencilAttachmentOptimal)
-            API.TransitionImageLayout(cb, window.depthImage, VkImageLayout.DepthStencilAttachmentOptimal, 0, 1);
-        if (target.layout[0] != VkImageLayout.TransferSrcOptimal)
-            API.TransitionImageLayout(cb, target, VkImageLayout.TransferSrcOptimal, 0, 1);
-        
-        var clears = stackalloc VkClearValue[]{new(0f,.5f,.7f,.5f),new(0f,0)};
-        var passInfo = new VkRenderPassBeginInfo()
-        {
-            renderPass = renderpass,
-            clearValueCount = 2,
-            framebuffer = fb,
-            pClearValues = clears,
-            renderArea = new(1,1)
-        };
-        vkCmdBeginRenderPass(cb,&passInfo,VkSubpassContents.Inline);
-
-        vkCmdBindPipeline(cb,VkPipelineBindPoint.Graphics,pipeline);
-        vkCmdSetViewport(cb,0,new VkViewport(window.size.width,window.size.height));
-        vkCmdSetScissor(cb,new(window.size));
-        vkCmdBindVertexBuffer(cb,0,buff,0);
-        vkCmdBindVertexBuffer(cb,1,buff,0);
-
-        vkCmdDraw(cb,3,1,0,0);
-        vkCmdEndRenderPass(cb);
-        cb.BARRIER_ALL();
-
-        // target.layout[0] = VkImageLayout.ColorAttachmentOptimal;
-        vkEndCommandBuffer(cb);
-        var ss = renderSemaphores[frameNo % 2];
-        vkDeviceWaitIdle(API.device);
-        vkQueueSubmit(API.graphicsQueue,
-            new VkSubmitInfo()
-                {commandBufferCount = 1, pCommandBuffers = &cb, signalSemaphoreCount = 1, pSignalSemaphores = &ss},
-            default);
-        
-        vkDeviceWaitIdle(API.device);
-
-
-
 
         VkCommandBuffer blit_cb = default;
         vkAllocateCommandBuffer(API.device, tpm, VkCommandBufferLevel.Primary, out blit_cb);//tmp
@@ -203,8 +224,17 @@ public static class funnyRenderer
         };
         vkCmdClearColorImage(blit_cb,windowSwapChainImage.deviceImage,VkImageLayout.General,&a,1,&b);
         API.TransitionImageLayout(blit_cb, windowSwapChainImage, VkImageLayout.TransferDstOptimal, 0, 1);
-
-        vkCmdCopyImage(blit_cb,target.deviceImage,target.layout[0],windowSwapChainImage.deviceImage,windowSwapChainImage.layout[0],1,&bb);
+        var blit = new VkImageBlit()
+        {
+            srcSubresource = new VkImageSubresourceLayers(VkImageAspectFlags.Color, 0, 0, 1),
+            dstSubresource = new VkImageSubresourceLayers(VkImageAspectFlags.Color, 0, 0, 1),
+        };
+        blit.dstOffsets[0] = new(0, 0, 0);
+        blit.dstOffsets[1] = new((int) target.width, (int) target.height, 1);
+        blit.srcOffsets[0] = new(0, 0, 0);
+        blit.srcOffsets[1] = new((int) target.width, (int) target.height, 1);
+        vkCmdBlitImage(blit_cb,target.deviceImage,target.layout[0],windowSwapChainImage.deviceImage,windowSwapChainImage.layout[0],1,&blit,VkFilter.Nearest);
+        // vkCmdCopyImage(blit_cb,target.deviceImage,target.layout[0],windowSwapChainImage.deviceImage,windowSwapChainImage.layout[0],1,&bb);
         API.TransitionImageLayout(blit_cb, windowSwapChainImage, VkImageLayout.PresentSrcKHR, 0, 1);
 
         vkEndCommandBuffer(blit_cb);
@@ -223,7 +253,6 @@ public static class funnyRenderer
             pWaitDstStageMask = &vkPipelineStageFlags
         };
         vkQueueSubmit(API.graphicsQueue, blitSub, default);
-        vkDeviceWaitIdle(API.device);
 
         vkQueuePresentKHR(API.graphicsQueue, signal, window.swapChain, index);
         frameNo++;
