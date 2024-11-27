@@ -67,7 +67,10 @@ extern void* window_create_surface(NSWindow * window){
     CAMetalLayer *metalLayer = [CAMetalLayer layer];
     metalLayer.device = MTLCreateSystemDefaultDevice();
     metalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+
+    metalLayer.opaque=false;
     metalLayer.framebufferOnly = YES;
+
     //get window size
     NSRect frame = [window frame];
     metalLayer.frame = frame;
@@ -84,6 +87,14 @@ extern void window_makeKeyAndOrderFront(NSWindow* win){
 }
 extern void start_app(MyApp *application){
     [application run];
+}
+extern void set_transparent(NSWindow* win,int32_t state){
+    [win setOpaque:!state];
+    win.hasShadow = false;
+    win.titlebarAppearsTransparent = true;
+    win.backgroundColor = NSColor.clearColor;
+    
+    
 }
 extern MyApp* create_application(void){
     

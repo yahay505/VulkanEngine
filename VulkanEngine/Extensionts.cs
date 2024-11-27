@@ -50,6 +50,22 @@ public static class Extensions
     
     
     public delegate void ActionRef<T>(ref T item);
+    public delegate void ActionRefIndexed<T>(ref T item,int i);
+    
+    public static void ForEachRef<T>(this Span<T> list, ActionRefIndexed<T> action)
+    {
+        for (var i = 0; i < list.Length; i++)
+        {
+            action(ref list[i],i);
+        }
+    }
+    public static void ForEachRef<T>(this T[] list, ActionRefIndexed<T> action)
+    {
+        for (var i = 0; i < list.Length; i++)
+        {
+            action(ref list[i],i);
+        }
+    }
     public static void ForEachRef<T>(this List<T> list, ActionRef<T> action)
     {
         var listSpan = CollectionsMarshal.AsSpan(list);
@@ -65,14 +81,7 @@ public static class Extensions
             action(item);
         }
     }
-    public static void ForEach<T>(this IEnumerable<T> enumerable, Action<T,int> action)
-    {
-        var i = 0;
-        foreach (var item in enumerable)
-        {
-            action(item,i++);
-        }
-    }
+
 
     [Conditional("ASSERTS"),Conditional("DEBUG")]
     public static void Assert(this bool b,string message="assertion failed")

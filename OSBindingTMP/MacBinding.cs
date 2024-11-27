@@ -25,6 +25,9 @@ public class MacBinding
     public static extern unsafe NSApp create_application();
 
     [DllImport(Library)]
+    public static extern void set_transparent(NSWindow win, int state);
+
+    [DllImport(Library)]
     public static extern void start_app(NSApp app);
 
     [DllImport(Library)]

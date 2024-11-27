@@ -25,11 +25,13 @@ public static class DeviceRequirements
     {
         descriptorBindingStorageBufferUpdateAfterBind = true,
         descriptorBindingUpdateUnusedWhilePending = true,
+        descriptorBindingSampledImageUpdateAfterBind =  true,
         descriptorBindingPartiallyBound = true,
         descriptorBindingVariableDescriptorCount = true,
         shaderSampledImageArrayNonUniformIndexing = true,
-        shaderStorageBufferArrayNonUniformIndexing = true,
-        shaderUniformBufferArrayNonUniformIndexing = true,
+        
+        // shaderStorageBufferArrayNonUniformIndexing = true,
+        // shaderUniformBufferArrayNonUniformIndexing = true,
         runtimeDescriptorArray = true,
     };
     public static VkPhysicalDeviceFeatures requiredDeviceFeatures = new()
@@ -44,8 +46,6 @@ public static class DeviceRequirements
     {
         
         var score = 0;
-        
-        
         score += deviceInfo.properties.deviceType==VkPhysicalDeviceType.DiscreteGpu?2:0;
         score += deviceInfo.properties.deviceType == VkPhysicalDeviceType.IntegratedGpu ? 1 : 0;
 

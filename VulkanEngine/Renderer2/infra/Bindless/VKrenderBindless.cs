@@ -1,4 +1,5 @@
-﻿using SixLabors.ImageSharp;
+﻿using System.Runtime.InteropServices;
+using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using Vortice.Vulkan;
 using static Vortice.Vulkan.Vulkan;
@@ -161,9 +162,14 @@ public static class TextureManager
     {
         return 0;
     }
-
+    static unsafe void bugtest()
+    {
+        var a = stackalloc int[1000];
+        NativeMemory.Fill(a,4000,0b1101100);
+    }
     private static unsafe (VkDescriptorSet descriptorset, VkDescriptorPool descpool, VkDescriptorSetLayout descSetLayout) CreateBindlessDescriptorSet()
     {
+        bugtest();
         var bindings = stackalloc[]
         {
             new VkDescriptorSetLayoutBinding
@@ -178,7 +184,7 @@ public static class TextureManager
         var bindingFlags = stackalloc[]
         {
             VkDescriptorBindingFlags.UpdateUnusedWhilePending | VkDescriptorBindingFlags.VariableDescriptorCount |
-            VkDescriptorBindingFlags.PartiallyBound,
+            VkDescriptorBindingFlags.PartiallyBound | VkDescriptorBindingFlags.UpdateAfterBind,
         };
         var bindflagCI = new VkDescriptorSetLayoutBindingFlagsCreateInfo()
         {
@@ -188,7 +194,7 @@ public static class TextureManager
         var imageLayoutCI = new VkDescriptorSetLayoutCreateInfo()
         {
             bindingCount = 1,
-            flags = VkDescriptorSetLayoutCreateFlags.None,
+            flags = VkDescriptorSetLayoutCreateFlags.UpdateAfterBindPool ,
             pBindings = &bindings[0],
             pNext = &bindflagCI,
         };

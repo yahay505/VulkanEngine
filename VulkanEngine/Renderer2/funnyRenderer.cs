@@ -7,9 +7,12 @@ namespace VulkanEngine.Renderer2;
 
 public static class funnyRenderer
 {
+    private const int INFLIGHT_FRAME = 2;
+
     private static int frameNo = 0;
-    private static VkSemaphore sempahore;
+    // private static VkSemaphore sempahore;
     private static VkSemaphore[] renderSemaphores;
+    private static VkFence[] fences;
     private static EngineImage target;
     private static VkFramebuffer fb;
     private static VkPipelineLayout pipelineLayout;
@@ -62,6 +65,30 @@ public static class funnyRenderer
             [new(0, VkImageLayout.ColorAttachmentOptimal)],
             new(1,VkImageLayout.DepthStencilAttachmentOptimal));
         pipelineLayout = API.CreatePipelineLayout([TextureManager.descSetLayout]);
+        var vkPipelineColorBlendAttachmentState = new VkPipelineColorBlendAttachmentState()
+        {
+            blendEnable = VkBool32.True,
+            alphaBlendOp = VkBlendOp.Add,
+            srcAlphaBlendFactor = VkBlendFactor.One,
+            dstAlphaBlendFactor = VkBlendFactor.OneMinusSrcAlpha,
+            srcColorBlendFactor = VkBlendFactor.One,
+            dstColorBlendFactor = VkBlendFactor.OneMinusSrcAlpha,
+            colorBlendOp = VkBlendOp.Add,
+            colorWriteMask = VkColorComponentFlags.All,
+        };
+        var vkPipelineColorBlendStateCreateInfo = new VkPipelineColorBlendStateCreateInfo()
+        {
+            attachmentCount = 1,
+            flags = VkPipelineColorBlendStateCreateFlags.None,
+            logicOpEnable = false,
+            logicOp = VkLogicOp.Copy,
+            pAttachments = &vkPipelineColorBlendAttachmentState,
+            pNext = null
+        };
+        vkPipelineColorBlendStateCreateInfo.blendConstants![0] = 1;
+        vkPipelineColorBlendStateCreateInfo.blendConstants![1] = 1;
+        vkPipelineColorBlendStateCreateInfo.blendConstants![2] = 1;
+        vkPipelineColorBlendStateCreateInfo.blendConstants![3] = 1;
         pipeline= API.CreatePSO(
             [
                 new()
@@ -98,26 +125,17 @@ public static class funnyRenderer
                 depthCompareOp = VkCompareOp.Less,
                 stencilTestEnable = false,
             },
-            new(new()
-            {
-                blendEnable = true,
-                alphaBlendOp = VkBlendOp.Add,
-                srcAlphaBlendFactor = VkBlendFactor.One,
-                dstAlphaBlendFactor = VkBlendFactor.OneMinusSrcAlpha,
-                srcColorBlendFactor = VkBlendFactor.One,
-                dstColorBlendFactor = VkBlendFactor.OneMinusSrcAlpha,
-                colorBlendOp = VkBlendOp.Add,
-                colorWriteMask = VkColorComponentFlags.All
-            }),
+            vkPipelineColorBlendStateCreateInfo,
             pipelineLayout,
             renderpass, 0
         );
         
-        vkCreateSemaphore(API.device, out sempahore);
-        renderSemaphores = new VkSemaphore[2];
-        vkCreateSemaphore(API.device, out renderSemaphores[0]);
-        vkCreateSemaphore(API.device, out renderSemaphores[1]);
-       
+        renderSemaphores = new VkSemaphore[INFLIGHT_FRAME];
+        for (int i = 0; i < INFLIGHT_FRAME; i++)
+            vkCreateSemaphore(API.device, out renderSemaphores[i]);
+        fences = new VkFence[INFLIGHT_FRAME];
+        for (int i = 0; i < INFLIGHT_FRAME; i++)
+            vkCreateFence(API.device,VkFenceCreateFlags.Signaled, out fences[i]);
         fb = API.CreateFrameBuffer(target.width,target.height,[target.view,window.depthImage.view],renderpass);
       
         API.CreateBuffer(50,VkBufferUsageFlags.VertexBuffer,VkMemoryPropertyFlags.None, out buff,out memory);
@@ -126,7 +144,8 @@ public static class funnyRenderer
 
     public static unsafe void Render(EngineWindow window)
     {
-       
+        vkWaitForFences(API.device, fences[frameNo % INFLIGHT_FRAME], true, ulong.MaxValue);
+        vkResetFences(API.device, fences[frameNo % INFLIGHT_FRAME]);
         VkCommandBuffer cb;
         vkAllocateCommandBuffer(API.device, tpm, VkCommandBufferLevel.Primary, out cb);//tmp
         vkBeginCommandBuffer(cb, VkCommandBufferUsageFlags.None);
@@ -156,53 +175,60 @@ public static class funnyRenderer
         vkCmdEndRenderPass(cb);
 
         vkEndCommandBuffer(cb);
-        var ss = renderSemaphores[frameNo % 2];
+        var ss = renderSemaphores[frameNo % INFLIGHT_FRAME];
         vkQueueSubmit(API.graphicsQueue,
             new VkSubmitInfo()
                 {commandBufferCount = 1, pCommandBuffers = &cb, signalSemaphoreCount = 1, pSignalSemaphores = &ss},
             default);
         
         
-        present(window, ss);
+        present(window, ss,default);
     }
 
-    private static unsafe void present(EngineWindow window, VkSemaphore ss)
+    private static unsafe void present(EngineWindow window, VkSemaphore waitSemaphore,VkFence signalfence)
     {
         int retryCount = 0;
-        acquire: var rez = vkAcquireNextImageKHR(API.device,window.swapChain,UInt64.MaxValue,sempahore,default, out var index);
-        rez.Expect();
+        window.presenterState = (window.presenterState + 1) % window.SwapChainImages.Length;
+        window.CleanupQueue[window.presenterState]();
+        window.CleanupQueue[window.presenterState] = () => {};
+        acquire: var rez = vkAcquireNextImageKHR(API.device,window.swapChain,UInt64.MaxValue,window.AcqforblitSemaphores[window.presenterState],default, out var index);
         switch (rez)
         {
             case VkResult.Success:
                 break;
             case VkResult.SuboptimalKHR:
-                if (retryCount == 0) // retry once
+                fixed(VkSemaphore* aa=window.AcqforblitSemaphores)
                 {
-                    var relinfo = new VkReleaseSwapchainImagesInfoEXT()
+                    var semwaitinfo = new VkSemaphoreWaitInfo()
                     {
-                        swapchain = window.swapChain,
-                        imageIndexCount = 1,
-                        pImageIndices = &index,
+                        semaphoreCount = 1,
+                        pSemaphores = &aa[window.presenterState],
                     };
-                    vkReleaseSwapchainImagesEXT(API.device, &relinfo);
-                    goto case VkResult.ErrorOutOfDateKHR;
+                    vkWaitSemaphores(API.device,&semwaitinfo,ulong.MaxValue);
                 }
-                break;
+                var relinfo = new VkReleaseSwapchainImagesInfoEXT()
+                {
+                    swapchain = window.swapChain,
+                    imageIndexCount = 1,
+                    pImageIndices = &index,
+                };
+                vkReleaseSwapchainImagesEXT(API.device, &relinfo);
+                goto case VkResult.ErrorOutOfDateKHR;
             case VkResult.ErrorOutOfDateKHR:
                 retryCount++;
                 if (retryCount>10)
-                {
                     throw new Exception();
-                }
-
-                API.CreateSwapchain(window,window.swapChain);
+                API. CreateSwapchain(window,window.swapChain);
                 goto acquire;
+                
+            default: throw new Exception();
         }
 
         VkCommandBuffer blit_cb = default;
         vkAllocateCommandBuffer(API.device, tpm, VkCommandBufferLevel.Primary, out blit_cb);//tmp
 
         vkBeginCommandBuffer(blit_cb, VkCommandBufferUsageFlags.OneTimeSubmit);
+        
         var windowSwapChainImage = window.SwapChainImages[index];
         var bb = new VkImageCopy();
         
@@ -240,7 +266,7 @@ public static class funnyRenderer
         vkEndCommandBuffer(blit_cb);
 
         var vkPipelineStageFlags = VkPipelineStageFlags.AllCommands;
-        var waits = stackalloc VkSemaphore[] {ss,sempahore };
+        var waits = stackalloc VkSemaphore[] {waitSemaphore,window.AcqforblitSemaphores[window.presenterState] };
         var signal = window.ReadyToPresentToSwapchainSemaphores[index];
         var blitSub = new VkSubmitInfo()
         {

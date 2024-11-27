@@ -1,6 +1,9 @@
-﻿using System.Diagnostics.Contracts;
+﻿using System.Diagnostics;
+using System.Diagnostics.Contracts;
 using System.Numerics;
 using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using OSBindingTMP;
 using Pastel;
 using Silk.NET.Assimp;
@@ -10,6 +13,7 @@ using SixLabors.ImageSharp.PixelFormats;
 using Vortice.Vulkan;
 using VulkanEngine.Renderer;
 using VulkanEngine.Renderer2.infra.Bindless;
+
 using WindowsBindings;
 using static Vortice.Vulkan.Vulkan;
 
@@ -26,10 +30,10 @@ public static class API
     public static VkQueue computeQueue;
     public static VkQueue transferQueue;
 
-    public static void InitVulkan()
+    public static unsafe void InitVulkan()
     {
         Infra.CreateVkInstance();
-        var boot_window = CreateWindow(new(960, 540), "boot",transparency:false,position:new(480,270));
+        var boot_window = CreateWindow(new(960, 540), "boot",transparency:true,position:new(480,270));
         // boot_window.transparency = true;
 
         chosenDevice = DeviceRequirements.PickPhysicalDevice(boot_window.surface);
@@ -41,8 +45,12 @@ public static class API
         TextureManager.InitTextureEngine();
         MaterialManager.Init();
         funnyRenderer.init(boot_window);
-        funnyRenderer.Render(boot_window);
-        while (true)WinAPI.pump_messages(true);
+        while (true)
+        {
+            funnyRenderer.Render(boot_window);
+            MacBinding.pump_messages(&message_loop, false);
+        }
+        // while (true)WinAPI.pump_messages(true);
     }
     #region window
 
@@ -69,7 +77,8 @@ public static class API
         
         return CreateWindowRaw();
     }
-    
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    static unsafe void message_loop(InputEventStruct* input){}
     public static unsafe EngineWindow CreateWindowRaw(
     )
     {
@@ -78,31 +87,33 @@ public static class API
         {
             case OSType.Mac:
             {
-            //     var app = MacBinding.create_application();
-            //     var window = MacBinding.open_window("Test",
-            //         800,
-            //         600,
-            //         0,
-            //         0,
-            //         MacBinding.NSWindowStyleMask.NSWindowStyleMaskTitled
-            //         | MacBinding.NSWindowStyleMask.NSWindowStyleMaskMiniaturizable
-            //         | MacBinding.NSWindowStyleMask.NSWindowStyleMaskResizable
-            //         //|MacBinding.NSWindowStyleMask.NSWindowStyleMaskClosable
-            //     );
-            //     var surface_ptr = MacBinding.window_create_surface(window);
-            //     MacBinding.window_makeKeyAndOrderFront(window);
-            //     raw.macwindow = window;
-            //     // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
-            //     if (instance == null) InitVulkanFirstPhase();
-            //
-            //     var macOsSurfaceCreateInfoMvk = new VkMetalSurfaceCreateInfoEXT()
-            //     {
-            //         flags = VkMetalSurfaceCreateFlagsEXT.None,
-            //         pLayer = surface_ptr,
-            //     };
-            //     vkCreateMetalSurfaceEXT(instance, &macOsSurfaceCreateInfoMvk, null, out var surface).Expect();
-            //
-            //     raw.surface = surface;
+            var app = MacBinding.create_application();
+            var window = MacBinding.open_window("Test",
+                800,
+                600,
+                0,
+                0,
+                MacBinding.NSWindowStyleMask.NSWindowStyleMaskTitled
+                | MacBinding.NSWindowStyleMask.NSWindowStyleMaskMiniaturizable
+                | MacBinding.NSWindowStyleMask.NSWindowStyleMaskResizable
+                //|MacBinding.NSWindowStyleMask.NSWindowStyleMaskClosable
+            );
+            //MacBinding.set_transparent(window,1);
+            var surface_ptr = MacBinding.window_create_surface(window);
+            MacBinding.window_makeKeyAndOrderFront(window);
+            raw.macwindow = window;
+            raw.transparency = true;
+            
+            var macOsSurfaceCreateInfoMvk = new VkMetalSurfaceCreateInfoEXT()
+            {
+                flags = VkMetalSurfaceCreateFlagsEXT.None,
+                pLayer = surface_ptr,
+            };
+            vkCreateMetalSurfaceEXT(instance, &macOsSurfaceCreateInfoMvk, null, out var surface).Expect();
+            
+            raw.surface = surface;
+            MacBinding.pump_messages(&message_loop,true);
+
             }
                 break;
             case OSType.Windows:
@@ -139,111 +150,134 @@ public static class API
         return raw;
     }
 
-    public static void CreateSwapchain(EngineWindow window,
+    
+    public static unsafe void CreateSwapchain(EngineWindow window,
         VkSwapchainKHR oldSwapchain = default)
     {
         bool preferMailbox = window.preferMailbox;
-        unsafe
+        
+        var deviceSwapChainSupport = Infra.QuerySwapChainSupport(physicalDevice,window.surface);
+        window.surfaceFormat = Infra.ChooseSwapSurfaceFormat(deviceSwapChainSupport.Formats); //this can dynamicly change
+        window.presentMode = Infra.ChoosePresentMode(deviceSwapChainSupport.PresentModes);
+        window.size = Infra.ChooseSwapExtent(window);
+
+        window.swapChainImageFormat = window.surfaceFormat.format;
+
+
+        var imageCount = deviceSwapChainSupport.Capabilities.minImageCount + 1;
+        if (deviceSwapChainSupport.Capabilities.maxImageCount > 0 &&
+            imageCount > deviceSwapChainSupport.Capabilities.maxImageCount)
         {
-            
-            var deviceSwapChainSupport = Infra.QuerySwapChainSupport(physicalDevice,window.surface);
-            window.surfaceFormat = Infra.ChooseSwapSurfaceFormat(deviceSwapChainSupport.Formats); //this can dynamicly change
-            window.presentMode = Infra.ChoosePresentMode(deviceSwapChainSupport.PresentModes);
-            window.size = Infra.ChooseSwapExtent(window);
+            imageCount = deviceSwapChainSupport.Capabilities.maxImageCount;
+        }
 
-            window.swapChainImageFormat = window.surfaceFormat.format;
+        VkSwapchainPresentScalingCreateInfoEXT pnext;
+        var creatInfo = new VkSwapchainCreateInfoKHR
+        {
+            surface = window.surface,
+            minImageCount = imageCount,
+            imageFormat = window.surfaceFormat.format,
+            imageColorSpace = window.surfaceFormat.colorSpace,
+            imageExtent = window.size,
+            imageArrayLayers = 1,
+            imageUsage = VkImageUsageFlags.TransferDst|VkImageUsageFlags.ColorAttachment,
+            flags = VkSwapchainCreateFlagsKHR.DeferredMemoryAllocationEXT,
+            pNext = &pnext,
+        };
+        pnext = new()
+        {
+            presentGravityX = VkPresentGravityFlagsEXT.Min,
+            presentGravityY = VkPresentGravityFlagsEXT.Min,
+            scalingBehavior = VkPresentScalingFlagsEXT.OneToOne,
+        };
 
+        var queueFamilyIndices = stackalloc[] {chosenDevice.indices.graphicsFamily!.Value, chosenDevice.indices.presentFamily!.Value};
 
-            var imageCount = deviceSwapChainSupport.Capabilities.minImageCount + 1;
-            if (deviceSwapChainSupport.Capabilities.maxImageCount > 0 &&
-                imageCount > deviceSwapChainSupport.Capabilities.maxImageCount)
-            {
-                imageCount = deviceSwapChainSupport.Capabilities.maxImageCount;
-            }
-
-            VkSwapchainPresentScalingCreateInfoEXT pnext;
-            var creatInfo = new VkSwapchainCreateInfoKHR
-            {
-                surface = window.surface,
-                minImageCount = imageCount,
-                imageFormat = window.surfaceFormat.format,
-                imageColorSpace = window.surfaceFormat.colorSpace,
-                imageExtent = window.size,
-                imageArrayLayers = 1,
-                imageUsage = VkImageUsageFlags.TransferDst|VkImageUsageFlags.ColorAttachment,
-                // flags = VkSwapchainCreateFlagsKHR.DeferredMemoryAllocationEXT,
-                pNext = &pnext,
-            };
-            pnext = new()
-            {
-                presentGravityX = VkPresentGravityFlagsEXT.Min,
-                presentGravityY = VkPresentGravityFlagsEXT.Min,
-                scalingBehavior = VkPresentScalingFlagsEXT.OneToOne,
-            };
-
-            var queueFamilyIndices = stackalloc[] {chosenDevice.indices.graphicsFamily!.Value, chosenDevice.indices.presentFamily!.Value};
-
-            window.swapchainImagesShared = chosenDevice.indices.graphicsFamily != chosenDevice.indices.presentFamily;
-            if (window.swapchainImagesShared)
-            {
-                creatInfo = creatInfo with
-                {
-                    imageSharingMode = VkSharingMode.Concurrent,
-                    queueFamilyIndexCount = 2,
-                    pQueueFamilyIndices = queueFamilyIndices,
-                };
-                throw new NotImplementedException(); // actually just throw here I dont want to work on this much
-            }
-            else
-            {
-                creatInfo.imageSharingMode = VkSharingMode.Exclusive;
-            }
-
-            VkCompositeAlphaFlagsKHR compositeMode;
-            if (window.transparency)
-            {
-                var alphaSupport = deviceSwapChainSupport.Capabilities.supportedCompositeAlpha;
-                
-                if ((alphaSupport & (VkCompositeAlphaFlagsKHR.PostMultiplied | VkCompositeAlphaFlagsKHR.PreMultiplied)) == 0)
-                    throw new NotSupportedException("CompositeAlphaFlagsKHR.PostMultipliedBitKhr or CompositeAlphaFlagsKHR.PreMultipliedBitKhr not supported. yet transparency is requested");
-                
-                compositeMode = alphaSupport.HasFlag(VkCompositeAlphaFlagsKHR.PreMultiplied)
-                    ? VkCompositeAlphaFlagsKHR.PreMultiplied
-                    : VkCompositeAlphaFlagsKHR.PostMultiplied;
-            }
-            else
-            {
-                compositeMode = VkCompositeAlphaFlagsKHR.Opaque;
-            }
-
-            // compositeMode = VkCompositeAlphaFlagsKHR.PreMultiplied;
-            window.composeAlpha = compositeMode;
+        window.swapchainImagesShared = chosenDevice.indices.graphicsFamily != chosenDevice.indices.presentFamily;
+        if (window.swapchainImagesShared)
+        {
             creatInfo = creatInfo with
             {
-                preTransform = deviceSwapChainSupport.Capabilities.currentTransform,
-                // opaque if not needed, premultiplied if supported, else postmultiplied 
-                compositeAlpha = compositeMode,
-                presentMode = window.presentMode,
-                clipped = true,
-                oldSwapchain = oldSwapchain
+                imageSharingMode = VkSharingMode.Concurrent,
+                queueFamilyIndexCount = 2,
+                pQueueFamilyIndices = queueFamilyIndices,
             };
+            throw new NotImplementedException(); // actually just throw here I dont want to work on this much
+        }
+        else
+        {
+            creatInfo.imageSharingMode = VkSharingMode.Exclusive;
+        }
 
-            Console.WriteLine(
-                $"created swapchain with compositeMode: {compositeMode} and presentMode: {window.presentMode}".Pastel(
-                    ConsoleColor.Green));
+        VkCompositeAlphaFlagsKHR compositeMode;
+        if (window.transparency)
+        {
+            var alphaSupport = deviceSwapChainSupport.Capabilities.supportedCompositeAlpha;
+                
+            if ((alphaSupport & (VkCompositeAlphaFlagsKHR.PostMultiplied | VkCompositeAlphaFlagsKHR.PreMultiplied)) == 0)
+                throw new NotSupportedException("CompositeAlphaFlagsKHR.PostMultipliedBitKhr or CompositeAlphaFlagsKHR.PreMultipliedBitKhr not supported. yet transparency is requested");
+                
+            compositeMode = alphaSupport.HasFlag(VkCompositeAlphaFlagsKHR.PreMultiplied)
+                ? VkCompositeAlphaFlagsKHR.PreMultiplied
+                : VkCompositeAlphaFlagsKHR.PostMultiplied;
+        }
+        else
+        {
+            compositeMode = VkCompositeAlphaFlagsKHR.Opaque;
+        }
 
-            vkCreateSwapchainKHR(device, &creatInfo, null, out window.swapChain)
-                .Expect("failed to create swap chain!");
+        // compositeMode = VkCompositeAlphaFlagsKHR.PreMultiplied;
+        window.composeAlpha = compositeMode;
+        creatInfo = creatInfo with
+        {
+            preTransform = deviceSwapChainSupport.Capabilities.currentTransform,
+            // opaque if not needed, premultiplied if supported, else postmultiplied 
+            compositeAlpha = compositeMode,
+            presentMode = window.presentMode,
+            clipped = true,
+            oldSwapchain = oldSwapchain
+        };
+
+        Console.WriteLine(
+            $"created swapchain with compositeMode: {compositeMode} and presentMode: {window.presentMode}".Pastel(
+                ConsoleColor.Green));
+
+        vkCreateSwapchainKHR(device, &creatInfo, null, out window.swapChain)
+            .Expect("failed to create swap chain!");
 
 
-            vkGetSwapchainImagesKHR(device, window.swapChain, & imageCount, null).Expect();
-            window.SwapChainImages = new EngineImage[imageCount];
-            window.ReadyToPresentToSwapchainSemaphores = new VkSemaphore[imageCount];
-            window.SwapchainSize = window.size;
-            var tmp_swapchain = stackalloc VkImage[(int)imageCount];
-            vkGetSwapchainImagesKHR(device, window.swapChain, & imageCount, tmp_swapchain);
+        vkGetSwapchainImagesKHR(device, window.swapChain, & imageCount, null).Expect();
+        if (window.CleanupQueue!=null)
+        {
+            if ((window.SwapChainImages?.Length ?? -1)!= imageCount)
+            {
+                vkDeviceWaitIdle(device);
+                foreach (var action in window.CleanupQueue) action();
+                window.CleanupQueue = new Action[imageCount];
+            }
+        } else
+        {
+            
+            window.CleanupQueue = new Action[imageCount];
             
             for (var i = 0; i < imageCount; i++)
+            {
+                var i1 = i;
+                window.CleanupQueue[i] = () =>
+                {
+                    DestroyImage(window.SwapChainImages[i1]);
+                };
+            }
+        }
+
+        window.SwapChainImages = new EngineImage[imageCount];
+        window.ReadyToPresentToSwapchainSemaphores = new VkSemaphore[imageCount];
+        window.AcqforblitSemaphores = new VkSemaphore[imageCount];
+        window.SwapchainSize = window.size;
+        var tmp_swapchain = stackalloc VkImage[(int)imageCount];
+        vkGetSwapchainImagesKHR(device, window.swapChain, & imageCount, tmp_swapchain);
+            
+        for (var i = 0; i < imageCount; i++)
             {
                 window.SwapChainImages[i] = new EngineImage
                 {
@@ -262,8 +296,8 @@ public static class API
                 window.SwapChainImages[i].view = CreateAdditionalImageView(window.SwapChainImages[i], 0,1);
 
                 vkCreateSemaphore(device, out window.ReadyToPresentToSwapchainSemaphores[i]);
+                vkCreateSemaphore(device, out window.AcqforblitSemaphores[i]);
             }
-        }
     }
 
     // public static unsafe void ResizeSwapChain(EngineWindow window, int2 newsize)
@@ -685,6 +719,15 @@ public static unsafe (DefaultVertex[] vertices,uint[] indices,float4x4 transform
 
     #region images
 
+    public static unsafe void DestroyImage(EngineImage img)
+    {
+        if(img.view.Handle!=default)vkDestroyImageView(device,img.view);
+        if(img.memory.Handle!=default)vkDestroyImage(device,img.deviceImage);
+        if(img.memory.Handle!=default)vkFreeMemory(device,img.memory);
+        img.hostImage?.Dispose();
+        
+    }
+
     public static unsafe void AllocateDeviceResourcesForImage(EngineImage image)
     {
         
@@ -1050,6 +1093,7 @@ public class EngineImage(string? path = null)
 
 public class EngineWindow
 {
+    public unsafe byte* debugName = "unnamed window"u8.GetPointer();
     public VkSurfaceKHR surface;
     public VkExtent2D size;
     public VkExtent2D SwapchainSize;
@@ -1060,7 +1104,10 @@ public class EngineWindow
 
     public EngineImage[] SwapChainImages;
     public VkSemaphore[] ReadyToPresentToSwapchainSemaphores;
+    public VkSemaphore[] AcqforblitSemaphores;
+    public int presenterState;
     public VkFormat swapChainImageFormat;
+    public Action[] CleanupQueue;
 
     public VkSurfaceFormatKHR surfaceFormat;
     public VkPresentModeKHR presentMode;

@@ -6,5 +6,5 @@ float shape = 2;
 void main() {
     float sqdist =pow(10*abs(UV-.5).x,shape)+pow(10*abs(UV-.5).y,shape);
     float light = 1/sqdist;
-        outColor = vec4(light,light,light*.2,0);
+        outColor = vec4(light,light,light*.2,4./255.);
 }

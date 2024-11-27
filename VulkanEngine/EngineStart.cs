@@ -53,7 +53,7 @@ public static class EngineStart
     }
 
 
-    private static void CompileShadersTEMP()
+    public static void CompileShadersTEMP()
     {
         //if env has renderdoc return early
         if (Program.args.Any(a=>a=="skip_shader_compilation")||Environment.GetEnvironmentVariable("skip_shader_compilation") != null)

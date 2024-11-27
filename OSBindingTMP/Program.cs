@@ -21,9 +21,8 @@ static class Program
             //|MacBinding.NSWindowStyleMask.NSWindowStyleMaskClosable
             );
         var surface = MacBinding.window_create_surface(window);
-        //MacBinding.start_app(app);
         MacBinding.window_makeKeyAndOrderFront(window);
-
+    
         while (true)
         {
             MacBinding.pump_messages(&message_loop,true);

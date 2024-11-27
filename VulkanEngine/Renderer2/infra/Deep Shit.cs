@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Pastel;
 using Vortice.Vulkan;
@@ -70,6 +71,10 @@ public static partial class Infra
             desiredExtensionNames.Add(VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME);
             if (!availableExtensionNames.Contains(VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME))
                 throw new InvalidOperationException($"Required extension {VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME} is not available");
+            
+            desiredExtensionNames.Add(VK_EXT_LAYER_SETTINGS_EXTENSION_NAME);
+            if (!availableExtensionNames.Contains(VK_EXT_LAYER_SETTINGS_EXTENSION_NAME))
+                throw new InvalidOperationException($"Required extension {VK_EXT_LAYER_SETTINGS_EXTENSION_NAME} is not available");
 
             if (MIT.OS == OSType.Windows)
             {
@@ -137,6 +142,25 @@ public static partial class Infra
                         flags = MIT.OS==OSType.Mac?VkInstanceCreateFlags.EnumeratePortabilityKHR:VkInstanceCreateFlags.None ,
                         pNext = EnableValidationLayers?&a:default,
                     };
+                    #if MAC
+                    int val = 2;
+                    VkLayerSettingEXT setting =new()
+                    {
+                        pLayerName = (sbyte*) "MoltenVK"u8.GetPointer(),
+                        pSettingName = (sbyte*) "MVK_CONFIG_USE_METAL_ARGUMENT_BUFFERS"u8.GetPointer(),
+                        pValues = &val,
+                        type = VK_LAYER_SETTING_TYPE_INT32_EXT,
+                        valueCount = 1,
+                    };
+                    VkLayerSettingsCreateInfoEXT sci = new()
+                    {
+                        pNext = &a,
+                        pSettings = &setting,
+                        settingCount = 1,
+                    };
+                    
+                    instanceCreateInfo.pNext =&sci;
+                    #endif
 
                     vkCreateInstance(&instanceCreateInfo, null, out API.instance);
                     vkLoadInstance(API.instance);
@@ -223,4 +247,6 @@ public static partial class Infra
 //Debugger.Break();
         return Vulkan.VK_FALSE;
     }
+
+
 }
