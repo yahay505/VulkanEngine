@@ -33,6 +33,17 @@ struct mouse_event{
 #define ENTER 4
 #define EXIT 5
 
+#define WINDOW_EVENT 4
+struct window_event{
+    int64_t windowID;
+    int32_t event_type;
+    void* data;
+};
+#define RESIZE 1
+typedef struct{
+    uint32_t w,h;
+} resize_event_data_t;
+
 #define SCROLL_EVENT 3
 struct scroll_event{
     
@@ -47,6 +58,7 @@ struct InputEventStruct {
         struct keyboard_event keyboard;
         struct mouse_event mouse;
         struct scroll_event scroll;
+        struct window_event window;
         struct unknown_event unkown;
     } data;
 };

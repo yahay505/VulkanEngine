@@ -48,7 +48,7 @@ public static class API
         while (true)
         {
             funnyRenderer.Render(boot_window);
-            MacBinding.pump_messages(&message_loop, false);
+            MacBinding.pump_messages(&message_loop, true);
         }
         // while (true)WinAPI.pump_messages(true);
     }
@@ -77,8 +77,24 @@ public static class API
         
         return CreateWindowRaw();
     }
+
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    static unsafe void message_loop(InputEventStruct* input){}
+    static unsafe void message_loop(InputEventStruct* input)
+    {
+        switch (input->type)
+        {
+            case InputEventStruct.KEYBOARD_EVENT:
+                break;
+            case InputEventStruct.MOUSE_EVENT:
+                break;
+            case InputEventStruct.WINDOW_EVENT:
+                var data = *(InputEventStruct.WindowEvent.ResizeEvent*)input->window.data;
+                windows[input->window.windowID].size = new(data.w, data.h);
+                break;
+        }
+    }
+
+    public static Dictionary<long, EngineWindow> windows = new();
     public static unsafe EngineWindow CreateWindowRaw(
     )
     {
@@ -96,7 +112,7 @@ public static class API
                 MacBinding.NSWindowStyleMask.NSWindowStyleMaskTitled
                 | MacBinding.NSWindowStyleMask.NSWindowStyleMaskMiniaturizable
                 | MacBinding.NSWindowStyleMask.NSWindowStyleMaskResizable
-                //|MacBinding.NSWindowStyleMask.NSWindowStyleMaskClosable
+                |MacBinding.NSWindowStyleMask.NSWindowStyleMaskClosable
             );
             //MacBinding.set_transparent(window,1);
             var surface_ptr = MacBinding.window_create_surface(window);
@@ -112,6 +128,8 @@ public static class API
             vkCreateMetalSurfaceEXT(instance, &macOsSurfaceCreateInfoMvk, null, out var surface).Expect();
             
             raw.surface = surface;
+            windows.Add(((long) window.ptr)!,raw);
+            
             MacBinding.pump_messages(&message_loop,true);
 
             }
@@ -374,8 +392,100 @@ public static class API
     //     window.size = new VkExtent2D((uint)newsize.X, (uint)newsize.Y);
     //     return;
     // }
-    
 
+    public static unsafe void present(EngineWindow window,EngineImage src, VkCommandBuffer blit_cb,VkSemaphore waitSemaphore,VkFence signalfence,Action window_resized_callback)
+    {
+        int retryCount = 0;
+        window.presenterState = (window.presenterState + 1) % window.SwapChainImages.Length;
+        window.CleanupQueue[window.presenterState]();
+        window.CleanupQueue[window.presenterState] = () => {};
+        
+        acquire:
+        uint index=uint.MaxValue;
+        var rez = (window.SwapchainSize != window.size) ? VkResult.ErrorOutOfDateKHR:
+            vkAcquireNextImageKHR(device,window.swapChain,UInt64.MaxValue,window.AcqforblitSemaphores[window.presenterState],default, out index);
+        switch (rez)
+        {
+            case VkResult.Success:
+                break;
+            case VkResult.SuboptimalKHR:
+                fixed(VkSemaphore* aa=window.AcqforblitSemaphores)
+                {
+                    var semwaitinfo = new VkSemaphoreWaitInfo()
+                    {
+                        semaphoreCount = 1,
+                        pSemaphores = &aa[window.presenterState],
+                    };
+                    vkWaitSemaphores(device,&semwaitinfo,ulong.MaxValue);
+                }
+                var relinfo = new VkReleaseSwapchainImagesInfoEXT()
+                {
+                    swapchain = window.swapChain,
+                    imageIndexCount = 1,
+                    pImageIndices = &index,
+                };
+                vkReleaseSwapchainImagesEXT(device, &relinfo);
+                goto case VkResult.ErrorOutOfDateKHR;
+            case VkResult.ErrorOutOfDateKHR:
+                retryCount++;
+                if (retryCount>10)
+                    throw new Exception();
+                CreateSwapchain(window,window.swapChain);
+                window_resized_callback();
+
+                goto acquire;
+                
+            default: throw new Exception();
+        }
+        
+        vkBeginCommandBuffer(blit_cb, VkCommandBufferUsageFlags.OneTimeSubmit);
+        
+        var windowSwapChainImage = window.SwapChainImages[index];
+
+        TransitionImageLayout(blit_cb, windowSwapChainImage, VkImageLayout.General, 0, 1);
+        VkClearColorValue a = new(1f, 1f, 1f, 1f);
+        VkImageSubresourceRange b = new()
+        {
+            aspectMask = VkImageAspectFlags.Color,
+            layerCount = 1,
+            levelCount = 1,
+            baseArrayLayer = 0,
+            baseMipLevel = 0,
+        };
+        vkCmdClearColorImage(blit_cb,windowSwapChainImage.deviceImage,VkImageLayout.General,&a,1,&b);
+        TransitionImageLayout(blit_cb, windowSwapChainImage, VkImageLayout.TransferDstOptimal, 0, 1);
+        var blit = new VkImageBlit()
+        {
+            srcSubresource = new VkImageSubresourceLayers(VkImageAspectFlags.Color, 0, 0, 1),
+            dstSubresource = new VkImageSubresourceLayers(VkImageAspectFlags.Color, 0, 0, 1),
+        };
+        blit.dstOffsets[0] = new(0, 0, 0);
+        blit.dstOffsets[1] = new((int) window.SwapchainSize.width, (int) window.SwapchainSize.height, 1);
+        blit.srcOffsets[0] = new(0, 0, 0);
+        blit.srcOffsets[1] = new((int) src.width,(int) src.height,1);
+
+        vkCmdBlitImage(blit_cb,src.deviceImage,src.layout[0],windowSwapChainImage.deviceImage,windowSwapChainImage.layout[0],1,&blit,VkFilter.Nearest);
+        TransitionImageLayout(blit_cb, windowSwapChainImage, VkImageLayout.PresentSrcKHR, 0, 1);
+
+        vkEndCommandBuffer(blit_cb);
+
+        var vkPipelineStageFlags = VkPipelineStageFlags.AllCommands;
+        var waits = stackalloc VkSemaphore[] {waitSemaphore,window.AcqforblitSemaphores[window.presenterState] };
+        var signal = window.ReadyToPresentToSwapchainSemaphores[index];
+        var blitSub = new VkSubmitInfo()
+        {
+            commandBufferCount = 1,
+            pCommandBuffers = &blit_cb,
+            signalSemaphoreCount = 1,
+            pSignalSemaphores = &signal,
+            waitSemaphoreCount = 2,
+            pWaitSemaphores = waits,
+            pWaitDstStageMask = &vkPipelineStageFlags
+        };
+        vkQueueSubmit(graphicsQueue, blitSub, signalfence);
+
+        vkQueuePresentKHR(graphicsQueue, signal, window.swapChain, index);
+    }
 
     #endregion
 
@@ -700,7 +810,7 @@ public static unsafe (DefaultVertex[] vertices,uint[] indices,float4x4 transform
         get
         {
             if (_RPath != null) return _RPath;
-            var f=System.IO.Directory.GetParent(Assembly.GetExecutingAssembly().Location);
+            var f=Directory.GetParent(Assembly.GetExecutingAssembly().Location);
             while (f.GetDirectories("Assets").Length==0)
             {
                 f=f.Parent!;
@@ -1112,10 +1222,7 @@ public class EngineWindow
     public VkSurfaceFormatKHR surfaceFormat;
     public VkPresentModeKHR presentMode;
 
-    // window depth image
-    public EngineImage depthImage;
 
-    public EngineImage[] extraImages;
     public bool swapchainImagesShared;
     
     public NSWindow macwindow;

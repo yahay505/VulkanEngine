@@ -12,14 +12,15 @@
 #import "InputEventStruct.h"
 #import "eventParser.h"
 
+void (*_consumer)(void*);
 
 @interface CustomWindow : NSWindow
 @end
 @implementation CustomWindow
 // Empty implementations here so that the window doesn't complain when the events aren't handled or passed on to its view.
 // i.e. A traditional Cocoa app expects to pass events on to its view(s).
-- (void)keyDown:(NSEvent *)theEvent {}
-- (void)keyUp:(NSEvent *)theEvent {}
+//- (void)keyDown:(NSEvent *)theEvent {}
+//- (void)keyUp:(NSEvent *)theEvent {}
 
 - (BOOL)acceptsFirstResponder { return YES; }
 - (BOOL)canBecomeKeyWindow { return YES; }
@@ -38,7 +39,34 @@
     
 }*/
 @end
+@interface AppDelegate:NSObject <NSApplicationDelegate,NSWindowDelegate>
+@property NSWindow *window;
+@end
+@implementation AppDelegate
 
+-(NSSize)windowWillResize:(NSWindow *)sender toSize:(NSSize)frameSize{
+    // Update the content view and Metal layer's frame
+      CGRect newFrame = CGRectMake(0, 0, frameSize.width, frameSize.height);
+      [self.window.contentView setFrame:newFrame];
+
+      CAMetalLayer *metalLayer = (CAMetalLayer *)self.window.contentView.layer;
+      if (metalLayer) {
+          metalLayer.frame = newFrame;
+          metalLayer.drawableSize = CGSizeMake(frameSize.width * self.window.backingScaleFactor,
+                                               frameSize.height * self.window.backingScaleFactor);
+      }
+    resize_event_data_t a ={frameSize.width* self.window.backingScaleFactor,frameSize.height* self.window.backingScaleFactor};
+    struct window_event b={(size_t)(__bridge void*)self.window,RESIZE,&a};
+    struct InputEventStruct ev = {WINDOW_EVENT,0};
+    ev.data.window=b;
+    _consumer(&ev);
+    return frameSize;
+}
+-(void)windowWillClose:(NSNotification *)notification{
+    
+}
+
+@end
 extern void window_set_title(NSWindow * window, const char* title){
     [window setTitle:[NSString stringWithUTF8String:title]];
 }
@@ -59,6 +87,9 @@ extern NSWindow* open_window(const char* title, int width, int height, int x, in
                                          defer:NO];
     [window setTitle:[NSString stringWithUTF8String:title]];
     [window setAcceptsMouseMovedEvents:YES];
+    AppDelegate *del = [[AppDelegate alloc] init];
+    del.window=window;
+    [window setDelegate:del];
 
     return window;
 }
@@ -67,18 +98,16 @@ extern void* window_create_surface(NSWindow * window){
     CAMetalLayer *metalLayer = [CAMetalLayer layer];
     metalLayer.device = MTLCreateSystemDefaultDevice();
     metalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
-
-    metalLayer.opaque=false;
     metalLayer.framebufferOnly = YES;
+    metalLayer.opaque = NO;
+    metalLayer.autoresizingMask = kCALayerWidthSizable | kCALayerHeightSizable;
+    metalLayer.contentsScale = [NSScreen mainScreen].backingScaleFactor;
 
-    //get window size
-    NSRect frame = [window frame];
-    metalLayer.frame = frame;
-    
-    // Add the Metal layer to the window's content view
-    [window.contentView setLayer:metalLayer];
-    [window.contentView setWantsLayer:YES];
-    return (__bridge void*)(metalLayer);
+    // Attach the Metal layer to the window
+    window.contentView.wantsLayer = YES;
+    window.contentView.layer = metalLayer;
+
+    return (__bridge void*)metalLayer;
     }
 
 
@@ -102,13 +131,12 @@ extern MyApp* create_application(void){
     
     MyApp* a = [MyApp sharedApplication];
     [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
-
     
     [NSApp setPresentationOptions:NSApplicationPresentationDefault];
     [NSApp activateIgnoringOtherApps:YES];
 
-    //AppDelegate* appDelegate = [[AppDelegate alloc] init];
-    //[NSApp setDelegate:appDelegate];
+    AppDelegate* appDelegate = [[AppDelegate alloc] init];
+    [NSApp setDelegate:appDelegate];
     [NSApp run];
     [NSApp finishLaunching];
 
@@ -119,7 +147,7 @@ extern MyApp* create_application(void){
 }
 
 
-void pump_messages(void consumer(void*), bool wait_for_message) {
+void pump_messages(void (*consumer)(void*), bool wait_for_message) {
     @autoreleasepool {
         NSEvent* ev;
         do {
@@ -131,6 +159,7 @@ void pump_messages(void consumer(void*), bool wait_for_message) {
             if (ev) {
                 // handle events here
                 //NSLog([ev debugDescription]);
+                _consumer=consumer;
                 [NSApp sendEvent:ev];
                 [NSApp updateWindows];
                 struct InputEventStruct data = parse_event(ev);
@@ -149,16 +178,19 @@ void pump_messages(void consumer(void*), bool wait_for_message) {
         
     }
 }
-void fake_consumer(void* a){}
+void fake_consumer(void* a){
+    
+    NSLog(@"%i",((struct InputEventStruct*)a)->type);
+
+}
 int main(int argc, const char * argv[]) {
 
     MyApp* app = create_application();
-    NSWindow* win = open_window("asasa", 800, 600, 0, 0, 0);
+    NSWindow* win = open_window("asasa", 800, 800, 0,0,NSWindowStyleMaskTitled|NSWindowStyleMaskResizable|NSWindowStyleMaskClosable);
     window_create_surface(win);
     
     start_app(app);
-    [win makeKeyAndOrderFront:nil];
-
+    window_makeKeyAndOrderFront(win);
     while(1){
         pump_messages(&fake_consumer,true);
         //NSLog(@"events finished");

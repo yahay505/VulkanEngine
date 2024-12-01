@@ -31,8 +31,6 @@
 		D7AE508E2BE376B900DE72DC /* eventParser.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = eventParser.h; sourceTree = "<group>"; };
 		D7AE508F2BE376D300DE72DC /* eventParser.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = eventParser.m; sourceTree = "<group>"; };
 		D7DC48702BDD4FE200C1502A /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
-		D7FCAF512BD448450061582D /* Window.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Window.h; sourceTree = "<group>"; };
-		D7FCAF522BD448590061582D /* Window.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Window.m; sourceTree = "<group>"; };
 		D7FCAF572BD448D90061582D /* a */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = a; sourceTree = BUILT_PRODUCTS_DIR; };
 		D7FCAF5A2BD448D90061582D /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -51,8 +49,6 @@
 		D7FCAF4A2BD448240061582D = {
 			isa = PBXGroup;
 			children = (
-				D7FCAF522BD448590061582D /* Window.m */,
-				D7FCAF512BD448450061582D /* Window.h */,
 				D7FCAF592BD448D90061582D /* a */,
 				D7FCAF582BD448D90061582D /* Products */,
 			);

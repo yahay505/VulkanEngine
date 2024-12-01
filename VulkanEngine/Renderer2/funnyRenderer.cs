@@ -13,8 +13,10 @@ public static class funnyRenderer
     // private static VkSemaphore sempahore;
     private static VkSemaphore[] renderSemaphores;
     private static VkFence[] fences;
-    private static EngineImage target;
-    private static VkFramebuffer fb;
+    private static EngineImage[] targets = new EngineImage[INFLIGHT_FRAME];
+    private static EngineImage[] depthImages=new EngineImage[INFLIGHT_FRAME];
+
+    private static VkFramebuffer[] fbs= new VkFramebuffer[INFLIGHT_FRAME];
     private static VkPipelineLayout pipelineLayout;
     private static VkRenderPass renderpass;
     private static VkCommandPool tpm;
@@ -27,20 +29,26 @@ public static class funnyRenderer
     {
         vkCreateCommandPool(API.device, VkCommandPoolCreateFlags.None, API.chosenDevice.indices.graphicsFamily!.Value,
             out tpm);
-        target = API.CreateImage(window.size.width, window.size.height, VkFormat.R8G8B8A8Srgb, VkImageTiling.Optimal,
-            VkImageUsageFlags.ColorAttachment|VkImageUsageFlags.TransferSrc, VkMemoryPropertyFlags.DeviceLocal, false, VkImageCreateFlags.None,
-            VkImageAspectFlags.Color);
-        API.AllocateDeviceResourcesForImage(target);
-        window.depthImage = API.CreateImage(window.size.width, window.size.height, API.FindDepthFormat(),
-            VkImageTiling.Optimal, VkImageUsageFlags.DepthStencilAttachment, VkMemoryPropertyFlags.DeviceLocal, false,
-            VkImageCreateFlags.None, API.HasStencilComponent(API.FindDepthFormat())?VkImageAspectFlags.Stencil | VkImageAspectFlags.Depth: VkImageAspectFlags.Depth);
-        API.AllocateDeviceResourcesForImage(window.depthImage);
+        for (int i = 0; i < INFLIGHT_FRAME; i++)
+        {
+            targets[i] = API.CreateImage(window.size.width, window.size.height, VkFormat.R8G8B8A8Srgb, VkImageTiling.Optimal,
+                VkImageUsageFlags.ColorAttachment|VkImageUsageFlags.TransferSrc, VkMemoryPropertyFlags.DeviceLocal, false, VkImageCreateFlags.None,
+                VkImageAspectFlags.Color);
+            API.AllocateDeviceResourcesForImage(targets[i]);
+            depthImages[i] = API.CreateImage(window.size.width, window.size.height, API.FindDepthFormat(),
+                VkImageTiling.Optimal, VkImageUsageFlags.DepthStencilAttachment, VkMemoryPropertyFlags.DeviceLocal, false,
+                VkImageCreateFlags.None, API.HasStencilComponent(API.FindDepthFormat())?VkImageAspectFlags.Stencil | VkImageAspectFlags.Depth: VkImageAspectFlags.Depth);
+            API.AllocateDeviceResourcesForImage(depthImages[i]);
+
+        }
+        ref var target = ref targets[0];
+
         renderpass = API.CreateRenderPass([
                 new(target.imageFormat, VkSampleCountFlags.Count1, VkAttachmentLoadOp.Clear,
                     VkAttachmentStoreOp.Store,
                     VkAttachmentLoadOp.Clear, VkAttachmentStoreOp.Store, VkImageLayout.TransferSrcOptimal,
                     VkImageLayout.TransferSrcOptimal),
-                new(window.depthImage.imageFormat, VkSampleCountFlags.Count1, VkAttachmentLoadOp.Clear,
+                new(depthImages[0].imageFormat, VkSampleCountFlags.Count1, VkAttachmentLoadOp.Clear,
                     VkAttachmentStoreOp.Store, VkAttachmentLoadOp.Clear, VkAttachmentStoreOp.Store,
                     VkImageLayout.DepthStencilAttachmentOptimal, VkImageLayout.DepthStencilAttachmentOptimal)
             ],
@@ -136,7 +144,9 @@ public static class funnyRenderer
         fences = new VkFence[INFLIGHT_FRAME];
         for (int i = 0; i < INFLIGHT_FRAME; i++)
             vkCreateFence(API.device,VkFenceCreateFlags.Signaled, out fences[i]);
-        fb = API.CreateFrameBuffer(target.width,target.height,[target.view,window.depthImage.view],renderpass);
+        for (int i = 0; i < INFLIGHT_FRAME; i++)
+            fbs[i]=API.CreateFrameBuffer(target.width,target.height,[targets[i].view,depthImages[i].view],renderpass);
+
       
         API.CreateBuffer(50,VkBufferUsageFlags.VertexBuffer,VkMemoryPropertyFlags.None, out buff,out memory);
 
@@ -144,13 +154,15 @@ public static class funnyRenderer
 
     public static unsafe void Render(EngineWindow window)
     {
-        vkWaitForFences(API.device, fences[frameNo % INFLIGHT_FRAME], true, ulong.MaxValue);
-        vkResetFences(API.device, fences[frameNo % INFLIGHT_FRAME]);
+        var target_index = frameNo % INFLIGHT_FRAME;
+        vkWaitForFences(API.device, fences[target_index], true, ulong.MaxValue);
+        vkResetFences(API.device, fences[target_index]);
+        ref var target = ref targets[target_index];
         VkCommandBuffer cb;
         vkAllocateCommandBuffer(API.device, tpm, VkCommandBufferLevel.Primary, out cb);//tmp
         vkBeginCommandBuffer(cb, VkCommandBufferUsageFlags.None);
-        if (window.depthImage.layout[0] != VkImageLayout.DepthStencilAttachmentOptimal)
-            API.TransitionImageLayout(cb, window.depthImage, VkImageLayout.DepthStencilAttachmentOptimal, 0, 1);
+        if (depthImages[target_index].layout[0] != VkImageLayout.DepthStencilAttachmentOptimal)
+            API.TransitionImageLayout(cb, depthImages[target_index], VkImageLayout.DepthStencilAttachmentOptimal, 0, 1);
         if (target.layout[0] != VkImageLayout.TransferSrcOptimal)
             API.TransitionImageLayout(cb, target, VkImageLayout.TransferSrcOptimal, 0, 1);
         
@@ -159,10 +171,12 @@ public static class funnyRenderer
         {
             renderPass = renderpass,
             clearValueCount = 2,
-            framebuffer = fb,
+            framebuffer = fbs[target_index],
             pClearValues = clears,
             renderArea = new(target.width,target.height)
         };
+        if (target.width != window.size.width || target.height != window.size.height)
+            ;
         vkCmdBeginRenderPass(cb,&passInfo,VkSubpassContents.Inline);
 
         vkCmdBindPipeline(cb,VkPipelineBindPoint.Graphics,pipeline);
@@ -175,112 +189,44 @@ public static class funnyRenderer
         vkCmdEndRenderPass(cb);
 
         vkEndCommandBuffer(cb);
-        var ss = renderSemaphores[frameNo % INFLIGHT_FRAME];
+        var ss = renderSemaphores[target_index];
         vkQueueSubmit(API.graphicsQueue,
             new VkSubmitInfo()
                 {commandBufferCount = 1, pCommandBuffers = &cb, signalSemaphoreCount = 1, pSignalSemaphores = &ss},
             default);
         
-        
-        present(window, ss,default);
-    }
-
-    private static unsafe void present(EngineWindow window, VkSemaphore waitSemaphore,VkFence signalfence)
-    {
-        int retryCount = 0;
-        window.presenterState = (window.presenterState + 1) % window.SwapChainImages.Length;
-        window.CleanupQueue[window.presenterState]();
-        window.CleanupQueue[window.presenterState] = () => {};
-        acquire: var rez = vkAcquireNextImageKHR(API.device,window.swapChain,UInt64.MaxValue,window.AcqforblitSemaphores[window.presenterState],default, out var index);
-        switch (rez)
+        vkAllocateCommandBuffer(API.device, tpm, VkCommandBufferLevel.Primary, out var buf);
+        API.present(window,targets[target_index],buf, ss,fences[target_index], () =>
         {
-            case VkResult.Success:
-                break;
-            case VkResult.SuboptimalKHR:
-                fixed(VkSemaphore* aa=window.AcqforblitSemaphores)
-                {
-                    var semwaitinfo = new VkSemaphoreWaitInfo()
-                    {
-                        semaphoreCount = 1,
-                        pSemaphores = &aa[window.presenterState],
-                    };
-                    vkWaitSemaphores(API.device,&semwaitinfo,ulong.MaxValue);
-                }
-                var relinfo = new VkReleaseSwapchainImagesInfoEXT()
-                {
-                    swapchain = window.swapChain,
-                    imageIndexCount = 1,
-                    pImageIndices = &index,
-                };
-                vkReleaseSwapchainImagesEXT(API.device, &relinfo);
-                goto case VkResult.ErrorOutOfDateKHR;
-            case VkResult.ErrorOutOfDateKHR:
-                retryCount++;
-                if (retryCount>10)
-                    throw new Exception();
-                API. CreateSwapchain(window,window.swapChain);
-                goto acquire;
-                
-            default: throw new Exception();
-        }
+            for (int i = 0; i < INFLIGHT_FRAME; i++)
+            {
+                var delcopy = targets[i];
+                window.CleanupQueue[window.presenterState] += () => API.DestroyImage(delcopy);
+                var delcopyD = depthImages[i];
+                window.CleanupQueue[window.presenterState] += () => API.DestroyImage(delcopyD);
 
-        VkCommandBuffer blit_cb = default;
-        vkAllocateCommandBuffer(API.device, tpm, VkCommandBufferLevel.Primary, out blit_cb);//tmp
+                targets[i] = API.CreateImage(window.size.width, window.size.height, VkFormat.R8G8B8A8Srgb,
+                    VkImageTiling.Optimal,
+                    VkImageUsageFlags.ColorAttachment | VkImageUsageFlags.TransferSrc,
+                    VkMemoryPropertyFlags.DeviceLocal, false, VkImageCreateFlags.None,
+                    VkImageAspectFlags.Color);
+                API.AllocateDeviceResourcesForImage(targets[i]);
+                depthImages[i] = API.CreateImage(window.size.width, window.size.height, API.FindDepthFormat(),
+                    VkImageTiling.Optimal, VkImageUsageFlags.DepthStencilAttachment, VkMemoryPropertyFlags.DeviceLocal,
+                    false,
+                    VkImageCreateFlags.None,
+                    API.HasStencilComponent(API.FindDepthFormat())
+                        ? VkImageAspectFlags.Stencil | VkImageAspectFlags.Depth
+                        : VkImageAspectFlags.Depth);
+                API.AllocateDeviceResourcesForImage(depthImages[i]);
+                var delcopy_fb = fbs[i];
+                window.CleanupQueue[window.presenterState] += () => vkDestroyFramebuffer(API.device, delcopy_fb);
+                fbs[i]=API.CreateFrameBuffer(targets[i].width,targets[i].height,[targets[i].view,depthImages[i].view],renderpass);
 
-        vkBeginCommandBuffer(blit_cb, VkCommandBufferUsageFlags.OneTimeSubmit);
-        
-        var windowSwapChainImage = window.SwapChainImages[index];
-        var bb = new VkImageCopy();
-        
-        bb.srcOffset=new(0,0,0);
-        bb.dstOffset=new(0,0,0);
-  
-        bb.extent=new((int) window.size.width,(int) window.size.height,1);
-        bb.srcSubresource = new(VkImageAspectFlags.Color, 0, 0, 1);
-        bb.dstSubresource = new(VkImageAspectFlags.Color, 0, 0, 1);
-        API.TransitionImageLayout(blit_cb, windowSwapChainImage, VkImageLayout.General, 0, 1);
-        VkClearColorValue a = new(1f, 1f, 1f, 1f);
-        VkImageSubresourceRange b = new()
-        {
-            aspectMask = VkImageAspectFlags.Color,
-            layerCount = 1,
-            levelCount = 1,
-            baseArrayLayer = 0,
-            baseMipLevel = 0,
-        };
-        vkCmdClearColorImage(blit_cb,windowSwapChainImage.deviceImage,VkImageLayout.General,&a,1,&b);
-        API.TransitionImageLayout(blit_cb, windowSwapChainImage, VkImageLayout.TransferDstOptimal, 0, 1);
-        var blit = new VkImageBlit()
-        {
-            srcSubresource = new VkImageSubresourceLayers(VkImageAspectFlags.Color, 0, 0, 1),
-            dstSubresource = new VkImageSubresourceLayers(VkImageAspectFlags.Color, 0, 0, 1),
-        };
-        blit.dstOffsets[0] = new(0, 0, 0);
-        blit.dstOffsets[1] = new((int) target.width, (int) target.height, 1);
-        blit.srcOffsets[0] = new(0, 0, 0);
-        blit.srcOffsets[1] = new((int) target.width, (int) target.height, 1);
-        vkCmdBlitImage(blit_cb,target.deviceImage,target.layout[0],windowSwapChainImage.deviceImage,windowSwapChainImage.layout[0],1,&blit,VkFilter.Nearest);
-        // vkCmdCopyImage(blit_cb,target.deviceImage,target.layout[0],windowSwapChainImage.deviceImage,windowSwapChainImage.layout[0],1,&bb);
-        API.TransitionImageLayout(blit_cb, windowSwapChainImage, VkImageLayout.PresentSrcKHR, 0, 1);
-
-        vkEndCommandBuffer(blit_cb);
-
-        var vkPipelineStageFlags = VkPipelineStageFlags.AllCommands;
-        var waits = stackalloc VkSemaphore[] {waitSemaphore,window.AcqforblitSemaphores[window.presenterState] };
-        var signal = window.ReadyToPresentToSwapchainSemaphores[index];
-        var blitSub = new VkSubmitInfo()
-        {
-            commandBufferCount = 1,
-            pCommandBuffers = &blit_cb,
-            signalSemaphoreCount = 1,
-            pSignalSemaphores = &signal,
-            waitSemaphoreCount = 2,
-            pWaitSemaphores = waits,
-            pWaitDstStageMask = &vkPipelineStageFlags
-        };
-        vkQueueSubmit(API.graphicsQueue, blitSub, default);
-
-        vkQueuePresentKHR(API.graphicsQueue, signal, window.swapChain, index);
+            }
+        });
         frameNo++;
     }
+
+
 }
