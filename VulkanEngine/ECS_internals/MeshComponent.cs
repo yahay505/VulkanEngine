@@ -1,6 +1,7 @@
 ﻿using System.Runtime.CompilerServices;
 using VulkanEngine.ECS_internals;
 using VulkanEngine.ECS_internals.Resources;
+using VulkanEngine.Renderer2;
 
 namespace VulkanEngine.Renderer.ECS;
 

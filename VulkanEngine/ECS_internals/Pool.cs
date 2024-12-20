@@ -64,7 +64,7 @@ ComponentList
     }
     public Pool(Memory<byte> bundle)
     {
-        throw new NotImplementedException();
+        // throw new NotImplementedException();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

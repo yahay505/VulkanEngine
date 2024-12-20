@@ -24,17 +24,7 @@ struct ComputeMeshInput {
 // 128 bytes
 struct ComputeDrawOutput {
     VkDrawIndexedIndirectCommand command; // 20 bytes
-    uint materialID; // 4 bytes
-    int padding[10]; // 40 bytes
+    int padding[3]; // 12 bytes
+    int MaterialData[8]; // 32 bytes
     mat4 model; // 64 bytes
-};
-// 64 bytes
-struct ComputeInputConfig {
-    uint objectCount;
-    uint[15] padding;
-};
-// 64 bytes
-struct ComputeOutputConfig {
-    uint objectCount;
-    uint[15] padding;
 };

@@ -74,11 +74,12 @@ public struct Transform_ref:Iinterface
     }
     public float4x4 CreateSRTMatrix()
     {
-        return
-            (((
-                  Matrix4X4.CreateScale(local_scale)) *
-              Matrix4X4.CreateFromQuaternion(local_rotation)) *
-             Matrix4X4.CreateTranslation(local_position));
+        var a = float4x4.Identity;
+        a *= Matrix4X4.CreateScale(local_scale);
+        a *= Matrix4X4.CreateFromQuaternion(local_rotation);
+        a *= Matrix4X4.CreateTranslation(local_position);
+        return a;
+
     }
     public float3 local_position
     {
@@ -113,7 +114,7 @@ public struct Transform_ref:Iinterface
         {
             if (parent.id!=-1)
             {
-                return parent.CreateSRTMatrix() * CreateSRTMatrix();
+                return CreateSRTMatrix() * parent.CreateSRTMatrix();
             }
             return CreateSRTMatrix();
         }

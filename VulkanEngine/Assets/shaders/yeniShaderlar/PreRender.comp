@@ -1,0 +1,93 @@
+#version 450
+#include "common.glsl"
+
+layout (local_size_x = 128) in;
+
+layout(push_constant, std430) uniform pc{
+    uint objectCount;
+};
+layout(set = 0, binding = 1) readonly buffer inputs
+{
+    ComputeMeshInput [] inputs;
+};
+
+layout(set = 0, binding = 2) buffer AtomicIndirectCounters{
+    uvec3 skiningDispatchIndirectSize;
+    uint drawIndirectSize;
+};
+layout(set = 0, binding = 3) buffer IndirectDraw{
+    VkDrawIndexedIndirectCommand indirectDraw[];
+};
+struct DrawData{
+    uint data[4];
+};
+layout(set = 0, binding = 4) buffer IndirectDrawData{
+    DrawData indirectDraw[];
+};
+struct SkinData{
+    uint data[4];
+};
+layout(set = 0, binding = 7) buffer IndirectDispatchData{
+    SkinData skinData[];
+};
+layout(set = 0, binding = 8) readonly buffer  MeshDB{
+    MeshInfo meshes[];
+};
+struct matData{
+    uint data[8];
+};
+layout(set=0,binding=6) readonly buffer matBuf{
+    matData Material[];
+};
+void Poll(){
+    
+}
+void main()
+{
+    //grab global ID
+    uint gID = gl_GlobalInvocationID.x;
+    //make sure we don't access past the buffer size
+    if(gID < sourceData.config.objectCount)
+    {
+        uint meshID = sourceData.inputs[gID].meshID;
+//        uint meshID = 0;
+        
+        bool visible = true;
+
+//        frustrum culling
+//        visible = visible && center.z * cullData.frustum[1] - abs(center.x) * cullData.frustum[0] > -radius;
+//        visible = visible && center.z * cullData.frustum[3] - abs(center.y) * cullData.frustum[2] > -radius;
+
+        uint index = atomicAdd(outputData.config.objectCount, 1);
+//        uint index = 0;
+        // do math
+//        outputData.data[index].materialID = sourceData.inputs[gID].materialID;
+        outputData.data[index].model = sourceData.inputs[gID].transform;
+//        outputData.data[index].model = mat4(1.0);
+        outputData.data[index].command.indexCount = meshDB.meshes[meshID].IBOsize;
+        outputData.data[index].command.instanceCount = 1;
+        outputData.data[index].command.firstIndex = meshDB.meshes[meshID].IBOoffset;
+        outputData.data[index].command.vertexOffset = meshDB.meshes[meshID].vertexLoadOffset;
+        outputData.data[index].command.firstInstance = index;
+//        outputData.data[index].command.
+        outputData.data[index].padding[0]=1;
+        outputData.data[index].padding[1]=2;
+        outputData.data[index].padding[2]=3;
+        uint matID = sourceData.inputs[gID].materialID;
+        outputData.data[index].MaterialData[0]=mats[matID].Material[0];
+        outputData.data[index].MaterialData[1]=mats[matID].Material[1];
+        outputData.data[index].MaterialData[2]=mats[matID].Material[2];
+        outputData.data[index].MaterialData[3]=mats[matID].Material[3];
+        outputData.data[index].MaterialData[4]=mats[matID].Material[4];
+        outputData.data[index].MaterialData[5]=mats[matID].Material[5];
+        outputData.data[index].MaterialData[6]=mats[matID].Material[6];
+        outputData.data[index].MaterialData[7]=mats[matID].Material[7];
+        
+        
+        
+    }
+    else
+    {
+        return;
+    }
+}

@@ -1,5 +1,3 @@
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using VulkanEngine.ECS_internals.Resources;
 
 namespace VulkanEngine.ECS_internals;
@@ -270,8 +268,7 @@ public static class Scheduler
         
     }
     static void TMPSYNCPOINT()
-    {
-
+   {
     }
 }
 
